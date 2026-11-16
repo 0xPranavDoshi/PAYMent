@@ -85,7 +85,7 @@ A call earns points equal to what one $1 contract would have made if bought at t
 ```
 
 ```math
-\text{score} = \operatorname{round}\left(50 + 50 \tanh\left(\frac{\text{skill}}{0.15}\right)\right)
+\text{score} = \mathrm{round}\left(50 + 50 \tanh\left(\frac{\text{skill}}{0.15}\right)\right)
 ```
 
 - A winning pick on a 0.85 favourite earns +0.15, and a winning pick on a 0.35 underdog earns +0.65. A losing pick on a 0.85 favourite costs −0.85.
