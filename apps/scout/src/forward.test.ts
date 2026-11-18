@@ -1,0 +1,190 @@
+import { NewPost, type PickMatch } from "@copayme/shared";
+import { describe, expect, it, vi } from "vitest";
+import { createForwarder, noopForwarder } from "./forward.js";
+import type { GeminiClient } from "./gemini/client.js";
+import type { GeminiEvent } from "./gemini/types.js";
+import { PIPELINE_VERSION, createMemoryStore, type ScoutPostRow } from "./store.js";
+
+const GAME = "G-M";
+const START = "2026-11-19T02:00:00.000Z";
+
+const winEvent: GeminiEvent = {
+  id: "100",
+  ticker: GAME,
+  title: "Lakers vs Hornets",
+  status: "active",
+  startTime: START,
+  sportsMarket: { sport: "basketball" },
+  contracts: [
+    { instrumentSymbol: "S-LAL", label: "Lakers", marketState: "open", prices: { buy: { yes: "0.6" }, bestAsk: "0.61" } },
+    { instrumentSymbol: "S-CHA", label: "Hornets", marketState: "open", prices: { buy: { yes: "1.4" } } },
+  ],
+};
+const spread: GeminiEvent = {
+  id: "200",
+  ticker: "G-S",
+  title: "Spread",
+  status: "settled",
+  startTime: START,
+  subcategory: { name: "NBA" },
+  contracts: [
+    { instrumentSymbol: "S-1", label: "Lakers by 2", marketState: "closed", resolutionSide: "yes", resolvedAt: "2026-11-19T05:00:00.000Z", prices: {} },
+    { instrumentSymbol: "S-2", label: "Lakers by 9", marketState: "closed", resolutionSide: "no", prices: {} },
+    { instrumentSymbol: "S-3", label: "Lakers by 20", marketState: "closed", prices: {} },
+  ],
+};
+
+const gemini = (events: GeminiEvent[]): GeminiClient =>
+  ({
+    searchEvents: vi.fn(),
+    getEvent: vi.fn(async (t: string) => {
+      const e = events.find((x) => x.ticker === t);
+      if (!e) throw new Error("nope");
+      return e;
+    }),
+  }) as unknown as GeminiClient;
+
+const match = (o: Partial<PickMatch>): PickMatch => ({
+  predictionIndex: 0,
+  status: "matched",
+  reason: "matched",
+  geminiEventTicker: GAME,
+  gameTicker: GAME,
+  instrumentSymbol: "S-LAL",
+  contractLabel: "Lakers",
+  side: "yes",
+  gameStartTime: START,
+  marketStatus: "open",
+  resolutionSide: null,
+  ...o,
+});
+
+const post = (id: string, matches: PickMatch[]): ScoutPostRow => ({
+  tweetId: id,
+  handle: "bob",
+  xUserId: "u1",
+  tweetedAt: new Date("2026-11-18T12:00:00.000Z"),
+  text: "lakers lock",
+  isReply: false,
+  quotedText: null,
+  sentiment: null,
+  matches,
+  pipelineVersion: PIPELINE_VERSION,
+  forwardedAt: null,
+});
+
+function setup(events: GeminiEvent[], res: { ok: boolean } | Error = { ok: true }) {
+  const store = createMemoryStore();
+  const fetchFn = vi.fn(async () => {
+    if (res instanceof Error) throw res;
+    return res as Response;
+  });
+  const forwarder = createForwarder({
+    url: "http://ingest",
+    serviceKey: "k",
+    store,
+    gemini: gemini(events),
+    fetch: fetchFn as unknown as typeof fetch,
+  });
+  const body = () => JSON.parse((fetchFn.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+  return { store, fetchFn, forwarder, body };
+}
+
+describe("createForwarder", () => {
+  it("posts valid NewPosts with the bearer key and a YES pick", async () => {
+    const { forwarder, fetchFn, body } = setup([winEvent]);
+    const ids = await forwarder.forward([post("1", [match({})])], "bob");
+    expect(ids).toEqual(["1"]);
+    const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("http://ingest/v1/posts");
+    expect(init.method).toBe("POST");
+    expect(init.headers).toEqual({ "content-type": "application/json", authorization: "Bearer k" });
+    const posts = body().posts;
+    expect(posts).toHaveLength(1);
+    expect(NewPost.parse(posts[0])).toMatchObject({
+      tweetId: "1",
+      xHandle: "bob",
+      geminiMarketId: "100",
+      pickedOutcome: "Lakers",
+    });
+  });
+
+  it("sends a win NO pick on a 2-contract event as the other label", async () => {
+    const { forwarder, body } = setup([winEvent]);
+    await forwarder.forward([post("1", [match({ side: "no" })])], "bob");
+    expect(body().posts[0].pickedOutcome).toBe("Hornets");
+  });
+
+  it("skips other NO picks and uses the first forwardable pick", async () => {
+    const { forwarder, body } = setup([winEvent, spread]);
+    const noSpread = match({ geminiEventTicker: "G-S", side: "no", contractLabel: "Lakers by 9" });
+    const ids = await forwarder.forward(
+      [post("1", [noSpread, match({ predictionIndex: 1 })]), post("2", [noSpread])],
+      "bob",
+    );
+    expect(ids).toEqual(["1"]);
+    expect(body().posts).toHaveLength(1);
+    expect(body().posts[0].pickedOutcome).toBe("Lakers");
+  });
+
+  it("upserts the market with the mapped fields", async () => {
+    const { forwarder, store } = setup([winEvent, spread]);
+    await forwarder.forward(
+      [post("1", [match({}), match({ geminiEventTicker: "G-S", side: "yes", contractLabel: "Lakers by 2" })])],
+      "bob",
+    );
+    expect(store.markets.get("100")).toEqual({
+      geminiMarketId: "100",
+      sport: "basketball",
+      eventName: "Lakers vs Hornets",
+      outcomes: [
+        { label: "Lakers", instrumentSymbol: "S-LAL", currentOdds: 0.6 },
+        { label: "Hornets", instrumentSymbol: "S-CHA", currentOdds: 1 },
+      ],
+      lockTime: new Date(START),
+      status: "open",
+      winningOutcome: null,
+      resolvedAt: null,
+    });
+  });
+
+  it("maps a settled event to resolved with the winning label", async () => {
+    const { forwarder, store } = setup([spread]);
+    await forwarder.forward(
+      [post("1", [match({ geminiEventTicker: "G-S", side: "yes", contractLabel: "Lakers by 2" })])],
+      "bob",
+    );
+    expect(store.markets.get("200")).toMatchObject({
+      sport: "NBA",
+      status: "resolved",
+      winningOutcome: "Lakers by 2",
+      resolvedAt: new Date("2026-11-19T05:00:00.000Z"),
+      lockTime: new Date(START),
+      outcomes: [
+        { label: "Lakers by 2", instrumentSymbol: "S-1", currentOdds: 0 },
+        { label: "Lakers by 9", instrumentSymbol: "S-2", currentOdds: 0 },
+        { label: "Lakers by 20", instrumentSymbol: "S-3", currentOdds: 0 },
+      ],
+    });
+  });
+
+  it("returns [] on a non-2xx response without throwing", async () => {
+    const { forwarder } = setup([winEvent], { ok: false });
+    expect(await forwarder.forward([post("1", [match({})])], "bob")).toEqual([]);
+  });
+
+  it("returns [] on a network error", async () => {
+    const { forwarder } = setup([winEvent], new Error("down"));
+    expect(await forwarder.forward([post("1", [match({})])], "bob")).toEqual([]);
+  });
+
+  it("does not post when nothing is forwardable", async () => {
+    const { forwarder, fetchFn } = setup([winEvent]);
+    expect(await forwarder.forward([post("1", [])], "bob")).toEqual([]);
+    expect(fetchFn).not.toHaveBeenCalled();
+  });
+
+  it("noopForwarder accepts nothing", async () => {
+    expect(await noopForwarder.forward([post("1", [match({})])], "bob")).toEqual([]);
+  });
+});
