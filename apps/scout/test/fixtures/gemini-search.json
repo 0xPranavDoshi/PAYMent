@@ -1,0 +1,1931 @@
+{
+  "data": [
+    {
+      "id": "471839",
+      "title": "UConn vs Arizona",
+      "slug": "uconn-vs-arizona",
+      "type": "categorical",
+      "category": "Sports",
+      "ticker": "NCAAM-2611190200-UCONN-ARI-M",
+      "status": "active",
+      "createdAt": "2026-11-17T00:05:37.026Z",
+      "contracts": [
+        {
+          "id": "471839-1181334",
+          "label": "Arizona",
+          "prices": {
+            "buy": {
+              "yes": "0.6",
+              "no": "0.41"
+            },
+            "sell": {
+              "yes": "0.59",
+              "no": "0.4"
+            },
+            "bestBid": "0.59",
+            "bestAsk": "0.6",
+            "lastTradePrice": "0.6"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T00:05:37.026Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf",
+          "ticker": "ARI",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-M-ARI",
+          "marketState": "open",
+          "abbreviatedName": "ARI",
+          "color": "#CC0033",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 2,
+          "sportsSide": "home",
+          "teamId": "9b166a3f-e64b-4825-bb6b-92c6f0418263",
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "471839-1181318",
+          "label": "UConn",
+          "prices": {
+            "buy": {
+              "yes": "0.41",
+              "no": "0.6"
+            },
+            "sell": {
+              "yes": "0.4",
+              "no": "0.59"
+            },
+            "bestBid": "0.4",
+            "bestAsk": "0.41",
+            "lastTradePrice": "0.41"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T00:05:37.026Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf",
+          "ticker": "UCONN",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-M-UCONN",
+          "marketState": "open",
+          "abbreviatedName": "UCONN",
+          "color": "#000E2F",
+          "imageUrl": "https://assets.gemini.com/predictions/images/UConn_69671e79-82d1-48cd-8bac-058d6e04847d.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 1,
+          "sportsSide": "away",
+          "teamId": "efba5350-79bc-47aa-a189-db177b95b491",
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        }
+      ],
+      "effectiveDate": "2026-11-17T00:05:37.026Z",
+      "isLive": true,
+      "participants": [
+        {
+          "id": "532",
+          "name": "Arizona Wildcats",
+          "abbreviation": "ARI",
+          "side": "home"
+        },
+        {
+          "id": "815",
+          "name": "UConn Huskies",
+          "abbreviation": "UCONN",
+          "side": "away"
+        }
+      ],
+      "imageUrl": "https://assets.gemini.com/predictions/images/bb_f53a7e9b-c0fc-4a5c-a011-d0bf655f8263.avif",
+      "volume": "372.88",
+      "volume24h": "372.88",
+      "tags": [
+        "College Basketball"
+      ],
+      "expiryDate": "2026-11-21T02:00:00.000Z",
+      "startTime": "2026-11-19T02:00:00.000Z",
+      "termsLink": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf",
+      "subcategory": {
+        "id": 15,
+        "slug": "sports_basketball_college-basketball",
+        "name": "College Basketball",
+        "path": [
+          "Sports",
+          "Basketball",
+          "College Basketball"
+        ]
+      },
+      "socialImageUrl": "https://assets.gemini.com/predictions/images/Card_Carousel__40__b3388226-c9ca-43be-9611-88185341baf0.png",
+      "featuredImageUrl": "https://assets.gemini.com/predictions/images/Card_Carousel__40__b3388226-c9ca-43be-9611-88185341baf0.avif",
+      "events": [
+        {
+          "id": "474538",
+          "title": "UConn vs Arizona: Point Spread",
+          "slug": "uconn-vs-arizona-point-spread",
+          "type": "categorical",
+          "category": "Sports",
+          "ticker": "NCAAM-2611190200-UCONN-ARI-S",
+          "status": "active",
+          "createdAt": "2026-11-17T20:06:51.508Z",
+          "contracts": [
+            {
+              "id": "474538-1192459",
+              "label": "Arizona wins by more than 1.5 points",
+              "prices": {
+                "buy": {
+                  "yes": "0.6",
+                  "no": "0.43"
+                },
+                "sell": {
+                  "yes": "0.57",
+                  "no": "0.4"
+                },
+                "bestBid": "0.57",
+                "bestAsk": "0.6"
+              },
+              "status": "active",
+              "createdAt": "2026-11-17T20:06:51.508Z",
+              "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+              "ticker": "ARI1",
+              "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-ARI1",
+              "marketState": "open",
+              "abbreviatedName": "Arizona",
+              "color": "#0f9ee7",
+              "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+              "expiryDate": "2026-11-21T02:00:00.000Z",
+              "effectiveDate": "2026-11-17T00:00:07.000Z",
+              "sortOrder": 12,
+              "strike": {
+                "type": "spread",
+                "value": "1.5"
+              },
+              "isCombo": false,
+              "quantityIncrement": "0.01",
+              "quantityMinimum": "0.01",
+              "priceIncrement": "0.01",
+              "quoteAssetPrecision": 2,
+              "priceMinimum": "0.01"
+            },
+            {
+              "id": "474538-1192446",
+              "label": "Arizona wins by more than 2.5 points",
+              "prices": {
+                "buy": {
+                  "yes": "0.56",
+                  "no": "0.46"
+                },
+                "sell": {
+                  "yes": "0.54",
+                  "no": "0.44"
+                },
+                "bestBid": "0.54",
+                "bestAsk": "0.56"
+              },
+              "status": "active",
+              "createdAt": "2026-11-17T20:06:51.508Z",
+              "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+              "ticker": "ARI2",
+              "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-ARI2",
+              "marketState": "open",
+              "abbreviatedName": "Arizona",
+              "color": "#0f9ee7",
+              "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+              "expiryDate": "2026-11-21T02:00:00.000Z",
+              "effectiveDate": "2026-11-17T00:00:07.000Z",
+              "sortOrder": 1,
+              "strike": {
+                "type": "spread",
+                "value": "2.5"
+              },
+              "isCombo": false,
+              "quantityIncrement": "0.01",
+              "quantityMinimum": "0.01",
+              "priceIncrement": "0.01",
+              "quoteAssetPrecision": 2,
+              "priceMinimum": "0.01"
+            },
+            {
+              "id": "474538-1192442",
+              "label": "Arizona wins by more than 3.5 points",
+              "prices": {
+                "buy": {
+                  "yes": "0.5",
+                  "no": "0.51"
+                },
+                "sell": {
+                  "yes": "0.49",
+                  "no": "0.5"
+                },
+                "bestBid": "0.49",
+                "bestAsk": "0.5",
+                "lastTradePrice": "0.51"
+              },
+              "status": "active",
+              "createdAt": "2026-11-17T20:06:51.508Z",
+              "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+              "ticker": "ARI3",
+              "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-ARI3",
+              "marketState": "open",
+              "abbreviatedName": "Arizona",
+              "color": "#0f9ee7",
+              "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+              "expiryDate": "2026-11-21T02:00:00.000Z",
+              "effectiveDate": "2026-11-17T00:00:07.000Z",
+              "sortOrder": 0,
+              "strike": {
+                "type": "spread",
+                "value": "3.5"
+              },
+              "isCombo": false,
+              "quantityIncrement": "0.01",
+              "quantityMinimum": "0.01",
+              "priceIncrement": "0.01",
+              "quoteAssetPrecision": 2,
+              "priceMinimum": "0.01"
+            },
+            {
+              "id": "474538-1192452",
+              "label": "Arizona wins by more than 4.5 points",
+              "prices": {
+                "buy": {
+                  "yes": "0.45",
+                  "no": "0.56"
+                },
+                "sell": {
+                  "yes": "0.44",
+                  "no": "0.55"
+                },
+                "bestBid": "0.44",
+                "bestAsk": "0.45"
+              },
+              "status": "active",
+              "createdAt": "2026-11-17T20:06:51.508Z",
+              "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+              "ticker": "ARI4",
+              "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-ARI4",
+              "marketState": "open",
+              "abbreviatedName": "Arizona",
+              "color": "#0f9ee7",
+              "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+              "expiryDate": "2026-11-21T02:00:00.000Z",
+              "effectiveDate": "2026-11-17T00:00:07.000Z",
+              "sortOrder": 5,
+              "strike": {
+                "type": "spread",
+                "value": "4.5"
+              },
+              "isCombo": false,
+              "quantityIncrement": "0.01",
+              "quantityMinimum": "0.01",
+              "priceIncrement": "0.01",
+              "quoteAssetPrecision": 2,
+              "priceMinimum": "0.01"
+            },
+            {
+              "id": "474538-1192458",
+              "label": "Arizona wins by more than 6.5 points",
+              "prices": {
+                "buy": {
+                  "yes": "0.39",
+                  "no": "0.64"
+                },
+                "sell": {
+                  "yes": "0.36",
+                  "no": "0.61"
+                },
+                "bestBid": "0.36",
+                "bestAsk": "0.39"
+              },
+              "status": "active",
+              "createdAt": "2026-11-17T20:06:51.508Z",
+              "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+              "ticker": "ARI6",
+              "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-ARI6",
+              "marketState": "open",
+              "abbreviatedName": "Arizona",
+              "color": "#0f9ee7",
+              "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+              "expiryDate": "2026-11-21T02:00:00.000Z",
+              "effectiveDate": "2026-11-17T00:00:07.000Z",
+              "sortOrder": 11,
+              "strike": {
+                "type": "spread",
+                "value": "6.5"
+              },
+              "isCombo": false,
+              "quantityIncrement": "0.01",
+              "quantityMinimum": "0.01",
+              "priceIncrement": "0.01",
+              "quoteAssetPrecision": 2,
+              "priceMinimum": "0.01"
+            },
+            {
+              "id": "474538-1192451",
+              "label": "UConn wins by more than 1.5 points",
+              "prices": {
+                "buy": {
+                  "yes": "0.37",
+                  "no": "0.66"
+                },
+                "sell": {
+                  "yes": "0.34",
+                  "no": "0.63"
+                },
+                "bestBid": "0.34",
+                "bestAsk": "0.37"
+              },
+              "status": "active",
+              "createdAt": "2026-11-17T20:06:51.508Z",
+              "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+              "ticker": "UCONN1",
+              "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-UCONN1",
+              "marketState": "open",
+              "abbreviatedName": "UConn",
+              "color": "#0f9ee7",
+              "imageUrl": "https://assets.gemini.com/predictions/images/UConn_69671e79-82d1-48cd-8bac-058d6e04847d.png",
+              "expiryDate": "2026-11-21T02:00:00.000Z",
+              "effectiveDate": "2026-11-17T00:00:07.000Z",
+              "sortOrder": 4,
+              "strike": {
+                "type": "spread",
+                "value": "1.5"
+              },
+              "isCombo": false,
+              "quantityIncrement": "0.01",
+              "quantityMinimum": "0.01",
+              "priceIncrement": "0.01",
+              "quoteAssetPrecision": 2,
+              "priceMinimum": "0.01"
+            }
+          ],
+          "effectiveDate": "2026-11-17T20:06:51.508Z",
+          "isLive": true,
+          "participants": [
+            {
+              "id": "532",
+              "name": "Arizona Wildcats",
+              "abbreviation": "ARI",
+              "side": "home"
+            },
+            {
+              "id": "815",
+              "name": "UConn Huskies",
+              "abbreviation": "UCONN",
+              "side": "away"
+            }
+          ],
+          "imageUrl": "https://assets.gemini.com/predictions/images/bb_f53a7e9b-c0fc-4a5c-a011-d0bf655f8263.avif",
+          "volume": "104.8",
+          "volume24h": "104.8",
+          "tags": [
+            "College Basketball"
+          ],
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "startTime": "2026-11-19T02:00:00.000Z",
+          "termsLink": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+          "subcategory": {
+            "id": 15,
+            "slug": "sports_basketball_college-basketball",
+            "name": "College Basketball",
+            "path": [
+              "Sports",
+              "Basketball",
+              "College Basketball"
+            ]
+          },
+          "socialImageUrl": "https://assets.gemini.com/predictions/images/Card_Carousel__40__b3388226-c9ca-43be-9611-88185341baf0.png",
+          "featuredImageUrl": "https://assets.gemini.com/predictions/images/Card_Carousel__40__b3388226-c9ca-43be-9611-88185341baf0.avif",
+          "template": "sports-spread",
+          "gameId": "a78b847d-636e-4c34-8d1c-c56a4ad480da",
+          "sourceDetails": {
+            "agency": "statscore-rest-api",
+            "index": "Basketball"
+          },
+          "volumeDelta24hPct": "0",
+          "sportsMarket": {
+            "sport": "basketball",
+            "type": "spread",
+            "subject": "team",
+            "scope": {
+              "type": "full_contest"
+            },
+            "metric": "points"
+          }
+        },
+        {
+          "id": "474544",
+          "title": "UConn vs Arizona: Total Points",
+          "slug": "uconn-vs-arizona-total-points",
+          "type": "categorical",
+          "category": "Sports",
+          "ticker": "NCAAM-2611190200-UCONN-ARI-T",
+          "status": "active",
+          "createdAt": "2026-11-17T20:07:54.218Z",
+          "contracts": [
+            {
+              "id": "474544-1192468",
+              "label": "More than 137.5 points scored",
+              "prices": {
+                "buy": {
+                  "yes": "0.76",
+                  "no": "0.27"
+                },
+                "sell": {
+                  "yes": "0.73",
+                  "no": "0.24"
+                },
+                "bestBid": "0.73",
+                "bestAsk": "0.76"
+              },
+              "status": "active",
+              "createdAt": "2026-11-17T20:07:54.218Z",
+              "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+              "ticker": "O137",
+              "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O137",
+              "marketState": "open",
+              "color": "#0f9ee7",
+              "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+              "expiryDate": "2026-11-21T02:00:00.000Z",
+              "effectiveDate": "2026-11-17T00:00:07.000Z",
+              "sortOrder": 1,
+              "strike": {
+                "type": "over",
+                "value": "137.5"
+              },
+              "isCombo": false,
+              "quantityIncrement": "0.01",
+              "quantityMinimum": "0.01",
+              "priceIncrement": "0.01",
+              "quoteAssetPrecision": 2,
+              "priceMinimum": "0.01"
+            },
+            {
+              "id": "474544-1192473",
+              "label": "More than 140.5 points scored",
+              "prices": {
+                "buy": {
+                  "yes": "0.69",
+                  "no": "0.34"
+                },
+                "sell": {
+                  "yes": "0.66",
+                  "no": "0.31"
+                },
+                "bestBid": "0.66",
+                "bestAsk": "0.69"
+              },
+              "status": "active",
+              "createdAt": "2026-11-17T20:07:54.218Z",
+              "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+              "ticker": "O140",
+              "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O140",
+              "marketState": "open",
+              "color": "#0f9ee7",
+              "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+              "expiryDate": "2026-11-21T02:00:00.000Z",
+              "effectiveDate": "2026-11-17T00:00:07.000Z",
+              "sortOrder": 6,
+              "strike": {
+                "type": "over",
+                "value": "140.5"
+              },
+              "isCombo": false,
+              "quantityIncrement": "0.01",
+              "quantityMinimum": "0.01",
+              "priceIncrement": "0.01",
+              "quoteAssetPrecision": 2,
+              "priceMinimum": "0.01"
+            },
+            {
+              "id": "474544-1192477",
+              "label": "More than 143.5 points scored",
+              "prices": {
+                "buy": {
+                  "yes": "0.61",
+                  "no": "0.41"
+                },
+                "sell": {
+                  "yes": "0.59",
+                  "no": "0.39"
+                },
+                "bestBid": "0.59",
+                "bestAsk": "0.61"
+              },
+              "status": "active",
+              "createdAt": "2026-11-17T20:07:54.218Z",
+              "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+              "ticker": "O143",
+              "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O143",
+              "marketState": "open",
+              "color": "#0f9ee7",
+              "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+              "expiryDate": "2026-11-21T02:00:00.000Z",
+              "effectiveDate": "2026-11-17T00:00:07.000Z",
+              "sortOrder": 10,
+              "strike": {
+                "type": "over",
+                "value": "143.5"
+              },
+              "isCombo": false,
+              "quantityIncrement": "0.01",
+              "quantityMinimum": "0.01",
+              "priceIncrement": "0.01",
+              "quoteAssetPrecision": 2,
+              "priceMinimum": "0.01"
+            },
+            {
+              "id": "474544-1192482",
+              "label": "More than 145.5 points scored",
+              "prices": {
+                "buy": {
+                  "yes": "0.57",
+                  "no": "0.47"
+                },
+                "sell": {
+                  "yes": "0.53",
+                  "no": "0.43"
+                },
+                "bestBid": "0.53",
+                "bestAsk": "0.57"
+              },
+              "status": "active",
+              "createdAt": "2026-11-17T20:07:54.218Z",
+              "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+              "ticker": "O145",
+              "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O145",
+              "marketState": "open",
+              "color": "#0f9ee7",
+              "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+              "expiryDate": "2026-11-21T02:00:00.000Z",
+              "effectiveDate": "2026-11-17T00:00:07.000Z",
+              "sortOrder": 15,
+              "strike": {
+                "type": "over",
+                "value": "145.5"
+              },
+              "isCombo": false,
+              "quantityIncrement": "0.01",
+              "quantityMinimum": "0.01",
+              "priceIncrement": "0.01",
+              "quoteAssetPrecision": 2,
+              "priceMinimum": "0.01"
+            },
+            {
+              "id": "474544-1192470",
+              "label": "More than 146.5 points scored",
+              "prices": {
+                "buy": {
+                  "yes": "0.52",
+                  "no": "0.49"
+                },
+                "sell": {
+                  "yes": "0.51",
+                  "no": "0.48"
+                },
+                "bestBid": "0.51",
+                "bestAsk": "0.52"
+              },
+              "status": "active",
+              "createdAt": "2026-11-17T20:07:54.218Z",
+              "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+              "ticker": "O146",
+              "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O146",
+              "marketState": "open",
+              "color": "#0f9ee7",
+              "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+              "expiryDate": "2026-11-21T02:00:00.000Z",
+              "effectiveDate": "2026-11-17T00:00:07.000Z",
+              "sortOrder": 3,
+              "strike": {
+                "type": "over",
+                "value": "146.5"
+              },
+              "isCombo": false,
+              "quantityIncrement": "0.01",
+              "quantityMinimum": "0.01",
+              "priceIncrement": "0.01",
+              "quoteAssetPrecision": 2,
+              "priceMinimum": "0.01"
+            },
+            {
+              "id": "474544-1192474",
+              "label": "More than 147.5 points scored",
+              "prices": {
+                "buy": {
+                  "yes": "0.51",
+                  "no": "0.52"
+                },
+                "sell": {
+                  "yes": "0.48",
+                  "no": "0.49"
+                },
+                "bestBid": "0.48",
+                "bestAsk": "0.51",
+                "lastTradePrice": "0.51"
+              },
+              "status": "active",
+              "createdAt": "2026-11-17T20:07:54.218Z",
+              "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+              "ticker": "O147",
+              "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O147",
+              "marketState": "open",
+              "color": "#0f9ee7",
+              "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+              "expiryDate": "2026-11-21T02:00:00.000Z",
+              "effectiveDate": "2026-11-17T00:00:07.000Z",
+              "sortOrder": 7,
+              "strike": {
+                "type": "over",
+                "value": "147.5"
+              },
+              "isCombo": false,
+              "quantityIncrement": "0.01",
+              "quantityMinimum": "0.01",
+              "priceIncrement": "0.01",
+              "quoteAssetPrecision": 2,
+              "priceMinimum": "0.01"
+            }
+          ],
+          "effectiveDate": "2026-11-17T20:07:54.218Z",
+          "isLive": true,
+          "participants": [
+            {
+              "id": "532",
+              "name": "Arizona Wildcats",
+              "abbreviation": "ARI",
+              "side": "home"
+            },
+            {
+              "id": "815",
+              "name": "UConn Huskies",
+              "abbreviation": "UCONN",
+              "side": "away"
+            }
+          ],
+          "imageUrl": "https://assets.gemini.com/predictions/images/bb_f53a7e9b-c0fc-4a5c-a011-d0bf655f8263.avif",
+          "volume": "47.39",
+          "volume24h": "47.39",
+          "tags": [
+            "College Basketball"
+          ],
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "startTime": "2026-11-19T02:00:00.000Z",
+          "termsLink": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+          "subcategory": {
+            "id": 15,
+            "slug": "sports_basketball_college-basketball",
+            "name": "College Basketball",
+            "path": [
+              "Sports",
+              "Basketball",
+              "College Basketball"
+            ]
+          },
+          "socialImageUrl": "https://assets.gemini.com/predictions/images/Card_Carousel__40__b3388226-c9ca-43be-9611-88185341baf0.png",
+          "featuredImageUrl": "https://assets.gemini.com/predictions/images/Card_Carousel__40__b3388226-c9ca-43be-9611-88185341baf0.avif",
+          "template": "sports-total",
+          "gameId": "a78b847d-636e-4c34-8d1c-c56a4ad480da",
+          "sourceDetails": {
+            "agency": "statscore-rest-api",
+            "index": "Basketball"
+          },
+          "volumeDelta24hPct": "0",
+          "sportsMarket": {
+            "sport": "basketball",
+            "type": "total",
+            "subject": "contest",
+            "scope": {
+              "type": "full_contest"
+            },
+            "metric": "points"
+          }
+        }
+      ],
+      "template": "sports-game",
+      "gameId": "a78b847d-636e-4c34-8d1c-c56a4ad480da",
+      "eventTags": [
+        {
+          "id": 26296,
+          "name": "Arizona Wildcats",
+          "slug": "arizona-wildcats"
+        },
+        {
+          "id": 7353,
+          "name": "Big 12",
+          "slug": "big-12"
+        },
+        {
+          "id": 31224,
+          "name": "Big East",
+          "slug": "big-east"
+        },
+        {
+          "id": 2,
+          "name": "Games",
+          "slug": "games"
+        },
+        {
+          "id": 26260,
+          "name": "UConn Huskies",
+          "slug": "uconn-huskies"
+        }
+      ],
+      "sourceDetails": {
+        "agency": "statscore-rest-api",
+        "index": "Basketball"
+      },
+      "volumeDelta24hPct": "0",
+      "sportsMarket": {
+        "sport": "basketball",
+        "type": "moneyline",
+        "subject": "contest",
+        "scope": {
+          "type": "full_contest"
+        },
+        "team": {
+          "symbol": "ARI",
+          "name": "Arizona Wildcats",
+          "externalIds": {
+            "sportradarId": "9b166a3f-e64b-4825-bb6b-92c6f0418263"
+          }
+        }
+      }
+    },
+    {
+      "id": "474538",
+      "title": "UConn vs Arizona: Point Spread",
+      "slug": "uconn-vs-arizona-point-spread",
+      "type": "categorical",
+      "category": "Sports",
+      "ticker": "NCAAM-2611190200-UCONN-ARI-S",
+      "status": "active",
+      "createdAt": "2026-11-17T20:06:51.508Z",
+      "contracts": [
+        {
+          "id": "474538-1192459",
+          "label": "Arizona wins by more than 1.5 points",
+          "prices": {
+            "buy": {
+              "yes": "0.6",
+              "no": "0.43"
+            },
+            "sell": {
+              "yes": "0.57",
+              "no": "0.4"
+            },
+            "bestBid": "0.57",
+            "bestAsk": "0.6"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:06:51.508Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+          "ticker": "ARI1",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-ARI1",
+          "marketState": "open",
+          "abbreviatedName": "Arizona",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 12,
+          "strike": {
+            "type": "spread",
+            "value": "1.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474538-1192446",
+          "label": "Arizona wins by more than 2.5 points",
+          "prices": {
+            "buy": {
+              "yes": "0.56",
+              "no": "0.46"
+            },
+            "sell": {
+              "yes": "0.54",
+              "no": "0.44"
+            },
+            "bestBid": "0.54",
+            "bestAsk": "0.56"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:06:51.508Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+          "ticker": "ARI2",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-ARI2",
+          "marketState": "open",
+          "abbreviatedName": "Arizona",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 1,
+          "strike": {
+            "type": "spread",
+            "value": "2.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474538-1192442",
+          "label": "Arizona wins by more than 3.5 points",
+          "prices": {
+            "buy": {
+              "yes": "0.5",
+              "no": "0.51"
+            },
+            "sell": {
+              "yes": "0.49",
+              "no": "0.5"
+            },
+            "bestBid": "0.49",
+            "bestAsk": "0.5",
+            "lastTradePrice": "0.51"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:06:51.508Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+          "ticker": "ARI3",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-ARI3",
+          "marketState": "open",
+          "abbreviatedName": "Arizona",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 0,
+          "strike": {
+            "type": "spread",
+            "value": "3.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474538-1192452",
+          "label": "Arizona wins by more than 4.5 points",
+          "prices": {
+            "buy": {
+              "yes": "0.45",
+              "no": "0.56"
+            },
+            "sell": {
+              "yes": "0.44",
+              "no": "0.55"
+            },
+            "bestBid": "0.44",
+            "bestAsk": "0.45"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:06:51.508Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+          "ticker": "ARI4",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-ARI4",
+          "marketState": "open",
+          "abbreviatedName": "Arizona",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 5,
+          "strike": {
+            "type": "spread",
+            "value": "4.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474538-1192458",
+          "label": "Arizona wins by more than 6.5 points",
+          "prices": {
+            "buy": {
+              "yes": "0.39",
+              "no": "0.64"
+            },
+            "sell": {
+              "yes": "0.36",
+              "no": "0.61"
+            },
+            "bestBid": "0.36",
+            "bestAsk": "0.39"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:06:51.508Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+          "ticker": "ARI6",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-ARI6",
+          "marketState": "open",
+          "abbreviatedName": "Arizona",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 11,
+          "strike": {
+            "type": "spread",
+            "value": "6.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474538-1192451",
+          "label": "UConn wins by more than 1.5 points",
+          "prices": {
+            "buy": {
+              "yes": "0.37",
+              "no": "0.66"
+            },
+            "sell": {
+              "yes": "0.34",
+              "no": "0.63"
+            },
+            "bestBid": "0.34",
+            "bestAsk": "0.37"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:06:51.508Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+          "ticker": "UCONN1",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-UCONN1",
+          "marketState": "open",
+          "abbreviatedName": "UConn",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/UConn_69671e79-82d1-48cd-8bac-058d6e04847d.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 4,
+          "strike": {
+            "type": "spread",
+            "value": "1.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        }
+      ],
+      "effectiveDate": "2026-11-17T20:06:51.508Z",
+      "isLive": true,
+      "participants": [
+        {
+          "id": "532",
+          "name": "Arizona Wildcats",
+          "abbreviation": "ARI",
+          "side": "home"
+        },
+        {
+          "id": "815",
+          "name": "UConn Huskies",
+          "abbreviation": "UCONN",
+          "side": "away"
+        }
+      ],
+      "imageUrl": "https://assets.gemini.com/predictions/images/bb_f53a7e9b-c0fc-4a5c-a011-d0bf655f8263.avif",
+      "volume": "104.8",
+      "volume24h": "104.8",
+      "tags": [
+        "College Basketball"
+      ],
+      "expiryDate": "2026-11-21T02:00:00.000Z",
+      "startTime": "2026-11-19T02:00:00.000Z",
+      "termsLink": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+      "subcategory": {
+        "id": 15,
+        "slug": "sports_basketball_college-basketball",
+        "name": "College Basketball",
+        "path": [
+          "Sports",
+          "Basketball",
+          "College Basketball"
+        ]
+      },
+      "socialImageUrl": "https://assets.gemini.com/predictions/images/Card_Carousel__40__b3388226-c9ca-43be-9611-88185341baf0.png",
+      "template": "sports-spread",
+      "gameId": "a78b847d-636e-4c34-8d1c-c56a4ad480da",
+      "sourceDetails": {
+        "agency": "statscore-rest-api",
+        "index": "Basketball"
+      },
+      "volumeDelta24hPct": "0",
+      "sportsMarket": {
+        "sport": "basketball",
+        "type": "spread",
+        "subject": "team",
+        "scope": {
+          "type": "full_contest"
+        },
+        "metric": "points"
+      }
+    },
+    {
+      "id": "474544",
+      "title": "UConn vs Arizona: Total Points",
+      "slug": "uconn-vs-arizona-total-points",
+      "type": "categorical",
+      "category": "Sports",
+      "ticker": "NCAAM-2611190200-UCONN-ARI-T",
+      "status": "active",
+      "createdAt": "2026-11-17T20:07:54.218Z",
+      "contracts": [
+        {
+          "id": "474544-1192468",
+          "label": "More than 137.5 points scored",
+          "prices": {
+            "buy": {
+              "yes": "0.76",
+              "no": "0.27"
+            },
+            "sell": {
+              "yes": "0.73",
+              "no": "0.24"
+            },
+            "bestBid": "0.73",
+            "bestAsk": "0.76"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:07:54.218Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+          "ticker": "O137",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O137",
+          "marketState": "open",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 1,
+          "strike": {
+            "type": "over",
+            "value": "137.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474544-1192473",
+          "label": "More than 140.5 points scored",
+          "prices": {
+            "buy": {
+              "yes": "0.69",
+              "no": "0.34"
+            },
+            "sell": {
+              "yes": "0.66",
+              "no": "0.31"
+            },
+            "bestBid": "0.66",
+            "bestAsk": "0.69"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:07:54.218Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+          "ticker": "O140",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O140",
+          "marketState": "open",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 6,
+          "strike": {
+            "type": "over",
+            "value": "140.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474544-1192477",
+          "label": "More than 143.5 points scored",
+          "prices": {
+            "buy": {
+              "yes": "0.61",
+              "no": "0.41"
+            },
+            "sell": {
+              "yes": "0.59",
+              "no": "0.39"
+            },
+            "bestBid": "0.59",
+            "bestAsk": "0.61"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:07:54.218Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+          "ticker": "O143",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O143",
+          "marketState": "open",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 10,
+          "strike": {
+            "type": "over",
+            "value": "143.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474544-1192482",
+          "label": "More than 145.5 points scored",
+          "prices": {
+            "buy": {
+              "yes": "0.57",
+              "no": "0.47"
+            },
+            "sell": {
+              "yes": "0.53",
+              "no": "0.43"
+            },
+            "bestBid": "0.53",
+            "bestAsk": "0.57"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:07:54.218Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+          "ticker": "O145",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O145",
+          "marketState": "open",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 15,
+          "strike": {
+            "type": "over",
+            "value": "145.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474544-1192470",
+          "label": "More than 146.5 points scored",
+          "prices": {
+            "buy": {
+              "yes": "0.52",
+              "no": "0.49"
+            },
+            "sell": {
+              "yes": "0.51",
+              "no": "0.48"
+            },
+            "bestBid": "0.51",
+            "bestAsk": "0.52"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:07:54.218Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+          "ticker": "O146",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O146",
+          "marketState": "open",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 3,
+          "strike": {
+            "type": "over",
+            "value": "146.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474544-1192474",
+          "label": "More than 147.5 points scored",
+          "prices": {
+            "buy": {
+              "yes": "0.51",
+              "no": "0.52"
+            },
+            "sell": {
+              "yes": "0.48",
+              "no": "0.49"
+            },
+            "bestBid": "0.48",
+            "bestAsk": "0.51",
+            "lastTradePrice": "0.51"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:07:54.218Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+          "ticker": "O147",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O147",
+          "marketState": "open",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 7,
+          "strike": {
+            "type": "over",
+            "value": "147.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        }
+      ],
+      "effectiveDate": "2026-11-17T20:07:54.218Z",
+      "isLive": true,
+      "participants": [
+        {
+          "id": "532",
+          "name": "Arizona Wildcats",
+          "abbreviation": "ARI",
+          "side": "home"
+        },
+        {
+          "id": "815",
+          "name": "UConn Huskies",
+          "abbreviation": "UCONN",
+          "side": "away"
+        }
+      ],
+      "imageUrl": "https://assets.gemini.com/predictions/images/bb_f53a7e9b-c0fc-4a5c-a011-d0bf655f8263.avif",
+      "volume": "47.39",
+      "volume24h": "47.39",
+      "tags": [
+        "College Basketball"
+      ],
+      "expiryDate": "2026-11-21T02:00:00.000Z",
+      "startTime": "2026-11-19T02:00:00.000Z",
+      "termsLink": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+      "subcategory": {
+        "id": 15,
+        "slug": "sports_basketball_college-basketball",
+        "name": "College Basketball",
+        "path": [
+          "Sports",
+          "Basketball",
+          "College Basketball"
+        ]
+      },
+      "socialImageUrl": "https://assets.gemini.com/predictions/images/Card_Carousel__40__b3388226-c9ca-43be-9611-88185341baf0.png",
+      "template": "sports-total",
+      "gameId": "a78b847d-636e-4c34-8d1c-c56a4ad480da",
+      "sourceDetails": {
+        "agency": "statscore-rest-api",
+        "index": "Basketball"
+      },
+      "volumeDelta24hPct": "0",
+      "sportsMarket": {
+        "sport": "basketball",
+        "type": "total",
+        "subject": "contest",
+        "scope": {
+          "type": "full_contest"
+        },
+        "metric": "points"
+      }
+    },
+    {
+      "id": "471843",
+      "title": "Old Dominion vs UConn: 1st Half Point Spread",
+      "slug": "old-dominion-vs-uconn-1st-half-point-spread",
+      "type": "categorical",
+      "category": "Sports",
+      "ticker": "NCAAF-2611212030-ODU-UCO-1HS",
+      "status": "active",
+      "createdAt": "2026-11-17T00:05:50.210Z",
+      "contracts": [
+        {
+          "id": "471843-1181362",
+          "label": "Old Dominion -6.5 in the 1st half",
+          "prices": {
+            "buy": {},
+            "sell": {}
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T00:05:50.210Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_-_NCAA_CFB_Period_Spread_Class_3b7f827c-60a3-4d7b-bd61-54f24c4ad84c.pdf",
+          "ticker": "ODU6",
+          "instrumentSymbol": "GEMI-NCAAF-2611212030-ODU-UCO-1HS-ODU6",
+          "marketState": "post_only",
+          "abbreviatedName": "Old Dominion",
+          "color": "#4CAF50",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Old_Dominion_e7d22f8e-5227-4296-a677-1b0538b0632f.avif",
+          "expiryDate": "2026-11-22T20:30:00.000Z",
+          "effectiveDate": "2026-11-15T00:00:08.000Z",
+          "sportsSide": "away",
+          "teamId": "c7384d59-3901-4342-8dbc-31801d925d11",
+          "strike": {
+            "type": "spread",
+            "value": "6.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "471843-1181363",
+          "label": "UConn -17.5 in the 1st half",
+          "prices": {
+            "buy": {},
+            "sell": {}
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T00:05:50.210Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_-_NCAA_CFB_Period_Spread_Class_3b7f827c-60a3-4d7b-bd61-54f24c4ad84c.pdf",
+          "ticker": "UCO17",
+          "instrumentSymbol": "GEMI-NCAAF-2611212030-ODU-UCO-1HS-UCO17",
+          "marketState": "post_only",
+          "abbreviatedName": "UConn",
+          "color": "#4CAF50",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Connecticut_Huskies_0f9b6aba-07dc-4eaa-8610-de387d7bf5fb.avif",
+          "expiryDate": "2026-11-22T20:30:00.000Z",
+          "effectiveDate": "2026-11-15T00:00:08.000Z",
+          "sportsSide": "home",
+          "teamId": "1a11c84d-18be-40d0-a354-f188958e16b1",
+          "strike": {
+            "type": "spread",
+            "value": "17.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "471843-1181364",
+          "label": "UConn -23.5 in the 1st half",
+          "prices": {
+            "buy": {},
+            "sell": {}
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T00:05:50.210Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_-_NCAA_CFB_Period_Spread_Class_3b7f827c-60a3-4d7b-bd61-54f24c4ad84c.pdf",
+          "ticker": "UCO23",
+          "instrumentSymbol": "GEMI-NCAAF-2611212030-ODU-UCO-1HS-UCO23",
+          "marketState": "post_only",
+          "abbreviatedName": "UConn",
+          "color": "#4CAF50",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Connecticut_Huskies_0f9b6aba-07dc-4eaa-8610-de387d7bf5fb.avif",
+          "expiryDate": "2026-11-22T20:30:00.000Z",
+          "effectiveDate": "2026-11-15T00:00:08.000Z",
+          "sportsSide": "home",
+          "teamId": "1a11c84d-18be-40d0-a354-f188958e16b1",
+          "strike": {
+            "type": "spread",
+            "value": "23.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "471843-1181365",
+          "label": "Old Dominion -4.5 in the 1st half",
+          "prices": {
+            "buy": {},
+            "sell": {}
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T00:05:50.210Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_-_NCAA_CFB_Period_Spread_Class_3b7f827c-60a3-4d7b-bd61-54f24c4ad84c.pdf",
+          "ticker": "ODU4",
+          "instrumentSymbol": "GEMI-NCAAF-2611212030-ODU-UCO-1HS-ODU4",
+          "marketState": "post_only",
+          "abbreviatedName": "Old Dominion",
+          "color": "#4CAF50",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Old_Dominion_e7d22f8e-5227-4296-a677-1b0538b0632f.avif",
+          "expiryDate": "2026-11-22T20:30:00.000Z",
+          "effectiveDate": "2026-11-15T00:00:08.000Z",
+          "sportsSide": "away",
+          "teamId": "c7384d59-3901-4342-8dbc-31801d925d11",
+          "strike": {
+            "type": "spread",
+            "value": "4.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "471843-1181366",
+          "label": "Old Dominion -7.5 in the 1st half",
+          "prices": {
+            "buy": {},
+            "sell": {}
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T00:05:50.210Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_-_NCAA_CFB_Period_Spread_Class_3b7f827c-60a3-4d7b-bd61-54f24c4ad84c.pdf",
+          "ticker": "ODU7",
+          "instrumentSymbol": "GEMI-NCAAF-2611212030-ODU-UCO-1HS-ODU7",
+          "marketState": "post_only",
+          "abbreviatedName": "Old Dominion",
+          "color": "#4CAF50",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Old_Dominion_e7d22f8e-5227-4296-a677-1b0538b0632f.avif",
+          "expiryDate": "2026-11-22T20:30:00.000Z",
+          "effectiveDate": "2026-11-15T00:00:08.000Z",
+          "sportsSide": "away",
+          "teamId": "c7384d59-3901-4342-8dbc-31801d925d11",
+          "strike": {
+            "type": "spread",
+            "value": "7.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "471843-1181367",
+          "label": "Old Dominion -10.5 in the 1st half",
+          "prices": {
+            "buy": {},
+            "sell": {}
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T00:05:50.210Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_-_NCAA_CFB_Period_Spread_Class_3b7f827c-60a3-4d7b-bd61-54f24c4ad84c.pdf",
+          "ticker": "ODU10",
+          "instrumentSymbol": "GEMI-NCAAF-2611212030-ODU-UCO-1HS-ODU10",
+          "marketState": "post_only",
+          "abbreviatedName": "Old Dominion",
+          "color": "#4CAF50",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Old_Dominion_e7d22f8e-5227-4296-a677-1b0538b0632f.avif",
+          "expiryDate": "2026-11-22T20:30:00.000Z",
+          "effectiveDate": "2026-11-15T00:00:08.000Z",
+          "sportsSide": "away",
+          "teamId": "c7384d59-3901-4342-8dbc-31801d925d11",
+          "strike": {
+            "type": "spread",
+            "value": "10.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        }
+      ],
+      "effectiveDate": "2026-11-17T00:05:50.210Z",
+      "isLive": false,
+      "participants": [
+        {
+          "id": "c7384d59-3901-4342-8dbc-31801d925d11",
+          "name": "Old Dominion",
+          "abbreviation": "ODU",
+          "side": "away"
+        },
+        {
+          "id": "1a11c84d-18be-40d0-a354-f188958e16b1",
+          "name": "UConn",
+          "abbreviation": "UCO",
+          "side": "home"
+        },
+        {
+          "id": "1a11c84d-18be-40d0-a354-f188958e16b1",
+          "name": "UConn",
+          "abbreviation": "UCO",
+          "side": "home"
+        },
+        {
+          "id": "c7384d59-3901-4342-8dbc-31801d925d11",
+          "name": "Old Dominion",
+          "abbreviation": "ODU",
+          "side": "away"
+        },
+        {
+          "id": "c7384d59-3901-4342-8dbc-31801d925d11",
+          "name": "Old Dominion",
+          "abbreviation": "ODU",
+          "side": "away"
+        },
+        {
+          "id": "c7384d59-3901-4342-8dbc-31801d925d11",
+          "name": "Old Dominion",
+          "abbreviation": "ODU",
+          "side": "away"
+        },
+        {
+          "id": "c7384d59-3901-4342-8dbc-31801d925d11",
+          "name": "Old Dominion",
+          "abbreviation": "ODU",
+          "side": "away"
+        },
+        {
+          "id": "c7384d59-3901-4342-8dbc-31801d925d11",
+          "name": "Old Dominion",
+          "abbreviation": "ODU",
+          "side": "away"
+        },
+        {
+          "id": "c7384d59-3901-4342-8dbc-31801d925d11",
+          "name": "Old Dominion",
+          "abbreviation": "ODU",
+          "side": "away"
+        },
+        {
+          "id": "c7384d59-3901-4342-8dbc-31801d925d11",
+          "name": "Old Dominion",
+          "abbreviation": "ODU",
+          "side": "away"
+        },
+        {
+          "id": "1a11c84d-18be-40d0-a354-f188958e16b1",
+          "name": "UConn",
+          "abbreviation": "UCO",
+          "side": "home"
+        },
+        {
+          "id": "1a11c84d-18be-40d0-a354-f188958e16b1",
+          "name": "UConn",
+          "abbreviation": "UCO",
+          "side": "home"
+        },
+        {
+          "id": "1a11c84d-18be-40d0-a354-f188958e16b1",
+          "name": "UConn",
+          "abbreviation": "UCO",
+          "side": "home"
+        },
+        {
+          "id": "1a11c84d-18be-40d0-a354-f188958e16b1",
+          "name": "UConn",
+          "abbreviation": "UCO",
+          "side": "home"
+        },
+        {
+          "id": "1a11c84d-18be-40d0-a354-f188958e16b1",
+          "name": "UConn",
+          "abbreviation": "UCO",
+          "side": "home"
+        },
+        {
+          "id": "1a11c84d-18be-40d0-a354-f188958e16b1",
+          "name": "UConn",
+          "abbreviation": "UCO",
+          "side": "home"
+        },
+        {
+          "id": "1a11c84d-18be-40d0-a354-f188958e16b1",
+          "name": "UConn",
+          "abbreviation": "UCO",
+          "side": "home"
+        },
+        {
+          "id": "1a11c84d-18be-40d0-a354-f188958e16b1",
+          "name": "UConn",
+          "abbreviation": "UCO",
+          "side": "home"
+        },
+        {
+          "id": "1a11c84d-18be-40d0-a354-f188958e16b1",
+          "name": "UConn",
+          "abbreviation": "UCO",
+          "side": "home"
+        },
+        {
+          "id": "1a11c84d-18be-40d0-a354-f188958e16b1",
+          "name": "UConn",
+          "abbreviation": "UCO",
+          "side": "home"
+        },
+        {
+          "id": "c7384d59-3901-4342-8dbc-31801d925d11",
+          "name": "Old Dominion",
+          "abbreviation": "ODU",
+          "side": "away"
+        }
+      ],
+      "imageUrl": "https://assets.gemini.com/predictions/images/Football_fb67fb13-3768-40c7-a99d-cbe2644d299e.avif",
+      "volume": "0",
+      "volume24h": "0",
+      "tags": [
+        "College Football"
+      ],
+      "expiryDate": "2026-11-22T20:30:00.000Z",
+      "startTime": "2026-11-21T20:30:00.000Z",
+      "termsLink": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_-_NCAA_CFB_Period_Spread_Class_3b7f827c-60a3-4d7b-bd61-54f24c4ad84c.pdf",
+      "subcategory": {
+        "id": 13,
+        "slug": "sports_football_college-football",
+        "name": "College Football",
+        "path": [
+          "Sports",
+          "Football",
+          "College Football"
+        ]
+      },
+      "socialImageUrl": "https://assets.gemini.com/predictions/images/Card_Carousel_-_2026-08-30T231309788_65d010c8-004b-415c-bdae-6bbc819277b7.png",
+      "template": "sports-spread",
+      "gameId": "a4cdada2-79de-48f6-8cb9-1004ee048078",
+      "sourceDetails": {
+        "agency": "statscore-rest-api",
+        "index": "Am. football"
+      },
+      "volumeDelta24hPct": "0",
+      "sportsMarket": {
+        "sport": "american_football",
+        "type": "spread",
+        "subject": "team",
+        "scope": {
+          "type": "half",
+          "ordinal": 1
+        },
+        "metric": "points",
+        "team": {
+          "symbol": "ODU",
+          "name": "Old Dominion Monarchs",
+          "externalIds": {
+            "sportradarId": "c7384d59-3901-4342-8dbc-31801d925d11"
+          }
+        }
+      }
+    },
+    {
+      "id": "471842",
+      "title": "Old Dominion vs UConn: 1st Half Point Total",
+      "slug": "old-dominion-vs-uconn-1st-half-point-total",
+      "type": "categorical",
+      "category": "Sports",
+      "ticker": "NCAAF-2611212030-ODU-UCO-1HT",
+      "status": "active",
+      "createdAt": "2026-11-17T00:05:47.934Z",
+      "contracts": [
+        {
+          "id": "471842-1181347",
+          "label": "More than 16.5 points scored in the 1st half",
+          "prices": {
+            "buy": {},
+            "sell": {}
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T00:05:47.934Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions-_NCAA_CFB_Period_Total_Class_5670bcd2-918f-4b3c-bc27-7714487e7ff9.pdf",
+          "ticker": "O16",
+          "instrumentSymbol": "GEMI-NCAAF-2611212030-ODU-UCO-1HT-O16",
+          "marketState": "post_only",
+          "color": "#4CAF50",
+          "expiryDate": "2026-11-22T20:30:00.000Z",
+          "effectiveDate": "2026-11-15T00:00:08.000Z",
+          "strike": {
+            "type": "over",
+            "value": "16.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "471842-1181348",
+          "label": "More than 23.5 points scored in the 1st half",
+          "prices": {
+            "buy": {},
+            "sell": {}
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T00:05:47.934Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions-_NCAA_CFB_Period_Total_Class_5670bcd2-918f-4b3c-bc27-7714487e7ff9.pdf",
+          "ticker": "O23",
+          "instrumentSymbol": "GEMI-NCAAF-2611212030-ODU-UCO-1HT-O23",
+          "marketState": "post_only",
+          "color": "#4CAF50",
+          "expiryDate": "2026-11-22T20:30:00.000Z",
+          "effectiveDate": "2026-11-15T00:00:08.000Z",
+          "strike": {
+            "type": "over",
+            "value": "23.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "471842-1181349",
+          "label": "More than 30.5 points scored in the 1st half",
+          "prices": {
+            "buy": {},
+            "sell": {}
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T00:05:47.934Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions-_NCAA_CFB_Period_Total_Class_5670bcd2-918f-4b3c-bc27-7714487e7ff9.pdf",
+          "ticker": "O30",
+          "instrumentSymbol": "GEMI-NCAAF-2611212030-ODU-UCO-1HT-O30",
+          "marketState": "post_only",
+          "color": "#4CAF50",
+          "expiryDate": "2026-11-22T20:30:00.000Z",
+          "effectiveDate": "2026-11-15T00:00:08.000Z",
+          "strike": {
+            "type": "over",
+            "value": "30.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "471842-1181350",
+          "label": "More than 19.5 points scored in the 1st half",
+          "prices": {
+            "buy": {},
+            "sell": {}
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T00:05:47.934Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions-_NCAA_CFB_Period_Total_Class_5670bcd2-918f-4b3c-bc27-7714487e7ff9.pdf",
+          "ticker": "O19",
+          "instrumentSymbol": "GEMI-NCAAF-2611212030-ODU-UCO-1HT-O19",
+          "marketState": "post_only",
+          "color": "#4CAF50",
+          "expiryDate": "2026-11-22T20:30:00.000Z",
+          "effectiveDate": "2026-11-15T00:00:08.000Z",
+          "strike": {
+            "type": "over",
+            "value": "19.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "471842-1181351",
+          "label": "More than 34.5 points scored in the 1st half",
+          "prices": {
+            "buy": {},
+            "sell": {}
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T00:05:47.934Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions-_NCAA_CFB_Period_Total_Class_5670bcd2-918f-4b3c-bc27-7714487e7ff9.pdf",
+          "ticker": "O34",
+          "instrumentSymbol": "GEMI-NCAAF-2611212030-ODU-UCO-1HT-O34",
+          "marketState": "post_only",
+          "color": "#4CAF50",
+          "expiryDate": "2026-11-22T20:30:00.000Z",
+          "effectiveDate": "2026-11-15T00:00:08.000Z",
+          "strike": {
+            "type": "over",
+            "value": "34.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "471842-1181352",
+          "label": "More than 20.5 points scored in the 1st half",
+          "prices": {
+            "buy": {},
+            "sell": {}
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T00:05:47.934Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions-_NCAA_CFB_Period_Total_Class_5670bcd2-918f-4b3c-bc27-7714487e7ff9.pdf",
+          "ticker": "O20",
+          "instrumentSymbol": "GEMI-NCAAF-2611212030-ODU-UCO-1HT-O20",
+          "marketState": "post_only",
+          "color": "#4CAF50",
+          "expiryDate": "2026-11-22T20:30:00.000Z",
+          "effectiveDate": "2026-11-15T00:00:08.000Z",
+          "strike": {
+            "type": "over",
+            "value": "20.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        }
+      ],
+      "effectiveDate": "2026-11-17T00:05:47.934Z",
+      "isLive": false,
+      "participants": [],
+      "imageUrl": "https://assets.gemini.com/predictions/images/Football_fb67fb13-3768-40c7-a99d-cbe2644d299e.avif",
+      "volume": "0",
+      "volume24h": "0",
+      "tags": [
+        "College Football"
+      ],
+      "expiryDate": "2026-11-22T20:30:00.000Z",
+      "startTime": "2026-11-21T20:30:00.000Z",
+      "termsLink": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions-_NCAA_CFB_Period_Total_Class_5670bcd2-918f-4b3c-bc27-7714487e7ff9.pdf",
+      "subcategory": {
+        "id": 13,
+        "slug": "sports_football_college-football",
+        "name": "College Football",
+        "path": [
+          "Sports",
+          "Football",
+          "College Football"
+        ]
+      },
+      "socialImageUrl": "https://assets.gemini.com/predictions/images/Card_Carousel_-_2026-08-30T231309788_65d010c8-004b-415c-bdae-6bbc819277b7.png",
+      "template": "sports-total",
+      "gameId": "a4cdada2-79de-48f6-8cb9-1004ee048078",
+      "sourceDetails": {
+        "agency": "statscore-rest-api",
+        "index": "Am. football"
+      },
+      "volumeDelta24hPct": "0",
+      "sportsMarket": {
+        "sport": "american_football",
+        "type": "total",
+        "subject": "contest",
+        "scope": {
+          "type": "half",
+          "ordinal": 1
+        },
+        "metric": "points"
+      }
+    }
+  ],
+  "pagination": {
+    "limit": 50,
+    "offset": 0,
+    "total": 8
+  }
+}
