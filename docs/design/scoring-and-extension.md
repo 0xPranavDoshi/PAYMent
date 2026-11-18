@@ -1,6 +1,6 @@
 # coPAYMe — Scoring & Extension Design Doc
 
-Aditya Mallepalli · Nov 16, 2026
+Aditya Mallepalli · Nov 16, 2026 · Updated Nov 18, 2026
 
 ## Overview
 
@@ -37,19 +37,20 @@ The demo goal: scroll an X sports timeline, see a badge on every scored handle, 
 ```mermaid
 flowchart TB
   X["X.com timeline<br/>(external)"] -->|reads DOM| EXT["Chrome extension<br/>badges, popover, tail-bet card, cache"]
-  EXT -->|tail| TRADE["Trading service<br/>one-click + paper trades<br/>(Yash)"]
+  EXT -->|tail| TRADE["Trading service<br/>tails, Gemini market sync<br/>(Yash)"]
   EXT -->|batched badge lookups| API["Scoring API<br/>Hono on Node"]
   GROK["Grok bot pipeline<br/>finds sports picks, matches Gemini market<br/>(Pranav)"] -->|posts| API
-  API -->|odds| GEM["Gemini Predictions<br/>sports markets, odds, results<br/>(external)"]
-  API -->|SQL| DB[("Supabase Postgres<br/>users, posts, calls, scores,<br/>snapshots, tails, ledger")]
-  GEM -->|results| WORKER["Scoring worker<br/>every 5 min: settle calls,<br/>recompute scores"]
+  TRADE -->|sync markets and results, place orders| GEM["Gemini Predictions<br/>sports markets, odds, results<br/>(external)"]
+  TRADE -->|markets, tails| DB[("Supabase Postgres<br/>users, posts, calls, scores,<br/>snapshots, tails, ledger")]
+  API -->|SQL| DB
+  DB -->|resolved markets| WORKER["Scoring worker<br/>every 5 min: settle calls,<br/>recompute scores"]
   WORKER -->|scores| DB
   DB -->|snapshots| CHAIN["On-chain badge<br/>Arc reputation token, x402 rewards<br/>(Mugdha)"]
   classDef mine fill:#e3eefc,stroke:#2f6fdb,stroke-width:2px,color:#111;
   class EXT,API,DB,WORKER mine;
 ```
 
-Highlighted boxes are owned by this workstream. Teammates write posts and read score snapshots through the API and Supabase. The extension only reads precomputed scores, so a badge costs one cached lookup.
+Highlighted boxes are owned by this workstream. The trading service keeps `markets` in sync with Gemini; teammates write posts and read score snapshots through the API and Supabase. The extension only reads precomputed scores, so a badge costs one cached lookup.
 
 ## Detailed design
 
@@ -61,16 +62,16 @@ Eight tables, all owned by this workstream's migrations. Teammates write only to
 | --- | --- | --- | --- |
 | `users` | `id`, `x_user_id` (unique), `x_handle`, `wallet_address`, `rewards_opt_in`, `created_at` | Ingest (on first post), Mugdha (X login, wallet link, opt-in) | Everyone |
 | `posts` | `id`, `tweet_id` (unique), `user_id`, `tweeted_at`, `tweet_text`, `sentiment` (stored as sent; shape set in Pranav's design), `gemini_market_id` (nullable), `picked_outcome` (nullable), `parsed_at` | Pranav's Grok pipeline via `POST /v1/posts` | Ingest, worker, later market types |
-| `markets` | `id`, `gemini_market_id` (unique), `sport`, `event_name`, `outcomes`, `lock_time`, `status` (open, locked, resolved, void), `winning_outcome`, `resolved_at` | Gemini market sync | Ingest, worker, extension |
+| `markets` | `id`, `gemini_market_id` (unique), `sport`, `event_name`, `outcomes` (`[{label, instrumentSymbol, currentOdds}]`), `lock_time`, `status` (open, locked, resolved, void), `winning_outcome`, `resolved_at`, `synced_at` | Trading service market sync (Yash) | Ingest, worker, extension |
 | `calls` | `id`, `post_id` (unique), `user_id`, `market_id`, `picked_outcome`, `tweeted_at`, `odds_at_call` (0 to 1), `odds_source` (history, snapshot), `ingest_lag_s`, `status` (pending, scored, void, rejected), `points` | Ingest (promoted from `posts`), worker | API, extension |
 | `user_scores` | `user_id` (PK), `score` (0 to 100), `score_change_14d`, `skill`, `n_resolved`, `n_wins`, `hit_rate`, `last_call_at`, `snapshot_id`, `updated_at` | Worker only | API |
 | `score_snapshots` | `id`, `user_id`, `score`, `call_ids`, `inputs_hash` (sha256), `computed_at`, `onchain_tx` | Worker; Mugdha fills `onchain_tx` | Mugdha, extension |
-| `tails` | `id`, `follower_id`, `call_id`, `mode` (paper, live), `amount_usdc`, `entry_odds`, `status`, `pnl_usdc`, `created_at` | Yash's trading service | Extension, Mugdha |
+| `tails` | `id`, `follower_id`, `call_id`, `mode` (paper, live), `amount_usdc`, `entry_odds`, `gemini_order_id`, `status` (open, filled, settled, cancelled), `pnl_usdc`, `created_at` | Yash's trading service | Extension, Mugdha |
 | `earnings_ledger` | `id`, `user_id`, `amount_usdc`, `reason`, `tx_hash`, `created_at` | Mugdha (x402 rewards) | Extension |
 
 Every post Pranav's pipeline sends lands in `posts` with its sentiment, whether or not it matched a market. Ingest promotes a post to a `calls` row only when it matched an open sports market with a clear pick and was tweeted before the market locked. Unmatched posts stay in `posts`, so they can be matched later if we add market types.
 
-Two constraints do the anti-gaming work in the database itself: `unique (user_id, market_id)` on `calls`, so the first pick per market is the only one that counts, and an insert check that rejects any call with `tweeted_at >= markets.lock_time`.
+Two constraints do the anti-gaming work in the database itself: `unique (user_id, market_id)` on `calls`, so the first pick per market is the only one that counts, and an insert check that rejects any call with `tweeted_at >= markets.lock_time`. The first is in the merged migration; the lock-time check is not yet and will be added with the ingest endpoint.
 
 ### Scoring: beat the market, shrunk for small samples
 
@@ -106,7 +107,7 @@ The badge shows the score with its change over the last 14 days, for example **7
 
 ### Odds at call time
 
-`odds_at_call` must be the price at `tweeted_at`, not the price when we ingested the call. If Gemini exposes price history for a market, the ingest endpoint looks up that price and sets `odds_source = history`. If it does not, ingest stores the live price with `odds_source = snapshot` and records `ingest_lag_s`. Snapshot calls with more than 600 s of lag are stored but not scored, because the line may already have moved.
+`odds_at_call` must be the price at `tweeted_at`, not the price when we ingested the call. If Gemini exposes price history for a market, the ingest endpoint looks up that price and sets `odds_source = history`. If it does not, ingest stores the live price with `odds_source = snapshot` and records `ingest_lag_s`. Snapshot calls with more than 600 s of lag are stored but not scored, because the line may already have moved. The trading service's Gemini client has no price-history call today, so plan on `snapshot`. The live price comes from `markets.outcomes[].currentOdds`, which is only as fresh as the last market sync, so the sync must run on a schedule (see open questions) or ingest must read the price from Gemini directly.
 
 ### Scoring API
 
@@ -125,7 +126,7 @@ A Hono app on Node, versioned under `/v1`. Read routes are public and cached. Wr
 
 A `node-cron` job inside the API process runs every 5 minutes:
 
-1. Find markets past `lock_time` that are not yet resolved, and ask Gemini for their results.
+1. Find markets that the trading service's sync has marked `resolved` or `void` since the last run. The sync reads each settled Gemini event and fills `winning_outcome`, so the worker does not call Gemini itself.
 2. For each newly resolved market, set `points` on its pending calls and mark them `scored` (or `void`).
 3. Recompute `user_scores` for the affected users with one SQL aggregate, including the 14-day score change.
 4. Write a `score_snapshots` row with `inputs_hash = sha256(sorted call_id:points pairs)`.
@@ -160,11 +161,11 @@ The whole workstream is TypeScript, so the extension, the API and teammates' ser
 | --- | --- | --- |
 | Language | TypeScript on Node 20+ | Same language as the extension; the x402 and Circle SDKs are TypeScript-first |
 | API | Hono | Small and typed; route schemas come from Zod |
-| Database | Supabase Postgres via `supabase-js`, migrations in `supabase/migrations` | One hosted database the whole team can reach, with a free tier and built-in X OAuth |
+| Database | Supabase Postgres through the `postgres` driver and a `DATABASE_URL`, migrations in `supabase/migrations` | One hosted database the whole team can reach, with a free tier and built-in X OAuth. A plain connection string also works against a local Postgres for development |
 | Shared types | Zod schemas in `packages/shared` | One definition validates API input and types the extension |
 | Scheduling | `node-cron` in the API process | No extra infrastructure for a 5-minute job |
 | Extension | WXT + React, Manifest V3 | Hot reload and shadow-DOM content-script UI out of the box |
-| Repo | pnpm workspaces: `apps/api`, `apps/extension`, `packages/shared` | Teammates add `apps/<service>` next to these |
+| Repo | pnpm workspaces: `apps/api`, `apps/extension`, `apps/trading` (Yash), `packages/shared` | Teammates add `apps/<service>` next to these |
 | API hosting | Railway (proposed) | Always-on Node process so the cron job keeps running |
 
 ## Integration contracts
@@ -174,9 +175,9 @@ Each teammate touches this workstream through one table or one endpoint. These s
 | Teammate | They provide | This workstream provides |
 | --- | --- | --- |
 | Pranav (Grok bot pipeline) | Every parsed X post via `POST /v1/posts`: its sentiment, and the matched Gemini market and pick when there is one | Storage for all posts, call promotion, odds lookup, dedupe and lock checks, and a per-post reason when a post is not scored |
-| Yash (one-click trading) | The trade endpoint the tail card calls; writes `tails` rows | Tail card UI, call and market ids, odds at call time and now |
+| Yash (one-click trading) | `POST /v1/tails` on the trading service (port 8788), which writes `tails` rows; the Gemini market sync that fills `markets` | Tail card UI, call and market ids, odds at call time and now |
 | Mugdha (on-chain, x402, X login) | X login session and wallet link into `users`; `onchain_tx` on snapshots; `earnings_ledger` rows | `score_snapshots` with `inputs_hash` for the Arc reputation token; earnings shown in the popover |
-| Gemini market sync (owner open) | Rows in `markets` for open sports markets, plus results | Schema and the worker that reads them |
+| Gemini market sync (Yash's trading service) | Rows in `markets` for open sports markets, plus results, via `POST /v1/markets/sync` (service key) | The worker that reads resolved markets, and ingest, which reads current odds |
 
 The post-ingest payload, from `packages/shared`:
 
@@ -193,7 +194,7 @@ export const NewPost = z.object({
 });
 ```
 
-The tail request the extension sends to Yash's endpoint:
+The tail request the extension sends to `POST /v1/tails` on the trading service, with an `X-Follower-Id: <user uuid>` header until Mugdha's X login replaces it:
 
 ```ts
 export const TailRequest = z.object({
@@ -203,6 +204,8 @@ export const TailRequest = z.object({
   quotedOdds: z.number().min(0).max(1),
 });
 ```
+
+The trading service rejects the tail if the live price has moved more than 5 cents from `quotedOdds`. It answers with `{ tailId, status, mode, entryOdds, amountUsdc, geminiOrderId, pnlUsdc }`. The types live in `packages/shared/src/trading.ts`.
 
 ## Milestones
 
@@ -239,12 +242,18 @@ The biggest risk to the demo is having too few resolved sports calls to show rea
 | Copy-trader manipulation: a high-score user tweets a pick, followers move a thin market, and the user sells into it | Followers buy at a worse price | Score at the price when the user tweeted; tail card shows how far the odds moved since the call; cap tail amount per call |
 | Hedging or deleting losers | Inflated scores | First pick per market is the only one that counts; deleted tweets still scored |
 | No Gemini price history | Odds at call time are approximate | `odds_source` and `ingest_lag_s` recorded; calls with more than 600 s of lag are not scored |
+| Market odds go stale between syncs | Scores, the slippage check and live order prices use old odds | Run the sync every 5 minutes, or have ingest read the live price from Gemini |
+| Follower id is a plain header and live orders use one shared Gemini key | Anyone can place tails as anyone, all live trades hit the team's account | Sandbox only for the demo; replace the header with Mugdha's X login before anything real |
+| Market has no expiry date, so `lock_time` falls back to a placeholder a year out | The lock check never fires for that market | Skip markets with no expiry in ingest |
 | X changes its page markup | Badges vanish mid-demo | All selectors in one file; fallback match on the profile link in the tweet header; re-test the morning of Nov 20 |
 | Grok parser maps a tweet to the wrong market | A wrong call is scored | Popover links every call to its tweet so mistakes are visible |
 
 **Open questions**
 
-- [ ] Does the Gemini Prediction Markets API expose historical prices for a market? This decides between `history` and `snapshot` odds.
-- [ ] Who owns the Gemini market sync that fills `markets`: Yash or this workstream?
+- [ ] Does the Gemini Prediction Markets API expose historical prices for a market? The trading service's client has no such call, so this stays open and `snapshot` is the default.
+- [ ] Does the Gemini sandbox list enough sports markets to demo, and will enough of them settle before Nov 20? Someone needs to run `POST /v1/markets/sync` against the sandbox and look.
+- [ ] Who runs the market sync on a schedule, and how often? Today it only runs when someone calls it.
+- [ ] Tail card: Yash's PR assumes this workstream builds the card UI and the trading service owns the endpoint. Confirm.
+- [x] Who owns the Gemini market sync? Yash's trading service, as of PR #20.
 - [ ] The team doc says the reputation token is on Solana or Arc. Our chain award is Arc, so confirm Arc only with Mugdha.
 - [ ] Who owns the Supabase project and the Railway deploy, and how are service keys shared?
