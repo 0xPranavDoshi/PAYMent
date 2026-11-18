@@ -83,14 +83,19 @@ export function createApifySource(opts: {
       }
       if (!Array.isArray(body)) throw new PostSourceError("Apify returned a non-array body");
 
-      const posts: RawPost[] = [];
+      const byId = new Map<string, RawPost>();
       for (const item of body) {
         const post = normalizeApifyItem(item);
         if (!post) continue;
         if (sinceId !== undefined && BigInt(post.tweetId) <= BigInt(sinceId)) continue;
-        posts.push(post);
+        byId.set(post.tweetId, post);
       }
-      return posts;
+      // maxItems is a target, not a hard limit for this actor: it can return extras
+      // (and duplicates across pages). Keep only the newest `limit` unique posts so
+      // nothing beyond the cap reaches Grok.
+      return [...byId.values()]
+        .sort((a, b) => (BigInt(b.tweetId) > BigInt(a.tweetId) ? 1 : BigInt(b.tweetId) < BigInt(a.tweetId) ? -1 : 0))
+        .slice(0, limit);
     },
   };
 }

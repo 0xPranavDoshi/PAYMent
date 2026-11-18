@@ -89,6 +89,20 @@ describe("createApifySource", () => {
     ]);
   });
 
+  it("returns at most `limit` posts, newest first, with duplicates removed", async () => {
+    // The actor treats maxItems as a target and can return extras: 4 unique posts + 1 duplicate.
+    const items = [fixture[3], fixture[1], fixture[0], fixture[1], fixture[2]];
+    const source = createApifySource({
+      token: "t",
+      fetch: (async () => jsonResponse(items)) as unknown as typeof fetch,
+    });
+    const posts = await source.fetchPosts("espn", { limit: 2 });
+    const newestTwo = [...new Set(items.map((i) => i!.id))]
+      .sort((a, b) => (BigInt(b) > BigInt(a) ? 1 : -1))
+      .slice(0, 2);
+    expect(posts.map((p) => p.tweetId)).toEqual(newestTwo);
+  });
+
   it("drops invalid items instead of throwing", async () => {
     const source = createApifySource({
       token: "t",
