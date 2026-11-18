@@ -106,21 +106,25 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
       return c.json({ error: "picked outcome not found in market" }, 422);
     }
 
+    // Side-specific price: NO picks use the buy.no price
+    const entryOdds =
+      call.side === "no" && outcome.noOdds !== null
+        ? outcome.noOdds
+        : outcome.currentOdds;
+
     // Slippage check
-    const priceDrift = Math.abs(outcome.currentOdds - req.quotedOdds);
+    const priceDrift = Math.abs(entryOdds - req.quotedOdds);
     if (priceDrift > MAX_SLIPPAGE) {
       return c.json(
         {
           error: "price moved too much",
           quotedOdds: req.quotedOdds,
-          currentOdds: outcome.currentOdds,
+          currentOdds: entryOdds,
           drift: priceDrift,
         },
         409,
       );
     }
-
-    const entryOdds = outcome.currentOdds;
 
     // ── Paper trade ───────────────────────────────────────────────────────
     if (req.mode === "paper") {
@@ -138,6 +142,10 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
     }
 
     // ── Live trade ────────────────────────────────────────────────────────
+    if (!call.side) {
+      return c.json({ error: "call is missing side (yes/no), cannot place live order" }, 422);
+    }
+
     // quantity = floor(amountUsdc / price) so we never overspend
     const quantity = Math.floor(req.amountUsdc / entryOdds);
     if (quantity < 1) {
@@ -154,7 +162,7 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
       const order = await gemini.placeOrder({
         symbol: outcome.instrumentSymbol,
         side: "buy",
-        outcome: "yes",
+        outcome: call.side,
         quantity: String(quantity),
         price: entryOdds.toFixed(4),
       });
@@ -189,12 +197,19 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
       const call = await store.getCall(tail.callId);
       if (call) {
         const market = await store.getMarketById(call.marketId);
-        if (market?.status === "resolved" && market.winningOutcome) {
-          const won = market.winningOutcome === call.pickedOutcome;
+        if (market?.status === "resolved") {
+          const pickedContract = market.outcomes.find(
+            (o) => o.label === call.pickedOutcome || o.instrumentSymbol === call.pickedOutcome,
+          );
+          // win if the contract's resolution direction matches the side we bought
+          const won =
+            pickedContract?.resolutionSide != null &&
+            call.side != null &&
+            pickedContract.resolutionSide === call.side;
           const contracts = Math.floor(tail.amountUsdc / tail.entryOdds);
           tail.pnlUsdc = won
-            ? contracts - tail.amountUsdc          // payout minus cost
-            : -tail.amountUsdc;                     // lost the stake
+            ? contracts - tail.amountUsdc
+            : -tail.amountUsdc;
         }
       }
     }

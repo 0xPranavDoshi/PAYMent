@@ -49,6 +49,8 @@ export const OutcomeInfo = z.object({
   label: z.string(),
   instrumentSymbol: z.string(),
   currentOdds: z.number().min(0).max(1),
+  noOdds: z.number().min(0).max(1).nullable(),
+  resolutionSide: z.enum(["yes", "no"]).nullable(),
 });
 export type OutcomeInfo = z.infer<typeof OutcomeInfo>;
 

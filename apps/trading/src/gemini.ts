@@ -4,7 +4,8 @@ import type { OutcomeInfo } from "@copayme/shared";
 export interface GeminiConfig {
   apiKey: string;
   apiSecret: string;
-  baseUrl: string;
+  readBaseUrl: string;   // production — sports markets live here
+  orderBaseUrl: string;  // sandbox — place orders here
 }
 
 export interface GeminiContract {
@@ -30,6 +31,7 @@ export interface GeminiEvent {
   title: string;
   ticker: string;
   status: string;
+  effectiveDate: string | null;  // game start — use as lock_time
   expiryDate: string | null;
   resolvedAt: string | null;
   contracts: GeminiContract[];
@@ -68,7 +70,7 @@ export class GeminiClient {
     if (params?.status) qs.set("status", params.status);
     if (params?.sport) qs.set("sport", params.sport);
     const res = await fetch(
-      `${this.cfg.baseUrl}/v1/prediction-markets/events?${qs}`,
+      `${this.cfg.readBaseUrl}/v1/prediction-markets/events?${qs}`,
     );
     if (!res.ok) {
       throw new Error(`Gemini listEvents ${res.status}: ${await res.text()}`);
@@ -81,7 +83,7 @@ export class GeminiClient {
 
   async getEvent(ticker: string): Promise<GeminiEvent> {
     const res = await fetch(
-      `${this.cfg.baseUrl}/v1/prediction-markets/events/${encodeURIComponent(ticker)}`,
+      `${this.cfg.readBaseUrl}/v1/prediction-markets/events/${encodeURIComponent(ticker)}`,
     );
     if (!res.ok) {
       throw new Error(`Gemini getEvent ${res.status}: ${await res.text()}`);
@@ -115,7 +117,7 @@ export class GeminiClient {
       .update(encodedPayload)
       .digest("hex");
 
-    const res = await fetch(`${this.cfg.baseUrl}${endpoint}`, {
+    const res = await fetch(`${this.cfg.orderBaseUrl}${endpoint}`, {
       method: "POST",
       headers: {
         "Content-Type": "text/plain",
@@ -132,17 +134,23 @@ export class GeminiClient {
   }
 }
 
-/** Extract the best-ask (cheapest "yes" buy) price as a [0,1] number. */
-export function askPrice(contract: GeminiContract): number {
-  const p = parseFloat(contract.prices.buy.yes);
-  return Number.isFinite(p) ? p : parseFloat(contract.prices.bestAsk);
+/** Extract the best-ask price for a given side as a [0,1] number. */
+export function askPrice(
+  contract: GeminiContract,
+  side: "yes" | "no" = "yes",
+): number {
+  const p = parseFloat(contract.prices.buy[side]);
+  return Number.isFinite(p) && p > 0 ? p : parseFloat(contract.prices.bestAsk);
 }
 
 /** Convert a Gemini event contract into our OutcomeInfo shape. */
 export function contractToOutcome(contract: GeminiContract): OutcomeInfo {
+  const noP = parseFloat(contract.prices.buy.no);
   return {
     label: contract.label,
     instrumentSymbol: contract.instrumentSymbol,
-    currentOdds: askPrice(contract),
+    currentOdds: askPrice(contract, "yes"),
+    noOdds: Number.isFinite(noP) && noP > 0 ? noP : null,
+    resolutionSide: contract.resolutionSide,
   };
 }
