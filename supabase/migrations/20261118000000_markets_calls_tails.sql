@@ -73,7 +73,20 @@ create table tails (
 create index tails_follower_idx on tails (follower_id);
 create index tails_call_idx     on tails (call_id);
 
-alter table markets enable row level security;
-alter table posts   enable row level security;
-alter table calls   enable row level security;
-alter table tails   enable row level security;
+-- Earnings ledger: x402 reward payouts written by Mugdha's rewards service
+create table earnings_ledger (
+  id          uuid          primary key default gen_random_uuid(),
+  user_id     uuid          not null references users (id) on delete cascade,
+  amount_usdc numeric(12,6) not null check (amount_usdc > 0),
+  reason      text          not null,
+  tx_hash     text,
+  created_at  timestamptz   not null default now()
+);
+
+create index earnings_ledger_user_idx on earnings_ledger (user_id);
+
+alter table markets         enable row level security;
+alter table posts           enable row level security;
+alter table calls           enable row level security;
+alter table tails           enable row level security;
+alter table earnings_ledger enable row level security;
