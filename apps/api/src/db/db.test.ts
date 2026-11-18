@@ -1,7 +1,10 @@
 import postgres from "postgres";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
-import { isLocalDatabase, resetLocalDatabase } from "./migrate.js";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { isLocalDatabase, migrate, migrationStatus, resetLocalDatabase } from "./migrate.js";
 import { DEMO_USERS, seedDemoData } from "./seed.js";
 import { createPostgresStore } from "../store.postgres.js";
 
@@ -60,5 +63,59 @@ describe.skipIf(!url)("against a real Postgres", () => {
     await expect(
       resetLocalDatabase(sql, "postgres://u:p@db.abcd.supabase.co:5432/postgres"),
     ).rejects.toThrow(/localhost/);
+  });
+
+  describe("migrate", () => {
+    let dir: string;
+    const file = (name: string, body: string) => writeFile(join(dir, name), body);
+
+    beforeEach(async () => {
+      dir = (await mkdtemp(join(tmpdir(), "migrations-"))) + "/";
+      await sql.unsafe("drop schema public cascade; create schema public;");
+    });
+    afterEach(() => rm(dir, { recursive: true, force: true }));
+
+    it("applies files in order, once, and records them", async () => {
+      await file("002_b.sql", "create table b (id int primary key);");
+      await file("001_a.sql", "create table a (id int primary key);");
+
+      expect((await migrationStatus(sql, dir)).pending).toEqual(["001_a.sql", "002_b.sql"]);
+      expect(await migrate(sql, dir)).toEqual(["001_a.sql", "002_b.sql"]);
+      expect(await migrate(sql, dir)).toEqual([]); // second run is a no-op
+      expect(await migrationStatus(sql, dir)).toEqual({
+        applied: ["001_a.sql", "002_b.sql"],
+        pending: [],
+      });
+    });
+
+    it("applies only new files after earlier ones are in", async () => {
+      await file("001_a.sql", "create table a (id int primary key);");
+      await migrate(sql, dir);
+      await file("002_b.sql", "create table b (id int primary key);");
+      expect(await migrate(sql, dir)).toEqual(["002_b.sql"]);
+    });
+
+    it("refuses when an applied file was edited", async () => {
+      await file("001_a.sql", "create table a (id int primary key);");
+      await migrate(sql, dir);
+      await file("001_a.sql", "create table a (id int primary key, extra text);");
+      await expect(migrate(sql, dir)).rejects.toThrow(/edited after it was applied/);
+    });
+
+    it("rolls everything back when a file fails", async () => {
+      await file("001_a.sql", "create table a (id int primary key);");
+      await file("002_bad.sql", "create table b (id int primary key); select * from missing_table;");
+      await expect(migrate(sql, dir)).rejects.toThrow();
+      const [row] = await sql<{ a: boolean; b: boolean }[]>`
+        select to_regclass('public.a') is not null as a, to_regclass('public.b') is not null as b`;
+      expect(row).toEqual({ a: false, b: false });
+      expect((await migrationStatus(sql, dir)).applied).toEqual([]);
+    });
+
+    it("serialises two runs at once", async () => {
+      await file("001_a.sql", "create table a (id int primary key);");
+      const results = await Promise.all([migrate(sql, dir), migrate(sql, dir)]);
+      expect(results.flat()).toEqual(["001_a.sql"]); // exactly one of them applied it
+    });
   });
 });
