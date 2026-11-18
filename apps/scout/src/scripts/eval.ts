@@ -25,9 +25,15 @@ export interface EvalReport {
   misses: string[];
 }
 
-/** Bet type from a Gemini sub-event ticker suffix: -M win, -S spread, -T total, else prop. */
+/** Bet type from a Gemini sub-event ticker suffix: -M win, -S/-1HS spread, -T/-1HT total, else prop. */
 const betTypeOfTicker = (ticker: string): BetType =>
-  ticker.endsWith("-M") ? "win" : ticker.endsWith("-S") ? "spread" : ticker.endsWith("-T") ? "total" : "prop";
+  ticker.endsWith("-M")
+    ? "win"
+    : ticker.endsWith("-S") || ticker.endsWith("-1HS")
+      ? "spread"
+      : ticker.endsWith("-T") || ticker.endsWith("-1HT")
+        ? "total"
+        : "prop";
 
 /** GEMI-<event ticker>-<contract> -> <event ticker>. */
 const eventTickerOf = (instrumentSymbol: string): string => {

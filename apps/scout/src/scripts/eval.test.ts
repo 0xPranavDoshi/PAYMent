@@ -53,6 +53,8 @@ describe("scoreEval", () => {
       ["NBA-X-LAL-CHA-M", "win"],
       ["NBA-X-LAL-CHA-S", "spread"],
       ["NBA-X-LAL-CHA-T", "total"],
+      ["NBA-X-LAL-CHA-1HS", "spread"],
+      ["NBA-X-LAL-CHA-1HT", "total"],
       ["NBA-X-JOKIC-POINTS", "prop"],
     ];
     for (const [ticker, betType] of cases) {

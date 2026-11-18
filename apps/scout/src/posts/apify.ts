@@ -33,7 +33,8 @@ export function normalizeApifyItem(item: unknown): RawPost | null {
     xHandle: userName.toLowerCase(),
     text,
     createdAt: createdAt.toISOString(),
-    isRetweet: item.isRetweet === true,
+    // The actor leaves isRetweet out on some retweets; a retweeted_tweet object is the other signal.
+    isRetweet: item.isRetweet === true || isRecord(item.retweeted_tweet),
     isReply: item.isReply === true,
   };
   if (quoted) post.quotedText = quoted;
@@ -53,15 +54,13 @@ export function createApifySource(opts: {
   return {
     async fetchPosts(handle, { sinceId, limit }) {
       const clean = handle.replace(/^@/, "").toLowerCase();
-      const url =
-        `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}` +
-        `/run-sync-get-dataset-items?token=${encodeURIComponent(opts.token)}`;
+      const url = `https://api.apify.com/v2/acts/${encodeURIComponent(actorId)}/run-sync-get-dataset-items`;
 
       let res: Response;
       try {
         res = await doFetch(url, {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: { "content-type": "application/json", Authorization: `Bearer ${opts.token}` },
           body: JSON.stringify({
             searchTerms: [sinceId !== undefined ? `from:${clean} since_id:${sinceId}` : `from:${clean}`],
             queryType: "Latest",
@@ -70,7 +69,9 @@ export function createApifySource(opts: {
           signal: AbortSignal.timeout(timeoutMs),
         });
       } catch (cause) {
-        throw new PostSourceError(`Apify request failed: ${String(cause)}`, { cause });
+        // Error name only: a message could carry the URL or request details.
+        const name = cause instanceof Error ? cause.name : typeof cause;
+        throw new PostSourceError(`Apify request failed: ${name}`, { cause });
       }
       if (!res.ok) throw new PostSourceError(`Apify responded with HTTP ${res.status}`);
 

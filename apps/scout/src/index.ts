@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server";
 import postgres from "postgres";
 import { createApp } from "./app.js";
+import { positiveIntOr } from "./env.js";
 import { createForwarder, noopForwarder } from "./forward.js";
 import { createGeminiClient } from "./gemini/client.js";
 import { createGrok } from "./grok/client.js";
@@ -45,10 +46,10 @@ const app = createApp({
   startScan: (handle) => {
     void runScan(handle, scanDeps).catch((e) => console.error(`[scout] scan crashed for ${handle}:`, e));
   },
-  dailyNewHandles: Number(env.SCOUT_DAILY_NEW_HANDLES ?? 30),
+  dailyNewHandles: positiveIntOr(env.SCOUT_DAILY_NEW_HANDLES, 30),
   ...(env.SCOUT_ALLOWED_ORIGIN ? { allowedOrigin: env.SCOUT_ALLOWED_ORIGIN } : {}),
 });
 
-serve({ fetch: app.fetch, port: Number(env.SCOUT_PORT ?? 8789) }, (info) => {
+serve({ fetch: app.fetch, port: positiveIntOr(env.SCOUT_PORT, 8789) }, (info) => {
   console.log(`coPAYMe scout listening on http://localhost:${info.port}`);
 });

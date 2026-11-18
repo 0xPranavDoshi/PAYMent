@@ -88,24 +88,29 @@ function opponentOf(game: GeminiEvent, p: Prediction): TeamRef | null {
   return { name: other.name, aliases: [other.abbreviation, ...words(other.name).filter((w) => !ownWords.has(w))] };
 }
 
-function strikeOf(c: GeminiContract): number | null {
-  if (!c.strike) return null;
+/** The strike value, or null when missing, non-numeric, or not of the expected strike type. */
+function strikeOf(c: GeminiContract, type: string): number | null {
+  if (!c.strike || c.strike.type !== type) return null;
   const v = Number(c.strike.value);
   return Number.isFinite(v) ? v : null;
 }
 
-/** Apply the line rule: "atMost" keeps v <= L and picks the largest; "atLeast" keeps v >= L and picks the smallest. */
+/**
+ * Apply the line rule: "atMost" keeps v <= L and picks the largest; "atLeast" keeps v >= L and picks the
+ * smallest. Spreads use only "spread" strikes; totals and props only "over" strikes.
+ */
 function applyLine(
   sub: GeminiEvent,
   contracts: GeminiContract[],
-  kind: string,
+  kind: "spread" | "total" | "prop",
   mode: "atMost" | "atLeast",
   side: "yes" | "no",
   L: number,
 ): Choice | null {
+  const strikeType = kind === "spread" ? "spread" : "over";
   let best: { c: GeminiContract; v: number } | null = null;
   for (const c of contracts) {
-    const v = strikeOf(c);
+    const v = strikeOf(c, strikeType);
     if (v === null) continue;
     if (mode === "atMost" ? v > L : v < L) continue;
     if (!best || (mode === "atMost" ? v > best.v : v < best.v)) best = { c, v };
@@ -167,7 +172,7 @@ export async function chooseLine(
   let side: "yes" | "no";
   let team: TeamRef | null = null;
   let player = "";
-  let kind: string;
+  let kind: "spread" | "prop";
 
   if (p.betType === "spread") {
     kind = "spread";
@@ -199,8 +204,13 @@ export async function chooseLine(
     : sub.contracts.filter((c) => contractMatchesPlayer(c, player));
   // the best-rank matches name two different teams (e.g. a rivalry both names contain): ambiguous
   if (team && spansSubjects(contracts)) return null;
-  if (contracts.length === 0) contracts = await grokSubject(sub, team ? team.name : player, grok);
-  return applyLine(sub, contracts, kind, mode, side, L);
+  if (contracts.length > 0) return applyLine(sub, contracts, kind, mode, side, L);
+
+  // Fallback: ask Grok which contracts are the subject's; refuse an answer that spans subjects.
+  contracts = await grokSubject(sub, team ? team.name : player, grok);
+  if (spansSubjects(contracts)) return null;
+  const choice = applyLine(sub, contracts, kind, mode, side, L);
+  return choice ? { ...choice, detail: `${choice.detail} (via grok)` } : null;
 }
 
 export function validateChoice(game: GeminiEvent, choice: Choice, tweetedAt: Date): string | null {

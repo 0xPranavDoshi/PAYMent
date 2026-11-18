@@ -14,18 +14,33 @@ describe("normalizeApifyItem", () => {
       expect(post!.xHandle).toBe("espn");
       expect(post!.tweetId).toBe(item.id);
       expect(post!.xUserId).toBe("2557521");
-      expect(post!.createdAt).toBe(new Date(Date.parse(item.createdAt)).toISOString());
+      // createdAt comes from the snowflake (ms precision); the provider's is to the second
+      const diff = Date.parse(post!.createdAt) - Date.parse(item.createdAt);
+      expect(diff).toBeGreaterThanOrEqual(0);
+      expect(diff).toBeLessThan(1000);
     }
   });
 
-  it("flags retweets, replies and quoted text", () => {
+  it("flags retweets and replies in the recorded sample", () => {
     const posts = fixture.map((i) => normalizeApifyItem(i)!);
-    expect(posts[2]!.isRetweet).toBe(true);
-    expect(posts[1]!.isReply).toBe(true);
-    expect(posts[0]!.isRetweet).toBe(false);
-    expect(posts[0]!.isReply).toBe(false);
-    expect(posts[3]!.quotedText).toBe("Knicks to win by 10 tonight");
-    expect(posts[0]!.quotedText).toBeUndefined();
+    expect(posts[0]!.isRetweet).toBe(true);
+    expect(posts[3]!.isReply).toBe(true);
+    expect(posts[1]!.isRetweet).toBe(false);
+    expect(posts[1]!.isReply).toBe(false);
+    expect(posts.filter((p) => p.isRetweet)).toHaveLength(1);
+    expect(posts.filter((p) => p.isReply)).toHaveLength(1);
+    expect(posts.every((p) => p.quotedText === undefined)).toBe(true);
+  });
+
+  it("treats a non-null retweeted_tweet object as a retweet even without isRetweet", () => {
+    const { isRetweet: _drop, ...rt } = fixture[0]!;
+    expect(normalizeApifyItem(rt)?.isRetweet).toBe(true);
+    expect(normalizeApifyItem({ ...fixture[1], retweeted_tweet: null })?.isRetweet).toBe(false);
+  });
+
+  it("reads quoted text from quoted_tweet", () => {
+    const quote = { ...fixture[1], quoted_tweet: { id: "1", text: "Knicks to win by 10 tonight" } };
+    expect(normalizeApifyItem(quote)?.quotedText).toBe("Knicks to win by 10 tonight");
   });
 
   it("returns null for junk, non-tweets and mock items", () => {
@@ -46,7 +61,8 @@ describe("createApifySource", () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toContain("kaitoeasyapi~twitter-x-data-tweet-scraper-pay-per-result-cheapest");
     expect(url).toContain("run-sync-get-dataset-items");
-    expect(url).toContain("token=tok");
+    expect(url).not.toContain("tok");
+    expect(init.headers).toMatchObject({ Authorization: "Bearer tok" });
     expect(JSON.parse(init.body as string)).toEqual({
       searchTerms: ["from:espn"],
       queryType: "Latest",
@@ -102,5 +118,24 @@ describe("createApifySource", () => {
       fetch: (async () => jsonResponse({ x: 1 })) as unknown as typeof fetch,
     });
     await expect(bad.fetchPosts("espn", { limit: 20 })).rejects.toBeInstanceOf(PostSourceError);
+  });
+
+  it("never puts the URL or token in error messages", async () => {
+    const leaky = createApifySource({
+      token: "secret-tok",
+      fetch: (async (url: string) => {
+        throw new TypeError(`fetch failed for ${url} with secret-tok`);
+      }) as unknown as typeof fetch,
+    });
+    const err = await leaky.fetchPosts("espn", { limit: 20 }).catch((e: Error) => e);
+    expect(err).toBeInstanceOf(PostSourceError);
+    expect((err as Error).message).not.toContain("secret-tok");
+    expect((err as Error).message).not.toContain("api.apify.com");
+    for (const res of [jsonResponse({}, 500), new Response("<html>"), jsonResponse({ x: 1 })]) {
+      const s = createApifySource({ token: "secret-tok", fetch: (async () => res) as unknown as typeof fetch });
+      const e = await s.fetchPosts("espn", { limit: 20 }).catch((x: Error) => x);
+      expect((e as Error).message).not.toContain("secret-tok");
+      expect((e as Error).message).not.toContain("api.apify.com");
+    }
   });
 });

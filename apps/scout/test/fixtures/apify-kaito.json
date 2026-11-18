@@ -1,111 +1,106 @@
 [
   {
     "type": "tweet",
-    "id": "2122872417285046272",
-    "url": "https://x.com/ESPN/status/2122872417285046272",
-    "twitterUrl": "https://twitter.com/ESPN/status/2122872417285046272",
-    "createdAt": "Wed Nov 18 02:00:00 +0000 2026",
+    "id": "2123180546947760340",
+    "url": "https://x.com/espn/status/2123180546947760340",
+    "text": "RT @espn: Tyler Herro looks focused ahead of his first game against the Miami Heat.\n\nWatch A Night in Vice City at 7 ET on ESPN and the ESP…",
+    "createdAt": "Wed Nov 18 22:24:23 +0000 2026",
     "lang": "en",
     "isReply": false,
     "inReplyToId": null,
     "inReplyToUsername": null,
-    "conversationId": "2122872417285046272",
-    "isRetweet": false,
-    "isQuote": false,
-    "author": {
-      "type": "user",
-      "userName": "ESPN",
-      "id": "2557521",
-      "name": "ESPN"
-    },
-    "text": "Chiefs by 7. Book it."
-  },
-  {
-    "type": "tweet",
-    "id": "2122834731463606272",
-    "url": "https://x.com/ESPN/status/2122834731463606272",
-    "twitterUrl": "https://twitter.com/ESPN/status/2122834731463606272",
-    "createdAt": "Tue Nov 17 23:30:15 +0000 2026",
-    "lang": "en",
-    "isReply": true,
-    "inReplyToId": "1",
-    "inReplyToUsername": "NFL",
-    "conversationId": "1",
-    "isRetweet": false,
-    "isQuote": false,
-    "author": {
-      "type": "user",
-      "userName": "ESPN",
-      "id": "2557521",
-      "name": "ESPN"
-    },
-    "text": "@NFL Lakers cover tonight, easy."
-  },
-  {
-    "type": "tweet",
-    "id": "2122783078609846272",
-    "url": "https://x.com/ESPN/status/2122783078609846272",
-    "twitterUrl": "https://twitter.com/ESPN/status/2122783078609846272",
-    "createdAt": "Tue Nov 17 20:05:00 +0000 2026",
-    "lang": "en",
-    "isReply": false,
-    "inReplyToId": null,
-    "inReplyToUsername": null,
-    "conversationId": "2122783078609846272",
+    "conversationId": "2123180546947760340",
     "isRetweet": true,
-    "isQuote": false,
+    "retweeted_tweet": {
+      "id": "2123180356366938131",
+      "text": "Tyler Herro looks focused ahead of his first game against the Miami Heat.\n\nWatch A Night in Vice City at 7 ET on ESPN and the ESPN App 🍿 https://t.co/RwfPej9CtF"
+    },
+    "quoted_tweet": null,
     "author": {
       "type": "user",
-      "userName": "ESPN",
+      "userName": "espn",
       "id": "2557521",
       "name": "ESPN"
-    },
-    "text": "RT @SportsCenter: Celtics win again."
-  },
-  {
-    "type": "tweet",
-    "id": "2122763071779766272",
-    "url": "https://x.com/ESPN/status/2122763071779766272",
-    "twitterUrl": "https://twitter.com/ESPN/status/2122763071779766272",
-    "createdAt": "Tue Nov 17 18:45:30 +0000 2026",
-    "lang": "en",
-    "isReply": false,
-    "inReplyToId": null,
-    "inReplyToUsername": null,
-    "conversationId": "2122763071779766272",
-    "isRetweet": false,
-    "isQuote": true,
-    "author": {
-      "type": "user",
-      "userName": "ESPN",
-      "id": "2557521",
-      "name": "ESPN"
-    },
-    "text": "Disagree. Knicks are not winning this one.",
-    "quoted_tweet": {
-      "id": "99",
-      "text": "Knicks to win by 10 tonight"
     }
   },
   {
     "type": "tweet",
-    "id": "2122346640307126272",
-    "url": "https://x.com/ESPN/status/2122346640307126272",
-    "twitterUrl": "https://twitter.com/ESPN/status/2122346640307126272",
-    "createdAt": "Mon Nov 16 15:10:45 +0000 2026",
+    "id": "2123180356366938131",
+    "url": "https://x.com/espn/status/2123180356366938131",
+    "text": "Tyler Herro looks focused ahead of his first game against the Miami Heat.\n\nWatch A Night in Vice City at 7 ET on ESPN and the ESPN App 🍿 https://t.co/RwfPej9CtF",
+    "createdAt": "Wed Nov 18 22:23:38 +0000 2026",
     "lang": "en",
     "isReply": false,
     "inReplyToId": null,
     "inReplyToUsername": null,
-    "conversationId": "2122346640307126272",
-    "isRetweet": false,
-    "isQuote": false,
+    "conversationId": "2123180356366938131",
+    "retweeted_tweet": null,
+    "quoted_tweet": null,
     "author": {
       "type": "user",
-      "userName": "ESPN",
+      "userName": "espn",
       "id": "2557521",
       "name": "ESPN"
-    },
-    "text": "Over 220.5 is the play in Nuggets-Suns."
+    }
+  },
+  {
+    "type": "tweet",
+    "id": "2123161097121239293",
+    "url": "https://x.com/espn/status/2123161097121239293",
+    "text": "TARIQ FRANCIS BANG‼️\n\nClutch three from Rutgers to send it to OT on ESPN 🍿 https://t.co/jIvUUnUIUz",
+    "createdAt": "Wed Nov 18 21:07:06 +0000 2026",
+    "lang": "en",
+    "isReply": false,
+    "inReplyToId": null,
+    "inReplyToUsername": null,
+    "conversationId": "2123161097121239293",
+    "retweeted_tweet": null,
+    "quoted_tweet": null,
+    "author": {
+      "type": "user",
+      "userName": "espn",
+      "id": "2557521",
+      "name": "ESPN"
+    }
+  },
+  {
+    "type": "tweet",
+    "id": "2123087239630713318",
+    "url": "https://x.com/espn/status/2123087239630713318",
+    "text": "@JeffPassan More: https://t.co/iqYoZ3Y4xj",
+    "createdAt": "Wed Nov 18 16:13:37 +0000 2026",
+    "lang": "en",
+    "isReply": true,
+    "inReplyToId": "2123086983731761278",
+    "inReplyToUsername": "espn",
+    "conversationId": "2123086983731761278",
+    "retweeted_tweet": null,
+    "quoted_tweet": null,
+    "author": {
+      "type": "user",
+      "userName": "espn",
+      "id": "2557521",
+      "name": "ESPN"
+    }
+  },
+  {
+    "type": "tweet",
+    "id": "2123058087506407550",
+    "url": "https://x.com/espn/status/2123058087506407550",
+    "text": "Quentin Grimes making Lakers history 🔥\n\n@mcten with all the details: https://t.co/wU6YvRkLxk https://t.co/f9SLe7lz5I",
+    "createdAt": "Wed Nov 18 14:17:47 +0000 2026",
+    "lang": "en",
+    "isReply": false,
+    "inReplyToId": null,
+    "inReplyToUsername": null,
+    "conversationId": "2123058087506407550",
+    "retweeted_tweet": null,
+    "quoted_tweet": null,
+    "author": {
+      "type": "user",
+      "userName": "espn",
+      "id": "2557521",
+      "name": "ESPN"
+    }
   }
 ]
