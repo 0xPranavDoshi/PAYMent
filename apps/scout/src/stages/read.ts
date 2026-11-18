@@ -23,6 +23,7 @@ Fields:
 - betType: win, spread, total or player_prop.
 - claim: wins, loses, covers, over or under.
 - line: the number the post claims, or null if none ("Lakers by 7" -> 7, "30+ points" -> 30, "over 220.5" -> 220.5).
+- Spreads: line is always the positive size of the spread, never negative. "X -L", "X by L", "X covers L" and "X wins by more than L" -> team X, claim "covers", line L. "X +L", "X loses by less than L" and "X keeps it within L" -> team X, claim "loses", line L (meaning the opponent does not cover L).
 - confidence: how sure you are (0 to 1) that the post is a real prediction.
 - conviction: "strong" for "lock it in" style, "lean" for "I like them".
 - quote: the words in the post that make the claim.

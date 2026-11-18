@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { GrokOutputError, type Grok } from "../grok/client.js";
 import type { RawPost } from "../posts/source.js";
-import { READ_BATCH_SIZE, readPosts } from "./read.js";
+import { READ_BATCH_SIZE, READ_SYSTEM_PROMPT, readPosts } from "./read.js";
 
 const post = (i: number, extra: Partial<RawPost> = {}): RawPost => ({
   tweetId: `id${i}`,
@@ -61,6 +61,12 @@ describe("readPosts", () => {
     expect(out.get("id20")).toBeNull();
     expect(out.get("id39")).toBeNull();
     expect(out.get("id40")).not.toBeNull();
+  });
+
+  it("defines spread lines as positive sizes with covers/loses direction", () => {
+    expect(READ_SYSTEM_PROMPT).toContain("positive size of the spread");
+    expect(READ_SYSTEM_PROMPT).toMatch(/"X \+L".*claim "loses", line L/);
+    expect(READ_SYSTEM_PROMPT).toMatch(/"X -L".*claim "covers", line L/);
   });
 
   it("maps a tweet missing from the response to null", async () => {

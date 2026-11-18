@@ -109,7 +109,7 @@ describe("pickGame", () => {
 });
 
 describe("findGame", () => {
-  it("searches every alias with both statuses, dedupes, and returns the full event", async () => {
+  it("searches every alias with active, settled and under_review, dedupes, and returns the full event", async () => {
     const summary = lakersGame(at(1000));
     const full = { ...summary, events: [] };
     const gemini: GeminiClient = {
@@ -118,7 +118,9 @@ describe("findGame", () => {
     };
     const result = await findGame(pred(["Lakers", "LAL"]), TWEET, gemini);
     expect(result).toBe(full);
-    expect(gemini.searchEvents).toHaveBeenCalledTimes(4);
+    expect(gemini.searchEvents).toHaveBeenCalledTimes(6);
+    const statuses = vi.mocked(gemini.searchEvents).mock.calls.map((c) => c[1]);
+    expect(new Set(statuses)).toEqual(new Set(["active", "settled", "under_review"]));
     expect(gemini.getEvent).toHaveBeenCalledWith("G1");
   });
 

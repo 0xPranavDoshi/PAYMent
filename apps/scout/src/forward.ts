@@ -37,11 +37,17 @@ function toMarketRow(sub: GeminiEvent, gameStartTime: string | null): MarketRow 
   };
 }
 
+/**
+ * Only win picks (the sub-event is the game itself) are forwardable: spread/total/prop events are
+ * ladders where several contracts resolve YES together, but `markets.winning_outcome` holds one label.
+ */
+const isWinPick = (m: PickMatch): boolean => m.geminiEventTicker !== null && m.geminiEventTicker === m.gameTicker;
+
 /** The label to send as `pickedOutcome`, or null when the pick can't be expressed without a side field. */
 function forwardableLabel(m: PickMatch, sub: GeminiEvent): string | null {
   if (!m.contractLabel) return null;
   if (m.side === "yes") return m.contractLabel;
-  if (m.side === "no" && m.geminiEventTicker === m.gameTicker && sub.contracts.length === 2) {
+  if (m.side === "no" && sub.contracts.length === 2) {
     return sub.contracts.find((c) => c.label !== m.contractLabel)?.label ?? null;
   }
   return null;
@@ -60,7 +66,7 @@ export function createForwarder(opts: {
       const candidates: { entry: NewPost; market: MarketRow }[] = [];
       for (const post of posts) {
         for (const m of post.matches ?? []) {
-          if (m.status !== "matched" || !m.geminiEventTicker) continue;
+          if (m.status !== "matched" || !m.geminiEventTicker || !isWinPick(m)) continue;
           try {
             const sub = await opts.gemini.getEvent(m.geminiEventTicker);
             const pickedOutcome = forwardableLabel(m, sub);

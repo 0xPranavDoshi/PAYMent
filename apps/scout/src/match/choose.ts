@@ -15,21 +15,28 @@ export interface Choice {
 const norm = (s: string) => s.trim().toLowerCase();
 const normMetric = (s: string) => norm(s).replace(/s$/, "");
 
+/** Full-game children only: "half" (e.g. -1HS, -1HT) and other scopes are rejected; no scope is accepted. */
+const isFullContest = (e: GeminiEvent): boolean => {
+  const scope = e.sportsMarket?.scope?.type;
+  return scope === undefined || scope === "full_contest";
+};
+
 export function subEventFor(game: GeminiEvent, p: Prediction): GeminiEvent | null {
   if (p.betType === "win") return game;
-  const children = game.events ?? [];
+  const children = (game.events ?? []).filter(isFullContest);
   if (p.betType === "spread") return children.find((e) => e.template === "sports-spread") ?? null;
   if (p.betType === "total") return children.find((e) => e.template === "sports-total") ?? null;
   if (p.metric === null) return null;
   const metric = normMetric(p.metric);
-  return (
-    children.find(
-      (e) =>
-        e.template === "sports-player-props" &&
-        e.sportsMarket?.metric !== undefined &&
-        normMetric(e.sportsMarket.metric) === metric,
-    ) ?? null
+  const props = children.filter(
+    (e) =>
+      e.template === "sports-player-props" &&
+      e.sportsMarket?.metric !== undefined &&
+      normMetric(e.sportsMarket.metric) === metric,
   );
+  const player = p.player;
+  const withPlayer = player ? props.find((e) => e.contracts.some((c) => contractMatchesPlayer(c, player))) : undefined;
+  return withPlayer ?? props[0] ?? null;
 }
 
 function contractMatchesTeam(c: GeminiContract, team: TeamRef): boolean {
@@ -129,8 +136,9 @@ export async function chooseLine(
   p: Prediction,
   grok: Grok,
 ): Promise<Choice | null> {
-  const L = p.line;
-  if (L === null || !Number.isFinite(L)) return null;
+  if (p.line === null || !Number.isFinite(p.line)) return null;
+  // A spread line is a size: "-7" and "7" both mean "by 7"; the claim carries the direction.
+  const L = p.betType === "spread" ? Math.abs(p.line) : p.line;
 
   if (p.betType === "total") {
     if (p.claim === "over") return applyLine(sub, sub.contracts, "total", "atMost", "yes", L);

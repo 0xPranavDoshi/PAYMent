@@ -99,6 +99,52 @@ describe("subEventFor", () => {
     expect(subEventFor(game, pred({ betType: "player_prop", metric: "assists" }))).toBeNull();
     expect(subEventFor(game, pred({ betType: "player_prop", metric: null }))).toBeNull();
   });
+
+  it("skips a half-scope spread listed before the full-game one", () => {
+    const half = ev({
+      ticker: "G-1HS",
+      template: "sports-spread",
+      sportsMarket: { scope: { type: "half" } },
+      contracts: [spreadC("Lakers", "2.5")],
+    });
+    const full = ev({
+      ticker: "G-S",
+      template: "sports-spread",
+      sportsMarket: { scope: { type: "full_contest" } },
+      contracts: [spreadC("Lakers", "4.5")],
+    });
+    const halfTotal = ev({ ticker: "G-1HT", template: "sports-total", sportsMarket: { scope: { type: "half" } } });
+    const g = ev({ ...game, ticker: "G", events: [half, halfTotal, full, totalEv] });
+    expect(subEventFor(g, pred({ betType: "spread" }))).toBe(full);
+    expect(subEventFor(g, pred({ betType: "total" }))).toBe(totalEv);
+    expect(subEventFor(ev({ ...game, events: [half] }), pred({ betType: "spread" }))).toBeNull();
+  });
+
+  it("player props: full-contest only, preferring the child whose contracts include the player", () => {
+    const halfProps = ev({
+      ticker: "P-1H",
+      template: "sports-player-props",
+      sportsMarket: { metric: "points", scope: { type: "half" } },
+      contracts: [propC("Anthony Davis", "14.5")],
+    });
+    const lebron = ev({
+      ticker: "P-LBJ",
+      template: "sports-player-props",
+      sportsMarket: { metric: "points", scope: { type: "full_contest" } },
+      contracts: [propC("LeBron James", "24.5")],
+    });
+    const davis = ev({
+      ticker: "P-AD",
+      template: "sports-player-props",
+      sportsMarket: { metric: "points", scope: { type: "full_contest" } },
+      contracts: [propC("Anthony Davis", "24.5")],
+    });
+    const g = ev({ ...game, events: [halfProps, lebron, davis] });
+    const prop = (player: string) => pred({ betType: "player_prop", metric: "points", player });
+    expect(subEventFor(g, prop("Anthony Davis"))).toBe(davis);
+    expect(subEventFor(g, prop("LeBron James"))).toBe(lebron);
+    expect(subEventFor(g, prop("Nobody Known"))).toBe(lebron);
+  });
 });
 
 describe("chooseLine", () => {
@@ -157,6 +203,36 @@ describe("chooseLine", () => {
   it("uses p.opponent when given for the underdog rule", async () => {
     const r = await chooseLine(spreadEv, game, pred({ team: opp, opponent: team, claim: "loses", line: 4.5 }), noGrok());
     expect(r?.contract.label).toContain("Lakers");
+  });
+
+  it('"Arizona +4.5" (loses, line 4.5) -> the opponent\'s 4.5 spread, no', async () => {
+    const azGame = ev({
+      ticker: "AZ",
+      template: "sports-game",
+      startTime: "2026-11-19T02:00:00.000Z",
+      participants: [
+        { name: "Arizona Wildcats", abbreviation: "ARI", side: "home" },
+        { name: "UConn Huskies", abbreviation: "UCONN", side: "away" },
+      ],
+    });
+    const azSpread = ev({
+      ticker: "AZ-S",
+      template: "sports-spread",
+      contracts: [spreadC("Arizona", "4.5"), spreadC("UConn", "3.5"), spreadC("UConn", "4.5"), spreadC("UConn", "6.5")],
+    });
+    const arizona = { name: "Arizona Wildcats", aliases: ["Arizona", "ARI"] };
+    const r = await chooseLine(azSpread, azGame, pred({ team: arizona, claim: "loses", line: 4.5 }), noGrok());
+    expect(r?.contract.label).toContain("UConn");
+    expect(r?.contract.strike?.value).toBe("4.5");
+    expect(r?.side).toBe("no");
+  });
+
+  it("a negative spread line with claim covers behaves like the positive line", async () => {
+    const r = await chooseLine(spreadEv, game, pred({ line: -7 }), noGrok());
+    expect(r?.contract.label).toContain("Lakers");
+    expect(r?.contract.strike?.value).toBe("4.5");
+    expect(r?.side).toBe("yes");
+    expect(r?.detail).toBe("spread 4.5 <= 7");
   });
 
   it("a line below every contract -> null", async () => {

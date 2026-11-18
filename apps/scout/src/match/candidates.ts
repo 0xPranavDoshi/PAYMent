@@ -56,7 +56,7 @@ export async function findGame(
 ): Promise<GeminiEvent | null> {
   const byTicker = new Map<string, GeminiEvent>();
   for (const alias of aliasesOf(p.team)) {
-    for (const status of ["active", "settled"] as const) {
+    for (const status of ["active", "settled", "under_review"] as const) {
       for (const e of await gemini.searchEvents(alias, status)) {
         if (!byTicker.has(e.ticker)) byTicker.set(e.ticker, e);
       }

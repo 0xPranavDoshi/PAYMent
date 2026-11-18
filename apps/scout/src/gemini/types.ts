@@ -25,7 +25,9 @@ export interface GeminiEvent {
   participants?: { name: string; abbreviation: string; side: string }[] | undefined;
   contracts: GeminiContract[];
   events?: GeminiEvent[] | undefined;
-  sportsMarket?: { sport?: string | undefined; metric?: string | undefined } | undefined;
+  sportsMarket?:
+    | { sport?: string | undefined; metric?: string | undefined; scope?: { type?: string | undefined } | undefined }
+    | undefined;
   [key: string]: unknown;
 }
 
@@ -45,11 +47,20 @@ export const GeminiEvent: z.ZodType<GeminiEvent> = z.lazy(() =>
       contracts: z.array(GeminiContract),
       events: z.array(GeminiEvent).optional(),
       sportsMarket: z
-        .object({ sport: z.string().optional(), metric: z.string().optional() })
+        .object({
+          sport: z.string().optional(),
+          metric: z.string().optional(),
+          scope: z.object({ type: z.string().optional() }).passthrough().optional(),
+        })
         .passthrough()
         .optional(),
     })
     .passthrough(),
 );
 
-export const GeminiEventsResponse = z.object({ data: z.array(GeminiEvent) }).passthrough();
+export const GeminiEventsResponse = z
+  .object({
+    data: z.array(GeminiEvent),
+    pagination: z.object({ total: z.number() }).passthrough().optional(),
+  })
+  .passthrough();
