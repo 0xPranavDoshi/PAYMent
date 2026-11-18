@@ -1,0 +1,111 @@
+[
+  {
+    "type": "tweet",
+    "id": "2122872417285046272",
+    "url": "https://x.com/ESPN/status/2122872417285046272",
+    "twitterUrl": "https://twitter.com/ESPN/status/2122872417285046272",
+    "createdAt": "Wed Nov 18 02:00:00 +0000 2026",
+    "lang": "en",
+    "isReply": false,
+    "inReplyToId": null,
+    "inReplyToUsername": null,
+    "conversationId": "2122872417285046272",
+    "isRetweet": false,
+    "isQuote": false,
+    "author": {
+      "type": "user",
+      "userName": "ESPN",
+      "id": "2557521",
+      "name": "ESPN"
+    },
+    "text": "Chiefs by 7. Book it."
+  },
+  {
+    "type": "tweet",
+    "id": "2122834731463606272",
+    "url": "https://x.com/ESPN/status/2122834731463606272",
+    "twitterUrl": "https://twitter.com/ESPN/status/2122834731463606272",
+    "createdAt": "Tue Nov 17 23:30:15 +0000 2026",
+    "lang": "en",
+    "isReply": true,
+    "inReplyToId": "1",
+    "inReplyToUsername": "NFL",
+    "conversationId": "1",
+    "isRetweet": false,
+    "isQuote": false,
+    "author": {
+      "type": "user",
+      "userName": "ESPN",
+      "id": "2557521",
+      "name": "ESPN"
+    },
+    "text": "@NFL Lakers cover tonight, easy."
+  },
+  {
+    "type": "tweet",
+    "id": "2122783078609846272",
+    "url": "https://x.com/ESPN/status/2122783078609846272",
+    "twitterUrl": "https://twitter.com/ESPN/status/2122783078609846272",
+    "createdAt": "Tue Nov 17 20:05:00 +0000 2026",
+    "lang": "en",
+    "isReply": false,
+    "inReplyToId": null,
+    "inReplyToUsername": null,
+    "conversationId": "2122783078609846272",
+    "isRetweet": true,
+    "isQuote": false,
+    "author": {
+      "type": "user",
+      "userName": "ESPN",
+      "id": "2557521",
+      "name": "ESPN"
+    },
+    "text": "RT @SportsCenter: Celtics win again."
+  },
+  {
+    "type": "tweet",
+    "id": "2122763071779766272",
+    "url": "https://x.com/ESPN/status/2122763071779766272",
+    "twitterUrl": "https://twitter.com/ESPN/status/2122763071779766272",
+    "createdAt": "Tue Nov 17 18:45:30 +0000 2026",
+    "lang": "en",
+    "isReply": false,
+    "inReplyToId": null,
+    "inReplyToUsername": null,
+    "conversationId": "2122763071779766272",
+    "isRetweet": false,
+    "isQuote": true,
+    "author": {
+      "type": "user",
+      "userName": "ESPN",
+      "id": "2557521",
+      "name": "ESPN"
+    },
+    "text": "Disagree. Knicks are not winning this one.",
+    "quoted_tweet": {
+      "id": "99",
+      "text": "Knicks to win by 10 tonight"
+    }
+  },
+  {
+    "type": "tweet",
+    "id": "2122346640307126272",
+    "url": "https://x.com/ESPN/status/2122346640307126272",
+    "twitterUrl": "https://twitter.com/ESPN/status/2122346640307126272",
+    "createdAt": "Mon Nov 16 15:10:45 +0000 2026",
+    "lang": "en",
+    "isReply": false,
+    "inReplyToId": null,
+    "inReplyToUsername": null,
+    "conversationId": "2122346640307126272",
+    "isRetweet": false,
+    "isQuote": false,
+    "author": {
+      "type": "user",
+      "userName": "ESPN",
+      "id": "2557521",
+      "name": "ESPN"
+    },
+    "text": "Over 220.5 is the play in Nuggets-Suns."
+  }
+]
