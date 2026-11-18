@@ -8,6 +8,8 @@
     "start": "tsx --env-file-if-exists=../../.env src/index.ts",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
+    "db:migrate": "tsx --env-file-if-exists=../../.env src/db/cli.ts migrate",
+    "db:status": "tsx --env-file-if-exists=../../.env src/db/cli.ts status",
     "db:setup": "tsx --env-file-if-exists=../../.env src/db/cli.ts reset seed"
   },
   "dependencies": {
