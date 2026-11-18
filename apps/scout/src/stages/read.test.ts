@@ -92,10 +92,15 @@ describe("readPosts", () => {
     expect(out.get("id40")).not.toBeNull();
   });
 
-  it("defines spread lines as positive sizes with covers/loses direction", () => {
+  it("defines spread lines as positive sizes, with the sign deciding direction", () => {
     expect(READ_SYSTEM_PROMPT).toContain("positive size of the spread");
-    expect(READ_SYSTEM_PROMPT).toMatch(/"X \+L".*claim "loses", line L/);
-    expect(READ_SYSTEM_PROMPT).toMatch(/"X -L".*claim "covers", line L/);
+    expect(READ_SYSTEM_PROMPT).toContain("The SIGN decides, not the wording");
+    expect(READ_SYSTEM_PROMPT).toMatch(/"\+" in front of the number.*claim "loses", line L/);
+    expect(READ_SYSTEM_PROMPT).toMatch(/"-" in front of the number.*claim "covers", line L/);
+    // The real tweet that fooled the old prompt: "cover" with a plus sign is an underdog pick.
+    expect(READ_SYSTEM_PROMPT).toContain(
+      `"I favor backing Tennessee to cover +3.5" -> team Tennessee, claim "loses", line 3.5`,
+    );
   });
 
   it("maps a tweet missing from the response to null", async () => {

@@ -23,7 +23,12 @@ Fields:
 - betType: win, spread, total or player_prop.
 - claim: wins, loses, covers, over or under.
 - line: the number the post claims, or null if none ("Lakers by 7" -> 7, "30+ points" -> 30, "over 220.5" -> 220.5).
-- Spreads: line is always the positive size of the spread, never negative. "X -L", "X by L", "X covers L" and "X wins by more than L" -> team X, claim "covers", line L. "X +L", "X loses by less than L" and "X keeps it within L" -> team X, claim "loses", line L (meaning the opponent does not cover L).
+- Spreads (betType "spread"): line is always the positive size of the spread, never negative. Decide claim with this procedure, in order:
+  1. Find the spread number for this pick and look at the sign written directly in front of it. The SIGN decides, not the wording. Bettors say "cover" for BOTH sides ("Tennessee to cover +3.5" is an underdog bet), so the word "cover" tells you nothing.
+  2. "+" in front of the number (X +L, "taking the +L points", "X getting L", "X on the plus side") means team X is the UNDERDOG getting points: X wins outright or loses by less than L. -> team X, claim "loses", line L.
+  3. "-" in front of the number (X -L, "laying L with X", "X giving L") means team X is the FAVOURITE: X wins by more than L. -> team X, claim "covers", line L.
+  4. Only when there is no sign: "X by L" or "X wins by more than L" -> claim "covers"; "X keeps it within L" or "X loses by less than L" -> claim "loses".
+  Examples: "UCONN +3.5" -> team UConn, claim "loses", line 3.5. "I favor backing Tennessee to cover +3.5" -> team Tennessee, claim "loses", line 3.5. "Brooklyn Nets -2.5" -> team Brooklyn, claim "covers", line 2.5. "Lakers by 7" -> team Lakers, claim "covers", line 7.
 - confidence: how sure you are (0 to 1) that the post is a real prediction.
 - conviction: "strong" for "lock it in" style, "lean" for "I like them".
 - quote: the words in the post that make the claim.

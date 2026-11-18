@@ -48,7 +48,9 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
 - **Model `grok-4-1-fast-reasoning`, strict `json_schema` output,** validated with Zod. Invalid output gets one retry, and a network error or 60 s timeout counts as a failed attempt.
 - **Batches of 20 posts per call.** A post counts as a prediction only if `isPrediction && confidence >= 0.7`.
 - **The prompt judges each post as of its own `createdAt`,** so old tweets about games that have since been played still count (needed for backfill).
-- **Spread semantics are spelled out in the prompt:** `line` is always positive; "X -L" or "X by L" means covers; "X +L" or "loses by less than L" means loses. Without this, underdog picks were being read as stronger claims.
+- **Spread direction is decided by the sign, step by step in the prompt** (Nov 18, revised after the smoke test). `line` is always positive. A "+" before the number means the team is the underdog: claim `loses`. A "-" means the favourite: claim `covers`. The wording only counts when there is no sign. The prompt says outright that "cover" is used for both sides ("Tennessee to cover +3.5" is an underdog bet), and includes that real tweet as an example.
+  - *Why:* the first version listed "X covers L → covers". Grok matched the word "cover" and ignored the "+", so 2 of the 14 smoke-test matches were wrong.
+  - *Pranav chose a prompt-only fix* over a code check on a copied signed line (the alternative considered: Grok copies `"+3.5"` verbatim and code applies the sign). Revisit if the accuracy check finds sign errors again.
 - **Post text is treated as data, not instructions** (prompt-injection safety). Grok can never invent a market: it only extracts claims, and code chooses the contracts.
 
 ### Matching (code owns timing and contract choice)
@@ -100,8 +102,15 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
   - Backfill works: 9 of the 14 matches are on games that have already settled. Live picks work: 5 are on open games.
   - Cost: about 100 tweets on Apify (about 2.5¢) plus about 5 Grok read calls and 2 fallback calls.
 
+- **Spread prompt test (Nov 18, 1 Grok call, under 1¢), after the prompt rewrite: 8 of 8 read correctly.**
+  - The 2 smoke-test failures: "UCONN +3.5" → UConn (returned as "Connecticut Huskies") loses 3.5, and "Tennessee to cover +3.5" → loses 3.5.
+  - 5 unseen phrasings: "Iowa +7", "Bears getting 6.5", "Purdue +2.5 covers easy" → loses; "Gonzaga to cover -9.5" and "Celtics -4" → covers.
+  - 1 recap → not a prediction.
+  - Single run only. Grok is not deterministic, so confirm with the accuracy check.
+  - Not checked: Grok named UConn "Connecticut Huskies". Its aliases must still include "UConn" for Gemini's title search; check on the next live scan.
+
 ## Changes in progress / next
-- [ ] **Underdog spread guard:** if a spread prediction's `quote` shows `+<line>`, treat it as `loses` (the opponent's spread, NO), whatever `claim` Grok returned. Add "cover +L is still an underdog pick" to the prompt. Fixes the 2 wrong matches in the smoke test.
+- [x] **Underdog spreads:** fixed in the prompt (sign decides), verified 8 of 8 on a live test. The fallback, if errors come back, is a code check on a verbatim signed line from Grok.
 - [ ] **Speed up Gemini lookups** (smoke test: 12.5 min):
   - Read only the pages covering the tweet date (results are oldest first: jump to the end and page backward).
   - Skip broad city aliases when a specific name or abbreviation exists.
