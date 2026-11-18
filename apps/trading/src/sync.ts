@@ -1,0 +1,75 @@
+import type { GeminiClient, GeminiEvent } from "./gemini.js";
+import { contractToOutcome } from "./gemini.js";
+import type { TradingStore } from "./store.js";
+
+const SPORTS = [
+  "american_football",
+  "basketball",
+  "baseball",
+  "soccer",
+  "hockey",
+];
+
+function geminiStatusToLocal(
+  event: GeminiEvent,
+): "open" | "locked" | "resolved" | "void" {
+  if (event.status === "settled") return "resolved";
+  if (event.status === "invalid") return "void";
+  if (event.status === "closed") return "locked";
+  return "open";
+}
+
+function lockTimeFor(event: GeminiEvent): Date {
+  // expiryDate is when the market closes for new orders
+  if (event.expiryDate) return new Date(event.expiryDate);
+  // Fall back to resolved time, or 1 year from now as a placeholder
+  if (event.resolvedAt) return new Date(event.resolvedAt);
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  return d;
+}
+
+function winningOutcomeFor(event: GeminiEvent): string | null {
+  for (const c of event.contracts) {
+    if (c.resolutionSide === "yes") return c.label;
+  }
+  return null;
+}
+
+/** Pull open and recently settled sports events from Gemini and upsert them. */
+export async function syncMarkets(
+  gemini: GeminiClient,
+  store: TradingStore,
+): Promise<{ upserted: number; errors: string[] }> {
+  let upserted = 0;
+  const errors: string[] = [];
+
+  for (const sport of SPORTS) {
+    let events: GeminiEvent[] = [];
+    try {
+      events = await gemini.listSportsEvents({ sport, limit: 200 });
+    } catch (err) {
+      errors.push(`listSportsEvents(${sport}): ${String(err)}`);
+      continue;
+    }
+
+    for (const event of events) {
+      try {
+        await store.upsertMarket({
+          geminiMarketId: event.id,
+          sport: event.sportsMarket?.sport ?? sport,
+          eventName: event.title,
+          outcomes: event.contracts.map(contractToOutcome),
+          lockTime: lockTimeFor(event),
+          status: geminiStatusToLocal(event),
+          winningOutcome: winningOutcomeFor(event),
+        });
+        upserted++;
+      } catch (err) {
+        errors.push(`upsertMarket(${event.id}): ${String(err)}`);
+      }
+    }
+  }
+
+  return { upserted, errors };
+}
