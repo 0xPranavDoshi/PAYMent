@@ -1,10 +1,10 @@
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { createApp } from "../app.js";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { isLocalDatabase, migrate, migrationStatus, resetLocalDatabase } from "./migrate.js";
+import { MIGRATIONS_DIR, isLocalDatabase, migrate, migrationStatus, resetLocalDatabase } from "./migrate.js";
 import { DEMO_USERS, seedDemoData } from "./seed.js";
 import { createPostgresStore } from "../store.postgres.js";
 
@@ -63,6 +63,149 @@ describe.skipIf(!url)("against a real Postgres", () => {
     await expect(
       resetLocalDatabase(sql, "postgres://u:p@db.abcd.supabase.co:5432/postgres"),
     ).rejects.toThrow(/localhost/);
+  });
+
+  describe("calls rules", () => {
+    const LOCK = "2026-11-20T02:00:00Z";
+    const BEFORE = "2026-11-19T12:00:00Z";
+    let userId: string;
+
+    beforeAll(async () => {
+      await resetLocalDatabase(sql, url!);
+    });
+    beforeEach(async () => {
+      await sql`truncate calls, posts, markets, tails, users cascade`;
+      const [u] = await sql<{ id: string }[]>`
+        insert into users (x_user_id, x_handle) values ('1', 'tipster') returning id`;
+      userId = u!.id;
+    });
+
+    async function market(ticker: string, lock = LOCK) {
+      const [m] = await sql<{ id: string }[]>`
+        insert into markets (gemini_market_id, sport, event_name, lock_time)
+        values (${ticker}, 'basketball', ${ticker}, ${lock}) returning id`;
+      return m!.id;
+    }
+    async function post(tweetId: string, at = BEFORE) {
+      const [p] = await sql<{ id: string }[]>`
+        insert into posts (tweet_id, user_id, tweeted_at, tweet_text)
+        values (${tweetId}, ${userId}, ${at}, 'pick') returning id`;
+      return p!.id;
+    }
+    async function call(o: {
+      postId: string;
+      marketId: string;
+      at?: string;
+      odds?: number | null;
+      source?: string;
+      side?: string | null;
+      symbol?: string | null;
+    }) {
+      const odds = "odds" in o ? o.odds : 0.4;
+      const side = "side" in o ? o.side : "yes";
+      const symbol = "symbol" in o ? o.symbol : "GEMI-X";
+      return sql`
+        insert into calls (post_id, user_id, market_id, picked_outcome, instrument_symbol, side,
+                           tweeted_at, odds_at_call, odds_source)
+        values (${o.postId}, ${userId}, ${o.marketId}, 'Team', ${symbol ?? null}, ${side ?? null},
+                ${o.at ?? BEFORE}, ${odds ?? null}, ${o.source ?? "snapshot"})`;
+    }
+
+    it("accepts a pick tweeted before the lock and rejects one at or after it", async () => {
+      const m = await market("A");
+      const p = await post("t1");
+      await call({ postId: p, marketId: m, at: "2026-11-20T01:59:59Z" });
+
+      const m2 = await market("B");
+      await expect(call({ postId: p, marketId: m2, at: LOCK })).rejects.toThrow(/not before the market lock/);
+      await expect(call({ postId: p, marketId: m2, at: "2026-11-21T00:00:00Z" })).rejects.toThrow(
+        /not before the market lock/,
+      );
+    });
+
+    it("also checks when the tweet time or market of an existing call changes", async () => {
+      const m = await market("A");
+      const p = await post("t1");
+      await call({ postId: p, marketId: m });
+      await expect(sql`update calls set tweeted_at = ${LOCK}`).rejects.toThrow(/not before the market lock/);
+
+      const early = await market("EARLY", "2026-11-19T06:00:00Z");
+      await expect(sql`update calls set market_id = ${early}`).rejects.toThrow(/not before the market lock/);
+    });
+
+    it("lets one post hold several picks, but only one pick per user and market", async () => {
+      const winner = await market("WINNER");
+      const total = await market("TOTAL");
+      const p = await post("t1");
+      await call({ postId: p, marketId: winner });
+      await call({ postId: p, marketId: total, side: "no" });
+
+      const p2 = await post("t2");
+      await expect(call({ postId: p2, marketId: winner, side: "no" })).rejects.toThrow(/calls_one_per_user_market/);
+    });
+
+    it("allows an unpriced pick only when the source is none, and the reverse", async () => {
+      const m = await market("A");
+      const p = await post("t1");
+      await call({ postId: p, marketId: m, odds: null, source: "none" });
+
+      const m2 = await market("B");
+      await expect(call({ postId: p, marketId: m2, odds: null, source: "snapshot" })).rejects.toThrow(
+        /calls_odds_present_iff_priced/,
+      );
+      await expect(call({ postId: p, marketId: m2, odds: 0.5, source: "none" })).rejects.toThrow(
+        /calls_odds_present_iff_priced/,
+      );
+      await expect(call({ postId: p, marketId: m2, odds: 1.2, source: "history" })).rejects.toThrow();
+    });
+
+    it("needs a side and its contract together, and the side must be yes or no", async () => {
+      const m = await market("A");
+      const p = await post("t1");
+      await expect(call({ postId: p, marketId: m, side: "yes", symbol: null })).rejects.toThrow(
+        /calls_side_with_instrument/,
+      );
+      await expect(call({ postId: p, marketId: m, side: null, symbol: "GEMI-X" })).rejects.toThrow(
+        /calls_side_with_instrument/,
+      );
+      await expect(call({ postId: p, marketId: m, side: "maybe" })).rejects.toThrow();
+      await call({ postId: p, marketId: m, side: null, symbol: null }); // legacy shape still valid
+    });
+
+    it("has the indexes the worker and cascades rely on", async () => {
+      const rows = await sql<{ indexname: string }[]>`
+        select indexname from pg_indexes where tablename = 'calls'`;
+      const names = rows.map((r) => r.indexname);
+      expect(names).toContain("calls_post_idx");
+      expect(names).toContain("calls_pending_market_idx");
+    });
+
+    it("upgrades a database that already has calls", async () => {
+      const dir = (await mkdtemp(join(tmpdir(), "upgrade-"))) + "/";
+      try {
+        const all = (await readdir(MIGRATIONS_DIR)).filter((f) => f.endsWith(".sql")).sort();
+        const latest = all.at(-1)!;
+        for (const f of all.slice(0, -1)) await copyFile(MIGRATIONS_DIR + f, dir + f);
+
+        await sql.unsafe("drop schema public cascade; create schema public;");
+        await migrate(sql, dir); // everything but the newest migration
+        const [u] = await sql<{ id: string }[]>`insert into users (x_user_id, x_handle) values ('9', 'old') returning id`;
+        const [m] = await sql<{ id: string }[]>`
+          insert into markets (gemini_market_id, sport, event_name, lock_time) values ('OLD', 's', 'old', ${LOCK}) returning id`;
+        const [p] = await sql<{ id: string }[]>`
+          insert into posts (tweet_id, user_id, tweeted_at, tweet_text) values ('old', ${u!.id}, ${BEFORE}, 'x') returning id`;
+        await sql`
+          insert into calls (post_id, user_id, market_id, picked_outcome, tweeted_at, odds_at_call, odds_source)
+          values (${p!.id}, ${u!.id}, ${m!.id}, 'Team', ${BEFORE}, 0.4, 'snapshot')`;
+
+        await copyFile(MIGRATIONS_DIR + latest, dir + latest);
+        expect(await migrate(sql, dir)).toEqual([latest]);
+        const [row] = await sql<{ count: string }[]>`select count(*) from calls`;
+        expect(Number(row!.count)).toBe(1);
+      } finally {
+        await rm(dir, { recursive: true, force: true });
+      }
+    });
   });
 
   describe("migrate", () => {
