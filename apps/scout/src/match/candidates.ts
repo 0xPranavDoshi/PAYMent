@@ -4,15 +4,15 @@ import type { GeminiEvent } from "../gemini/types.js";
 
 export const MATCH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
-type Participant = NonNullable<GeminiEvent["participants"]>[number];
+export type Participant =NonNullable<GeminiEvent["participants"]>[number];
 
 const norm = (s: string) => s.trim().toLowerCase();
 
-function aliasesOf(team: TeamRef): string[] {
+export function aliasesOf(team: TeamRef): string[] {
   return [...new Set([team.name, ...team.aliases].map(norm).filter((a) => a.length > 0))];
 }
 
-function aliasMatches(alias: string, p: Participant): boolean {
+export function aliasMatches(alias: string, p: Participant): boolean {
   const name = norm(p.name);
   if (alias === norm(p.abbreviation) || alias === name) return true;
   const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
