@@ -7,6 +7,8 @@ export class GrokOutputError extends Error {
   }
 }
 
+const REQUEST_TIMEOUT_MS = 60_000;
+
 export interface Grok {
   json<T>(args: { name: string; schema: z.ZodType<T>; system: string; user: string }): Promise<T>;
 }
@@ -39,11 +41,19 @@ export function createGrok(opts: {
 
       let lastError = "";
       for (let attempt = 0; attempt < 2; attempt++) {
-        const res = await doFetch(`${base}/chat/completions`, {
-          method: "POST",
-          headers: { "content-type": "application/json", Authorization: `Bearer ${opts.apiKey}` },
-          body,
-        });
+        let res: Response;
+        try {
+          res = await doFetch(`${base}/chat/completions`, {
+            method: "POST",
+            headers: { "content-type": "application/json", Authorization: `Bearer ${opts.apiKey}` },
+            body,
+            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+          });
+        } catch (e) {
+          // Network error or timeout: a failed attempt. Name only, so nothing request-specific leaks.
+          lastError = `xAI request failed: ${e instanceof Error ? e.name : typeof e}`;
+          continue;
+        }
         if (!res.ok) {
           lastError = `xAI returned HTTP ${res.status}`;
           continue;

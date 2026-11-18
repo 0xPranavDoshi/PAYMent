@@ -25,8 +25,9 @@ export async function matchPrediction(
   tweetedAt: Date,
   deps: { gemini: GeminiClient; grok: Grok },
 ): Promise<PickMatch> {
-  const game = await findGame(p, tweetedAt, deps.gemini);
-  if (!game) return noMarket(index, "no game within 7 days");
+  const pick = await findGame(p, tweetedAt, deps.gemini);
+  if (!pick.game) return noMarket(index, pick.reason);
+  const game = pick.game;
   const sub = subEventFor(game, p);
   if (!sub) return noMarket(index, "no sub-event for bet type");
   const choice = p.betType === "win" ? chooseWin(game, p) : await chooseLine(sub, game, p, deps.grok);

@@ -52,6 +52,12 @@ describe("matchPrediction", () => {
     expect(r).toMatchObject({ predictionIndex: 3, status: "no_market", reason: "no game within 7 days" });
   });
 
+  it("tweet during the team's game -> no_market 'tweet during game'", async () => {
+    const live = game({ startTime: "2026-11-18T11:00:00.000Z" });
+    const r = await matchPrediction(pred(), 0, TWEET, { gemini: gemini(live), grok });
+    expect(r).toMatchObject({ status: "no_market", reason: "tweet during game" });
+  });
+
   it("no sub-event -> no_market", async () => {
     const r = await matchPrediction(pred({ betType: "total", claim: "over", line: 200 }), 0, TWEET, {
       gemini: gemini(game()),

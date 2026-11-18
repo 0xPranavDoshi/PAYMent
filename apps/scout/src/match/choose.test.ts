@@ -235,6 +235,31 @@ describe("chooseLine", () => {
     expect(r?.detail).toBe("spread 4.5 <= 7");
   });
 
+  it("spread: a rivalry where the alias only contains-matches both teams -> null", async () => {
+    const rivalry = ev({
+      ticker: "RIV",
+      template: "sports-game",
+      startTime: "2026-11-19T02:00:00.000Z",
+      participants: [
+        { name: "Arizona State Sun Devils", abbreviation: "ASU", side: "home" },
+        { name: "Arizona Wildcats", abbreviation: "ARIZ", side: "away" },
+      ],
+    });
+    const sub = ev({
+      ticker: "RIV-S",
+      template: "sports-spread",
+      contracts: [spreadC("Arizona State", "4.5"), spreadC("Arizona Wildcats", "4.5")],
+    });
+    const arizona = { name: "Arizona", aliases: [] };
+    expect(await chooseLine(sub, rivalry, pred({ team: arizona, claim: "covers", line: 7 }), noGrok())).toBeNull();
+    // underdog rule: the team participant is ambiguous, so there is no opponent either
+    expect(await chooseLine(sub, rivalry, pred({ team: arizona, claim: "loses", line: 4.5 }), noGrok())).toBeNull();
+    // an exact alias disambiguates
+    const wildcats = { name: "Arizona Wildcats", aliases: ["ARIZ"] };
+    const r = await chooseLine(sub, rivalry, pred({ team: wildcats, claim: "loses", line: 4.5 }), noGrok());
+    expect(r?.contract.label).toContain("Arizona State");
+  });
+
   it("a line below every contract -> null", async () => {
     expect(await chooseLine(spreadEv, game, pred({ line: 1 }), noGrok())).toBeNull();
   });
@@ -302,6 +327,32 @@ describe("chooseWin", () => {
     const l = chooseWin(game, pred({ betType: "win", claim: "loses" }));
     expect(l?.contract.instrumentSymbol).toBe("SYM-M-LAL");
     expect(l?.side).toBe("no");
+  });
+
+  const azGame = (contracts: GeminiContract[]) =>
+    ev({
+      ticker: "AZ",
+      template: "sports-game",
+      startTime: "2026-11-19T02:00:00.000Z",
+      participants: [
+        { name: "Arizona State Sun Devils", abbreviation: "ASU", side: "home" },
+        { name: "Arizona Wildcats", abbreviation: "ARIZ", side: "away" },
+      ],
+      contracts,
+    });
+
+  it("an exact contract match beats an earlier containment match", () => {
+    const g = azGame([c("SYM-ASU", "Arizona State", { abbreviatedName: "ASU" }), c("SYM-ARIZ", "Arizona", { abbreviatedName: "ARIZ" })]);
+    const w = chooseWin(g, pred({ betType: "win", claim: "wins", team: { name: "Arizona", aliases: [] } }));
+    expect(w?.contract.instrumentSymbol).toBe("SYM-ARIZ");
+  });
+
+  it("two contracts matching at the best rank -> null", () => {
+    const g = azGame([
+      c("SYM-ASU", "Arizona State", { abbreviatedName: "ASU" }),
+      c("SYM-ARIZ", "Arizona Wildcats", { abbreviatedName: "ARIZ" }),
+    ]);
+    expect(chooseWin(g, pred({ betType: "win", claim: "wins", team: { name: "Arizona", aliases: [] } }))).toBeNull();
   });
 
   it("other claims -> null; unknown team -> null", () => {

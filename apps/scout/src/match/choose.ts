@@ -2,7 +2,7 @@ import type { Prediction, TeamRef } from "@copayme/shared";
 import { z } from "zod";
 import type { GeminiContract, GeminiEvent } from "../gemini/types.js";
 import { GrokOutputError, type Grok } from "../grok/client.js";
-import { aliasesOf, aliasMatches, type Participant } from "./candidates.js";
+import { bestMatches, type Participant } from "./candidates.js";
 
 export interface Choice {
   subEvent: GeminiEvent;
@@ -39,9 +39,22 @@ export function subEventFor(game: GeminiEvent, p: Prediction): GeminiEvent | nul
   return withPlayer ?? props[0] ?? null;
 }
 
-function contractMatchesTeam(c: GeminiContract, team: TeamRef): boolean {
-  const participant: Participant = { name: c.label, abbreviation: c.abbreviatedName ?? "", side: "" };
-  return aliasesOf(team).some((a) => aliasMatches(a, participant));
+const contractAsParticipant = (c: GeminiContract): Participant => ({
+  name: c.label,
+  abbreviation: c.abbreviatedName ?? "",
+  side: "",
+});
+
+/** The team's contracts at the best match rank (exact beats containment). */
+function teamContracts(contracts: GeminiContract[], team: TeamRef): GeminiContract[] {
+  return bestMatches(team, contracts, contractAsParticipant);
+}
+
+/** True when the contracts name more than one team or player (judged by abbreviatedName / target.name when present). */
+function spansSubjects(contracts: GeminiContract[]): boolean {
+  const distinct = (vals: (string | undefined)[]) =>
+    new Set(vals.filter((v): v is string => !!v).map(norm)).size > 1;
+  return distinct(contracts.map((c) => c.abbreviatedName)) || distinct(contracts.map((c) => c.target?.name));
 }
 
 function contractMatchesPlayer(c: GeminiContract, player: string): boolean {
@@ -54,21 +67,25 @@ function contractMatchesPlayer(c: GeminiContract, player: string): boolean {
 
 export function chooseWin(game: GeminiEvent, p: Prediction): Choice | null {
   if (p.claim !== "wins" && p.claim !== "loses") return null;
-  const contract = game.contracts.find((c) => contractMatchesTeam(c, p.team));
-  if (!contract) return null;
+  const matches = teamContracts(game.contracts, p.team);
+  // none, or more than one at the best rank (ambiguous): no match
+  if (matches.length !== 1) return null;
+  const contract = matches[0] as GeminiContract;
   return { subEvent: game, contract, side: p.claim === "wins" ? "yes" : "no", detail: `win ${contract.label}` };
 }
 
 function opponentOf(game: GeminiEvent, p: Prediction): TeamRef | null {
   if (p.opponent) return p.opponent;
-  const teamAliases = aliasesOf(p.team);
-  const other = (game.participants ?? []).find((part) => !teamAliases.some((a) => aliasMatches(a, part)));
+  const participants = game.participants ?? [];
+  const own = bestMatches(p.team, participants, (part) => part);
+  if (own.length !== 1) return null;
+  const other = participants.find((part) => part !== own[0]);
   if (!other) return null;
   // Contracts use short names ("Lakers"), participants full ones ("Los Angeles Lakers"): also try the
   // name's words, minus any the team itself shares (e.g. "Los Angeles" for two LA teams).
   const words = (s: string) => norm(s).split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3);
-  const own = new Set([p.team.name, ...p.team.aliases].flatMap(words));
-  return { name: other.name, aliases: [other.abbreviation, ...words(other.name).filter((w) => !own.has(w))] };
+  const ownWords = new Set([p.team.name, ...p.team.aliases].flatMap(words));
+  return { name: other.name, aliases: [other.abbreviation, ...words(other.name).filter((w) => !ownWords.has(w))] };
 }
 
 function strikeOf(c: GeminiContract): number | null {
@@ -177,7 +194,11 @@ export async function chooseLine(
     } else return null;
   } else return null;
 
-  let contracts = sub.contracts.filter((c) => (team ? contractMatchesTeam(c, team) : contractMatchesPlayer(c, player)));
+  let contracts = team
+    ? teamContracts(sub.contracts, team)
+    : sub.contracts.filter((c) => contractMatchesPlayer(c, player));
+  // the best-rank matches name two different teams (e.g. a rivalry both names contain): ambiguous
+  if (team && spansSubjects(contracts)) return null;
   if (contracts.length === 0) contracts = await grokSubject(sub, team ? team.name : player, grok);
   return applyLine(sub, contracts, kind, mode, side, L);
 }

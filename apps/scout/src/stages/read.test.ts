@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { GrokOutputError, type Grok } from "../grok/client.js";
+import { createGrok, GrokOutputError, type Grok } from "../grok/client.js";
 import type { RawPost } from "../posts/source.js";
 import { READ_BATCH_SIZE, READ_SYSTEM_PROMPT, readPosts } from "./read.js";
 
@@ -57,6 +57,35 @@ describe("readPosts", () => {
       }),
     } as unknown as Grok;
     const out = await readPosts(posts(45), grok, "m");
+    expect(out.get("id0")).not.toBeNull();
+    expect(out.get("id20")).toBeNull();
+    expect(out.get("id39")).toBeNull();
+    expect(out.get("id40")).not.toBeNull();
+  });
+
+  it("anchors 'not happened yet' to each post's createdAt in the system prompt sent to Grok", async () => {
+    const grok = echoGrok();
+    await readPosts([post(1)], grok, "m");
+    const system: string = grok.json.mock.calls[0]![0].system;
+    expect(system).toContain("createdAt");
+    const rule1 = system.split("\n").find((l) => l.startsWith("1."));
+    expect(rule1).toMatch(/as of the post's createdAt/);
+    expect(rule1).toMatch(/even if the game has since been played/);
+  });
+
+  it("maps a batch whose fetch rejects to null while other batches return values", async () => {
+    let call = 0;
+    const fetchFn = vi.fn(async (_url: string, init?: RequestInit) => {
+      const n = call++;
+      // batch 2 (calls 1 and 2: first try + retry) hits a network error
+      if (n === 1 || n === 2) throw new TypeError("fetch failed");
+      const user = JSON.parse(init!.body as string).messages[1].content as string;
+      const content = JSON.stringify({ results: [...user.matchAll(/id\d+/g)].map((m) => verdict(m[0])) });
+      return new Response(JSON.stringify({ choices: [{ message: { content } }] }));
+    });
+    const grok = createGrok({ apiKey: "k", model: "m", fetch: fetchFn as unknown as typeof fetch });
+    const out = await readPosts(posts(45), grok, "m");
+    expect(fetchFn).toHaveBeenCalledTimes(4);
     expect(out.get("id0")).not.toBeNull();
     expect(out.get("id20")).toBeNull();
     expect(out.get("id39")).toBeNull();

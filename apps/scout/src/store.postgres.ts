@@ -1,6 +1,6 @@
 import type { PickMatch, ScoutStatus, Sentiment } from "@copayme/shared";
 import type postgres from "postgres";
-import { STALE_LOCK_MS, isPending, type ScoutPostRow, type ScoutStore } from "./store.js";
+import { PIPELINE_VERSION, STALE_LOCK_MS, isPending, type ScoutPostRow, type ScoutStore } from "./store.js";
 
 interface HandleDb {
   x_handle: string;
@@ -127,7 +127,8 @@ export function createPostgresStore(sql: postgres.Sql): ScoutStore {
     async pendingPosts(handle) {
       const rows = await sql<PostDb[]>`
         select * from scout_posts
-        where x_handle = ${handle} and (sentiment is null or matches is null)
+        where x_handle = ${handle}
+          and (sentiment is null or matches is null or pipeline_version < ${PIPELINE_VERSION})
         order by tweeted_at desc
       `;
       return rows.map(toPost).filter(isPending);

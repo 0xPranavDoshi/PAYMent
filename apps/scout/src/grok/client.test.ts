@@ -49,6 +49,37 @@ describe("createGrok", () => {
     expect(f).toHaveBeenCalledTimes(2);
   });
 
+  it("sends a 60s timeout signal with each request", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    const f = vi.fn(async (_url: string, _init?: RequestInit) => chat('{"n":1}'));
+    const grok = createGrok({ apiKey: "k", model: "m", fetch: asFetch(f) });
+    await grok.json(args);
+    expect(timeout).toHaveBeenCalledWith(60_000);
+    expect(f.mock.calls[0]![1]!.signal).toBeInstanceOf(AbortSignal);
+    timeout.mockRestore();
+  });
+
+  it("retries once after a network error, then returns the value", async () => {
+    const f = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+      .mockResolvedValueOnce(chat('{"n":3}'));
+    const grok = createGrok({ apiKey: "k", model: "m", fetch: asFetch(f) });
+    expect(await grok.json(args)).toEqual({ n: 3 });
+    expect(f).toHaveBeenCalledTimes(2);
+  });
+
+  it("throws GrokOutputError after two rejected fetches, naming the error but not the key", async () => {
+    const abort = new DOMException("The operation was aborted due to timeout", "TimeoutError");
+    const f = vi.fn(async () => Promise.reject(abort));
+    const grok = createGrok({ apiKey: "secret-key", model: "m", fetch: asFetch(f) });
+    const err = await grok.json(args).catch((e) => e);
+    expect(err).toBeInstanceOf(GrokOutputError);
+    expect(err.message).toContain("TimeoutError");
+    expect(err.message).not.toContain("secret-key");
+    expect(f).toHaveBeenCalledTimes(2);
+  });
+
   it("treats non-2xx as an error, retries once, and never leaks the key", async () => {
     const f = vi.fn(async () => new Response("nope", { status: 500 }));
     const grok = createGrok({ apiKey: "secret-key", model: "m", fetch: asFetch(f) });

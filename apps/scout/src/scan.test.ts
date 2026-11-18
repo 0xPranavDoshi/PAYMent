@@ -96,13 +96,13 @@ function setup(opts: {
 }
 
 describe("runScan", () => {
-  it("first scan has no sinceId; later scans use newestTweetId", async () => {
+  it("first scan fetches 100 with no sinceId; top-ups fetch 20 since newestTweetId", async () => {
     const t = setup({ posts: [raw("5"), raw("9")], sentiments: { "5": nonPrediction(), "9": nonPrediction() } });
     await t.run();
     expect(t.fetchPosts).toHaveBeenLastCalledWith("bob", { limit: 100 });
     expect((await t.store.getHandle("bob"))?.newestTweetId).toBe("9");
     await t.run();
-    expect(t.fetchPosts).toHaveBeenLastCalledWith("bob", { limit: 100, sinceId: "9" });
+    expect(t.fetchPosts).toHaveBeenLastCalledWith("bob", { limit: 20, sinceId: "9" });
   });
 
   it("compares tweet ids as BigInt", async () => {
@@ -151,6 +151,68 @@ describe("runScan", () => {
     await t.run();
     expect(t.seenByGrok).toEqual([]);
     expect((await t.store.listPosts("bob"))[0]?.matches?.[0]?.status).toBe("matched");
+  });
+
+  it("stores matches null (retry next scan) when every prediction has no game yet and the tweet is < 8 days old", async () => {
+    const t = setup({ posts: [raw("1")], sentiments: { "1": prediction() } });
+    t.searchEvents.mockImplementation(async () => []);
+    await t.run();
+    expect((await t.store.listPosts("bob"))[0]?.matches).toBeNull();
+    expect((await t.store.pendingPosts("bob")).map((r) => r.tweetId)).toEqual(["1"]);
+
+    // the game gets listed later: the retry matches it without re-reading
+    t.searchEvents.mockImplementation(async () => [game]);
+    t.fetchPosts.mockImplementation(async () => []);
+    t.seenByGrok.length = 0;
+    await t.run();
+    expect(t.seenByGrok).toEqual([]);
+    expect((await t.store.listPosts("bob"))[0]?.matches?.[0]?.status).toBe("matched");
+  });
+
+  it("stores the no_market matches when the tweet is 8+ days old", async () => {
+    const old = new Date(NOW.getTime() - 8 * 86_400_000).toISOString();
+    const t = setup({ posts: [raw("1", { createdAt: old })], sentiments: { "1": prediction() } });
+    t.searchEvents.mockImplementation(async () => []);
+    await t.run();
+    expect((await t.store.listPosts("bob"))[0]?.matches).toEqual([
+      expect.objectContaining({ status: "no_market", reason: "no game within 7 days" }),
+    ]);
+  });
+
+  it("stores other no_market reasons as final", async () => {
+    const live = { ...game, startTime: "2026-11-18T11:00:00.000Z" };
+    const t = setup({ posts: [raw("1")], sentiments: { "1": prediction() } });
+    t.searchEvents.mockImplementation(async () => [live]);
+    await t.run();
+    expect((await t.store.listPosts("bob"))[0]?.matches).toEqual([
+      expect.objectContaining({ status: "no_market", reason: "tweet during game" }),
+    ]);
+  });
+
+  it("re-reads and re-matches a row from an older pipeline version and writes the current version", async () => {
+    const t = setup({ posts: [], sentiments: { "1": prediction() } });
+    await t.store.upsertPosts([
+      {
+        tweetId: "1",
+        handle: "bob",
+        xUserId: "u1",
+        tweetedAt: new Date("2026-11-18T12:00:00.000Z"),
+        text: "tweet 1",
+        isReply: false,
+        quotedText: null,
+        sentiment: nonPrediction(),
+        matches: [],
+        pipelineVersion: 0,
+        forwardedAt: null,
+      },
+    ]);
+    await t.run();
+    expect(t.seenByGrok).toEqual(["1"]);
+    const [row] = await t.store.listPosts("bob");
+    expect(row?.pipelineVersion).toBe(PIPELINE_VERSION);
+    expect(row?.sentiment?.isPrediction).toBe(true);
+    expect(row?.matches?.[0]).toMatchObject({ status: "matched", contractLabel: "Lakers" });
+    expect(await t.store.pendingPosts("bob")).toEqual([]);
   });
 
   it("retries a post whose read returned null", async () => {

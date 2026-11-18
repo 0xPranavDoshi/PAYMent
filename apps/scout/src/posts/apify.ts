@@ -63,7 +63,7 @@ export function createApifySource(opts: {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            searchTerms: [`from:${clean}`],
+            searchTerms: [sinceId !== undefined ? `from:${clean} since_id:${sinceId}` : `from:${clean}`],
             queryType: "Latest",
             maxItems: Math.max(limit, ACTOR_MIN_ITEMS),
           }),

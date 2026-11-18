@@ -62,14 +62,15 @@ describe("createApifySource", () => {
     expect(JSON.parse(init.body as string).maxItems).toBe(20);
   });
 
-  it("filters out posts at or below sinceId", async () => {
-    const source = createApifySource({
-      token: "t",
-      fetch: (async () => jsonResponse(fixture)) as unknown as typeof fetch,
-    });
+  it("puts since_id in the search term and still filters out posts at or below sinceId", async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse(fixture));
+    const source = createApifySource({ token: "t", fetch: fetchMock as unknown as typeof fetch });
     const sinceId = fixture[1]!.id;
     const posts = await source.fetchPosts("espn", { limit: 20, sinceId });
     expect(posts.map((p) => p.tweetId)).toEqual([fixture[0]!.id]);
+    expect(JSON.parse(fetchMock.mock.calls[0]![1]!.body as string).searchTerms).toEqual([
+      `from:espn since_id:${sinceId}`,
+    ]);
   });
 
   it("drops invalid items instead of throwing", async () => {

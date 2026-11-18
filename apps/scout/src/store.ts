@@ -56,15 +56,19 @@ export interface ScoutStore {
   upsertPosts(rows: ScoutPostRow[]): Promise<void>;
   /** Newest first. */
   listPosts(handle: string): Promise<ScoutPostRow[]>;
-  /** Unread posts, plus counted predictions whose matching is not done. */
+  /** Unread posts, counted predictions whose matching is not done, and rows from an older pipeline version. */
   pendingPosts(handle: string): Promise<ScoutPostRow[]>;
   unforwardedPosts(handle: string): Promise<ScoutPostRow[]>;
   markForwarded(ids: string[], at: Date): Promise<void>;
   upsertMarket(row: MarketRow): Promise<void>;
 }
 
-export function isPending(row: Pick<ScoutPostRow, "sentiment" | "matches">): boolean {
-  return row.sentiment === null || (row.matches === null && countsAsPrediction(row.sentiment));
+export function isPending(row: Pick<ScoutPostRow, "sentiment" | "matches" | "pipelineVersion">): boolean {
+  return (
+    row.pipelineVersion < PIPELINE_VERSION ||
+    row.sentiment === null ||
+    (row.matches === null && countsAsPrediction(row.sentiment))
+  );
 }
 
 export function createMemoryStore(): ScoutStore & { markets: Map<string, MarketRow> } {

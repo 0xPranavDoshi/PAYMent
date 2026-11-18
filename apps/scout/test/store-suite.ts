@@ -125,6 +125,15 @@ export function describeStore(make: () => ScoutStore): void {
       expect(ids).toEqual(["pred", "unread"]);
     });
 
+    it("pendingPosts also returns rows from an older pipeline version", async () => {
+      await store.upsertPosts([
+        post({ tweetId: "old-done", sentiment: sentiment(false, 0.9), matches: [], pipelineVersion: 0 }),
+        post({ tweetId: "current-done", sentiment: sentiment(false, 0.9), matches: [] }),
+      ]);
+      const ids = (await store.pendingPosts("alice")).map((r) => r.tweetId);
+      expect(ids).toEqual(["old-done"]);
+    });
+
     it("unforwardedPosts and markForwarded", async () => {
       await store.upsertPosts([post({ tweetId: "1" }), post({ tweetId: "2" })]);
       await store.markForwarded(["1"], T0);

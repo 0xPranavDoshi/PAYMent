@@ -2,6 +2,7 @@ import { countsAsPrediction, type PickMatch } from "@copayme/shared";
 import type { Forwarder } from "./forward.js";
 import type { GeminiClient } from "./gemini/client.js";
 import type { Grok } from "./grok/client.js";
+import { NO_GAME_REASON } from "./match/candidates.js";
 import { matchPrediction } from "./match/match.js";
 import type { PostSource, RawPost } from "./posts/source.js";
 import { readPosts } from "./stages/read.js";
@@ -19,6 +20,9 @@ export interface ScanDeps {
 }
 
 const FIRST_SCAN_LIMIT = 100;
+const TOP_UP_LIMIT = 20;
+/** A post with no game found yet is retried on later scans until it is this old. */
+const NO_GAME_RETRY_MS = 8 * 24 * 60 * 60 * 1000;
 
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
@@ -66,10 +70,7 @@ export async function runScan(handle: string, deps: ScanDeps): Promise<void> {
 
     let fetched: RawPost[];
     try {
-      fetched = await source.fetchPosts(handle, {
-        limit: FIRST_SCAN_LIMIT,
-        ...(sinceId ? { sinceId } : {}),
-      });
+      fetched = await source.fetchPosts(handle, sinceId ? { sinceId, limit: TOP_UP_LIMIT } : { limit: FIRST_SCAN_LIMIT });
     } catch (e) {
       await store.failScan(handle, errMsg(e));
       return;
@@ -81,8 +82,16 @@ export async function runScan(handle: string, deps: ScanDeps): Promise<void> {
     for (const p of kept) {
       if (!existing.has(p.tweetId) && !rows.has(p.tweetId)) rows.set(p.tweetId, toRow(p, handle));
     }
-    // Pending rows keep their stored fields; only what is missing gets filled below.
-    for (const r of await store.pendingPosts(handle)) rows.set(r.tweetId, r);
+    // Pending rows keep their stored fields; only what is missing gets filled below. Rows from an
+    // older pipeline version are read and matched again from scratch.
+    for (const r of await store.pendingPosts(handle)) {
+      if (r.pipelineVersion < PIPELINE_VERSION) {
+        r.sentiment = null;
+        r.matches = null;
+        r.pipelineVersion = PIPELINE_VERSION;
+      }
+      rows.set(r.tweetId, r);
+    }
 
     const toRead = [...rows.values()].filter((r) => r.sentiment === null);
     if (toRead.length > 0) {
@@ -101,7 +110,12 @@ export async function runScan(handle: string, deps: ScanDeps): Promise<void> {
         for (const [i, p] of row.sentiment.predictions.entries()) {
           matches.push(await matchPrediction(p, i, row.tweetedAt, { gemini, grok }));
         }
-        row.matches = matches;
+        // Gemini may not have listed the game yet: keep the post pending while the window is still open.
+        const noGameYet =
+          matches.length > 0 &&
+          matches.every((m) => m.status === "no_market" && m.reason === NO_GAME_REASON) &&
+          row.tweetedAt.getTime() > now().getTime() - NO_GAME_RETRY_MS;
+        row.matches = noGameYet ? null : matches;
       } catch (e) {
         log(`[scout] matching failed for tweet ${row.tweetId}, will retry: ${errMsg(e)}`);
       }
