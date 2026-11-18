@@ -13,7 +13,10 @@ export const noopForwarder: Forwarder = { forward: async () => [] };
 
 const clamp01 = (n: number): number => (Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0);
 
-function toMarketRow(sub: GeminiEvent, gameStartTime: string | null): MarketRow {
+/** Null when there is no known game start time (no lock time to store). */
+function toMarketRow(sub: GeminiEvent, gameStartTime: string | null): MarketRow | null {
+  const start = gameStartTime ?? sub.startTime;
+  if (!start) return null;
   const winner = sub.contracts.find((c) => c.resolutionSide === "yes");
   return {
     geminiMarketId: sub.id,
@@ -27,7 +30,7 @@ function toMarketRow(sub: GeminiEvent, gameStartTime: string | null): MarketRow 
         currentOdds: clamp01(Number(prices?.buy?.yes ?? prices?.bestAsk ?? 0)),
       };
     }),
-    lockTime: new Date(gameStartTime ?? sub.startTime ?? 0),
+    lockTime: new Date(start),
     status: sub.status === "settled" ? "resolved" : "open",
     winningOutcome: winner?.label ?? null,
     resolvedAt: winner?.resolvedAt ? new Date(winner.resolvedAt) : null,
@@ -54,31 +57,54 @@ export function createForwarder(opts: {
   const doFetch = opts.fetch ?? fetch;
   return {
     async forward(posts) {
-      try {
-        const entries: NewPost[] = [];
-        const markets = new Map<string, MarketRow>();
-        for (const post of posts) {
-          for (const m of post.matches ?? []) {
-            if (m.status !== "matched" || !m.geminiEventTicker) continue;
+      const candidates: { entry: NewPost; market: MarketRow }[] = [];
+      for (const post of posts) {
+        for (const m of post.matches ?? []) {
+          if (m.status !== "matched" || !m.geminiEventTicker) continue;
+          try {
             const sub = await opts.gemini.getEvent(m.geminiEventTicker);
             const pickedOutcome = forwardableLabel(m, sub);
-            if (pickedOutcome === null) continue;
-            markets.set(sub.id, toMarketRow(sub, m.gameStartTime));
-            entries.push({
-              tweetId: post.tweetId,
-              xUserId: post.xUserId,
-              xHandle: post.handle,
-              tweetedAt: post.tweetedAt.toISOString(),
-              tweetText: post.text,
-              sentiment: post.sentiment,
-              geminiMarketId: sub.id,
-              pickedOutcome,
+            const market = toMarketRow(sub, m.gameStartTime);
+            if (pickedOutcome === null || market === null) continue;
+            candidates.push({
+              market,
+              entry: {
+                tweetId: post.tweetId,
+                xUserId: post.xUserId,
+                xHandle: post.handle,
+                tweetedAt: post.tweetedAt.toISOString(),
+                tweetText: post.text,
+                sentiment: post.sentiment,
+                geminiMarketId: sub.id,
+                pickedOutcome,
+              },
             });
             break;
+          } catch {
+            // This pick's event can't be loaded; try the post's next pick.
           }
         }
-        if (entries.length === 0) return [];
-        for (const row of markets.values()) await opts.store.upsertMarket(row);
+      }
+
+      // A post whose market upsert fails is not sent this round.
+      const upserted = new Map<string, boolean>();
+      const entries: NewPost[] = [];
+      for (const { entry, market } of candidates) {
+        let ok = upserted.get(market.geminiMarketId);
+        if (ok === undefined) {
+          try {
+            await opts.store.upsertMarket(market);
+            ok = true;
+          } catch {
+            ok = false;
+          }
+          upserted.set(market.geminiMarketId, ok);
+        }
+        if (ok) entries.push(entry);
+      }
+      if (entries.length === 0) return [];
+
+      try {
         const res = await doFetch(`${opts.url}/v1/posts`, {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${opts.serviceKey}` },
