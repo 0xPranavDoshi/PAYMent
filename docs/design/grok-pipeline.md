@@ -351,8 +351,8 @@ Top-up scans cost a fraction of that. A demo with a few dozen handles should cos
 
 **Open questions**
 
-- [ ] Aditya: accept `picks[]` in `NewPost`?
-- [ ] Aditya: how should backfilled calls be scored with no price history?
-- [ ] Team: who fills the `markets` table? The scout service already loads every game it matches and could upsert them.
-- [ ] Aditya: add the profile-view hook and the **Scanning…** badge state to the extension.
-- [ ] xAI: credits from the bounty sponsor, and the current fast model id.
+- [x] Aditya: accept `picks[]` in `NewPost`? **Yes**, with three clarifications (see Integration contracts in `scoring-and-extension.md`): `oddsAtTweet` is the price of the picked side, `gameStartTime` becomes the market's `lock_time`, and `geminiEventTicker` is the key in `markets.gemini_market_id`. A follow-up migration drops the uniqueness on `calls.post_id` and adds `side` and `instrument_symbol`.
+- [ ] Aditya: how should backfilled calls be scored with no price history? **Proposed, awaiting Aditya's confirmation:** store them as unpriced (`odds_source = none`). They count toward the hit rate but not the score, because a flat 0.5 prior rewards favourites: a user who picks 0.82 favourites and wins 80% would score 95 instead of 45. Backfill fills the ledger and hit rate; scores come from picks ingested within 600 s of the tweet, which pre-warming demo handles on a short schedule would produce.
+- [x] Team: who fills the `markets` table? Yash's sync owns refreshing every row (status, odds, results). The scout inserts only a game it matched that the sync has not stored yet, and never overwrites a row. The sync needs fixes first: `ticker` as the key, `startTime` as the lock time, settled events, and production data, because the sandbox has no sports events (details in `scoring-and-extension.md`).
+- [x] Aditya: add the profile-view hook and the **Scanning…** badge state to the extension. **Yes**, added to the extension section of `scoring-and-extension.md`. When a scan finishes, the extension drops that handle's cached badge, including a negative one, and fetches it again.
+- [ ] xAI: credits from the bounty sponsor, and the current fast model id. Not answerable from the repo.
