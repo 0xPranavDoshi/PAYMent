@@ -7,12 +7,14 @@
     "dev": "tsx watch --env-file-if-exists=../../.env src/index.ts",
     "start": "tsx --env-file-if-exists=../../.env src/index.ts",
     "test": "vitest run --passWithNoTests",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:setup": "tsx --env-file-if-exists=../../.env src/db/cli.ts reset seed"
   },
   "dependencies": {
     "@copayme/shared": "workspace:^",
     "@hono/node-server": "^2.1.8",
     "hono": "^4.13.19",
+    "postgres": "^4.1.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
