@@ -56,6 +56,34 @@ describe.skipIf(!url)("against a real Postgres", () => {
     expect(profile.latestSnapshot.computedAt).toBe(now.toISOString());
   });
 
+  it("ranks scored users best first and leaves out users still on the New badge", async () => {
+    const app = createApp({ store: createPostgresStore(sql) });
+    const board = await (await app.request("/v1/leaderboard")).json();
+    expect(board.map((e: { handle: string }) => e.handle)).toEqual([
+      "demo_sharp", // 82
+      "demo_steady", // 50
+      "demo_chalk", // 44
+      "demo_slump", // 10
+    ]); // demo_rookie (3 resolved picks, score 63) is not listed
+    expect(board[0]).toMatchObject({ handle: "demo_sharp", score: 82, change14d: 16, tier: "scored" });
+
+    const top2 = await (await app.request("/v1/leaderboard?limit=2")).json();
+    expect(top2.map((e: { handle: string }) => e.handle)).toEqual(["demo_sharp", "demo_steady"]);
+  });
+
+  it("breaks leaderboard ties on more resolved picks, then handle", async () => {
+    const mk = async (handle: string, xId: string, n: number) => {
+      const [u] = await sql<{ id: string }[]>`insert into users (x_user_id, x_handle) values (${xId}, ${handle}) returning id`;
+      await sql`insert into user_scores (user_id, score, skill, n_resolved, n_wins) values (${u!.id}, 50, 0, ${n}, 0)`;
+    };
+    await mk("zeta_tie", "demo-t1", 40); // same score as demo_steady (50) but more resolved picks
+    await mk("alpha_tie", "demo-t2", 30); // same score and picks as demo_steady
+    const app = createApp({ store: createPostgresStore(sql) });
+    const order = (await (await app.request("/v1/leaderboard")).json()).map((e: { handle: string }) => e.handle);
+    expect(order.slice(1, 4)).toEqual(["zeta_tie", "alpha_tie", "demo_steady"]);
+    await sql`delete from users where x_user_id in ('demo-t1','demo-t2')`;
+  });
+
   it("can be re-seeded without duplicating users", async () => {
     await seedDemoData(sql, now);
     const [row] = await sql<{ count: string }[]>`select count(*) from users`;

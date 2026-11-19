@@ -3,3 +3,5 @@ export * from "./badge.js";
 export * from "./profile.js";
 export * from "./trading.js";
 export * from "./ingest.js";
+export * from "./leaderboard.js";
+export * from "./copy.js";
