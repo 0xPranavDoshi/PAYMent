@@ -79,11 +79,11 @@ function setup(opts: {
       };
     }),
   } as unknown as Grok;
-  const searchEvents = vi.fn(async () => {
+  const searchGames = vi.fn(async () => {
     if (opts.searchError) throw new GeminiError("boom");
     return [game];
   });
-  const gemini = { searchEvents, getEvent: vi.fn(async () => game) } as unknown as GeminiClient;
+  const gemini = { searchGames, getEvent: vi.fn(async () => game) } as unknown as GeminiClient;
   const forward = vi.fn(async (posts: { tweetId: string }[]) =>
     (opts.accepted ?? ((ids: string[]) => ids))(posts.map((p) => p.tweetId)),
   );
@@ -92,7 +92,7 @@ function setup(opts: {
     await store.tryLock(handle, NOW);
     await runScan(handle, { store, source, grok, gemini, forwarder, model: "m", now: () => NOW, log: () => {} });
   };
-  return { store, fetchPosts, seenByGrok, searchEvents, forward, run, source };
+  return { store, fetchPosts, seenByGrok, searchGames, forward, run, source };
 }
 
 describe("runScan", () => {
@@ -123,12 +123,12 @@ describe("runScan", () => {
     expect(t.seenByGrok).toEqual([]);
   });
 
-  it("stores non-predictions with empty matches and pipelineVersion 1", async () => {
+  it("stores non-predictions with empty matches and the current pipelineVersion", async () => {
     const t = setup({ posts: [raw("1")], sentiments: { "1": nonPrediction() } });
     await t.run();
     const [row] = await t.store.listPosts("bob");
     expect(row).toMatchObject({ matches: [], pipelineVersion: PIPELINE_VERSION, tweetId: "1" });
-    expect(PIPELINE_VERSION).toBe(1);
+    expect(PIPELINE_VERSION).toBe(2);
   });
 
   it("stores one PickMatch per prediction", async () => {
@@ -145,7 +145,7 @@ describe("runScan", () => {
     expect((await t.store.listPosts("bob"))[0]?.matches).toBeNull();
     expect((await t.store.getHandle("bob"))?.status).toBe("idle");
 
-    t.searchEvents.mockImplementation(async () => [game]);
+    t.searchGames.mockImplementation(async () => [game]);
     t.fetchPosts.mockImplementation(async () => []);
     t.seenByGrok.length = 0;
     await t.run();
@@ -155,13 +155,13 @@ describe("runScan", () => {
 
   it("stores matches null (retry next scan) when every prediction has no game yet and the tweet is < 8 days old", async () => {
     const t = setup({ posts: [raw("1")], sentiments: { "1": prediction() } });
-    t.searchEvents.mockImplementation(async () => []);
+    t.searchGames.mockImplementation(async () => []);
     await t.run();
     expect((await t.store.listPosts("bob"))[0]?.matches).toBeNull();
     expect((await t.store.pendingPosts("bob")).map((r) => r.tweetId)).toEqual(["1"]);
 
     // the game gets listed later: the retry matches it without re-reading
-    t.searchEvents.mockImplementation(async () => [game]);
+    t.searchGames.mockImplementation(async () => [game]);
     t.fetchPosts.mockImplementation(async () => []);
     t.seenByGrok.length = 0;
     await t.run();
@@ -172,7 +172,7 @@ describe("runScan", () => {
   it("stores the no_market matches when the tweet is 8+ days old", async () => {
     const old = new Date(NOW.getTime() - 8 * 86_400_000).toISOString();
     const t = setup({ posts: [raw("1", { createdAt: old })], sentiments: { "1": prediction() } });
-    t.searchEvents.mockImplementation(async () => []);
+    t.searchGames.mockImplementation(async () => []);
     await t.run();
     expect((await t.store.listPosts("bob"))[0]?.matches).toEqual([
       expect.objectContaining({ status: "no_market", reason: "no game within 7 days" }),
@@ -182,7 +182,7 @@ describe("runScan", () => {
   it("stores other no_market reasons as final", async () => {
     const live = { ...game, startTime: "2026-11-18T11:00:00.000Z" };
     const t = setup({ posts: [raw("1")], sentiments: { "1": prediction() } });
-    t.searchEvents.mockImplementation(async () => [live]);
+    t.searchGames.mockImplementation(async () => [live]);
     await t.run();
     expect((await t.store.listPosts("bob"))[0]?.matches).toEqual([
       expect.objectContaining({ status: "no_market", reason: "tweet during game" }),

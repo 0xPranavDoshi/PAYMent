@@ -21,99 +21,97 @@ describe("fixtures", () => {
   });
 });
 
-/** The recorded first page; any later offset returns an empty page. */
-const pagedSearch = vi.fn(async (url: string) =>
-  new URL(url).searchParams.get("offset") === "0" ? json(search) : json({ ...search, data: [] }),
-);
 /** A single page whose total equals its length. */
 const onePage = () => json({ ...search, pagination: { ...search.pagination, total: search.data.length } });
 
 const event = (i: number) => ({ ...search.data[0], id: `e${i}`, ticker: `T-${i}` });
 
-describe("searchEvents", () => {
-  it("calls the search endpoint and stops on an empty page", async () => {
-    pagedSearch.mockClear();
-    const client = createGeminiClient({ fetch: asFetch(pagedSearch) });
-    const events = await client.searchEvents("Lakers", "active");
-    expect(pagedSearch.mock.calls[0]![0]).toBe(
-      "https://api.gemini.com/v1/prediction-markets/events?category=Sports&status=active&search=Lakers&limit=50&offset=0",
-    );
-    // the recorded fixture says total 8 but holds 5 items, so a second page is requested and comes back empty
-    expect(pagedSearch).toHaveBeenCalledTimes(2);
-    expect(pagedSearch.mock.calls[1]![0]).toContain("&limit=50&offset=50");
-    expect(events.length).toBe(search.data.length);
+describe("searchGames", () => {
+  it("makes one request for full-game moneylines across every matchable status", async () => {
+    const fetchMock = vi.fn(async (_url: string) => onePage());
+    const client = createGeminiClient({ fetch: asFetch(fetchMock) });
+    const events = await client.searchGames("NCAAM-261119", { sport: "basketball" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const url = new URL(fetchMock.mock.calls[0]![0]);
+    expect(url.pathname).toBe("/v1/prediction-markets/events");
+    expect(url.searchParams.get("category")).toBe("Sports");
+    expect(url.searchParams.get("search")).toBe("NCAAM-261119");
+    expect(url.searchParams.getAll("status")).toEqual(["approved", "active", "under_review", "settled"]);
+    expect(url.searchParams.get("sports_market_type")).toBe("moneyline");
+    expect(url.searchParams.get("sports_market_scope")).toBe("full_contest");
+    expect(url.searchParams.get("sport")).toBe("basketball");
+    expect(url.searchParams.get("limit")).toBe("500");
+    expect(url.searchParams.get("offset")).toBe("0");
+    expect(events).toHaveLength(search.data.length);
   });
 
-  it("pages through results until pagination.total is reached", async () => {
-    const all = Array.from({ length: 75 }, (_, i) => event(i));
+  it("omits the sport filter when none is given", async () => {
+    const fetchMock = vi.fn(async (_url: string) => onePage());
+    await createGeminiClient({ fetch: asFetch(fetchMock) }).searchGames("-LAL-");
+    expect(new URL(fetchMock.mock.calls[0]![0]).searchParams.has("sport")).toBe(false);
+  });
+
+  it("pages by 500 until pagination.total is reached", async () => {
+    const all = Array.from({ length: 750 }, (_, i) => event(i));
     const fetchMock = vi.fn(async (url: string) => {
       const offset = Number(new URL(url).searchParams.get("offset"));
-      return json({ data: all.slice(offset, offset + 50), pagination: { limit: 50, offset, total: 75 } });
+      return json({ data: all.slice(offset, offset + 500), pagination: { limit: 500, offset, total: 750 } });
     });
-    const client = createGeminiClient({ fetch: asFetch(fetchMock) });
-    const events = await client.searchEvents("Lakers", "settled");
-    expect(events).toHaveLength(75);
+    const events = await createGeminiClient({ fetch: asFetch(fetchMock) }).searchGames("Lakers");
     expect(events.map((e) => e.ticker)).toEqual(all.map((e) => e.ticker));
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("caps paging at 10 pages", async () => {
+  it("caps paging at 4 pages", async () => {
     let n = 0;
     const fetchMock = vi.fn(async () =>
-      json({ data: Array.from({ length: 50 }, () => event(n++)), pagination: { total: 100_000 } }),
+      json({ data: Array.from({ length: 500 }, () => event(n++)), pagination: { total: 100_000 } }),
     );
-    const client = createGeminiClient({ fetch: asFetch(fetchMock) });
-    expect(await client.searchEvents("Lakers", "active")).toHaveLength(500);
-    expect(fetchMock).toHaveBeenCalledTimes(10);
-  });
-
-  it("searches under_review", async () => {
-    const fetchMock = vi.fn(async (_url: string) => onePage());
-    const client = createGeminiClient({ fetch: asFetch(fetchMock) });
-    await client.searchEvents("Lakers", "under_review");
-    expect(fetchMock.mock.calls[0]![0]).toContain("status=under_review&");
+    expect(await createGeminiClient({ fetch: asFetch(fetchMock) }).searchGames("Lakers")).toHaveLength(2000);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("returns [] without fetching for terms shorter than 3 chars", async () => {
     const fetchMock = vi.fn();
-    const client = createGeminiClient({ fetch: asFetch(fetchMock) });
-    expect(await client.searchEvents("LA", "active")).toEqual([]);
+    expect(await createGeminiClient({ fetch: asFetch(fetchMock) }).searchGames("LA")).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("caches active searches for 5 minutes", async () => {
+  it("shares one request between identical searches in flight", async () => {
+    const fetchMock = vi.fn(async () => onePage());
+    const client = createGeminiClient({ fetch: asFetch(fetchMock) });
+    const [a, b] = await Promise.all([client.searchGames("NBA-261118"), client.searchGames("NBA-261118")]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(a).toBe(b);
+  });
+
+  it("caches search results for 5 minutes", async () => {
     let t = 1_000_000;
     const fetchMock = vi.fn(async () => onePage());
     const client = createGeminiClient({ fetch: asFetch(fetchMock), now: () => t });
-    await client.searchEvents("Lakers", "active");
+    await client.searchGames("Lakers");
     t += 4 * 60_000;
-    await client.searchEvents("Lakers", "active");
+    await client.searchGames("Lakers");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     t += 61_000;
-    await client.searchEvents("Lakers", "active");
+    await client.searchGames("Lakers");
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it.each(["settled", "under_review"] as const)("caches %s searches for 10 minutes", async (status) => {
-    let t = 0;
-    const fetchMock = vi.fn(async () => onePage());
-    const client = createGeminiClient({ fetch: asFetch(fetchMock), now: () => t });
-    await client.searchEvents("Lakers", status);
-    t += 9 * 60_000;
-    await client.searchEvents("Lakers", status);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    t += 61_000;
-    await client.searchEvents("Lakers", status);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-
-  it("throws GeminiError on non-2xx and on bad bodies", async () => {
+  it("throws GeminiError on non-2xx and on bad bodies, and doesn't cache failures", async () => {
     const bad = createGeminiClient({ fetch: asFetch(async () => json({ err: 1 }, 500)) });
-    await expect(bad.searchEvents("Lakers", "active")).rejects.toBeInstanceOf(GeminiError);
+    await expect(bad.searchGames("Lakers")).rejects.toBeInstanceOf(GeminiError);
     const junk = createGeminiClient({ fetch: asFetch(async () => new Response("<html>")) });
-    await expect(junk.searchEvents("Lakers", "active")).rejects.toBeInstanceOf(GeminiError);
+    await expect(junk.searchGames("Lakers")).rejects.toBeInstanceOf(GeminiError);
     const shape = createGeminiClient({ fetch: asFetch(async () => json({ nope: true })) });
-    await expect(shape.searchEvents("Lakers", "active")).rejects.toBeInstanceOf(GeminiError);
+    await expect(shape.searchGames("Lakers")).rejects.toBeInstanceOf(GeminiError);
+
+    let fail = true;
+    const flaky = vi.fn(async () => (fail ? json({ err: 1 }, 503) : onePage()));
+    const client = createGeminiClient({ fetch: asFetch(flaky) });
+    await expect(client.searchGames("Lakers")).rejects.toBeInstanceOf(GeminiError);
+    fail = false;
+    expect(await client.searchGames("Lakers")).toHaveLength(search.data.length);
   });
 });
 

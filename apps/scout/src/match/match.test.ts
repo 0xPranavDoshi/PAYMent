@@ -27,7 +27,7 @@ const game = (o: Partial<GeminiEvent> = {}): GeminiEvent => ({
 
 const gemini = (g: GeminiEvent | null): GeminiClient =>
   ({
-    searchEvents: vi.fn(async () => (g ? [g] : [])),
+    searchGames: vi.fn(async () => (g ? [g] : [])),
     getEvent: vi.fn(async () => g),
   }) as unknown as GeminiClient;
 const grok: Grok = { json: vi.fn() as never };
@@ -167,7 +167,7 @@ describe("matchPrediction", () => {
     // simulate a game that slips past findGame: getEvent returns a different, already-started event
     const started = game({ startTime: "2026-11-18T11:00:00.000Z" });
     const stub = {
-      searchEvents: vi.fn(async () => [g]),
+      searchGames: vi.fn(async () => [g]),
       getEvent: vi.fn(async () => started),
     } as unknown as GeminiClient;
     const r2 = await matchPrediction(pred(), 0, TWEET, { gemini: stub, grok });
@@ -175,7 +175,7 @@ describe("matchPrediction", () => {
   });
 
   it("findGame errors propagate", async () => {
-    const boom = { searchEvents: vi.fn(async () => Promise.reject(new Error("boom"))) } as unknown as GeminiClient;
+    const boom = { searchGames: vi.fn(async () => Promise.reject(new Error("boom"))) } as unknown as GeminiClient;
     await expect(matchPrediction(pred(), 0, TWEET, { gemini: boom, grok })).rejects.toThrow("boom");
   });
 });

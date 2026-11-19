@@ -1,6 +1,10 @@
 import { countsAsPrediction, type PickMatch, type ScoutStatus, type Sentiment } from "@copayme/shared";
 
-export const PIPELINE_VERSION = 1;
+/**
+ * Bump when the read prompt or matching changes; rows from older versions are re-read and re-matched.
+ * 2: sign decides spread direction; league codes; league+day game search (Nov 18 2026).
+ */
+export const PIPELINE_VERSION = 2;
 
 /** A `running` lock older than this may be taken over. */
 export const STALE_LOCK_MS = 5 * 60_000;

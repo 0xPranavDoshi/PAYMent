@@ -32,7 +32,8 @@ Fields:
 - confidence: how sure you are (0 to 1) that the post is a real prediction.
 - conviction: "strong" for "lock it in" style, "lean" for "I like them".
 - quote: the words in the post that make the claim.
-- league, player, metric, opponent: fill when known, otherwise null.`;
+- league: Gemini's league code, one of NBA, WNBA, NCAAM (men's college basketball, also called NCAAB or CBB), NCAAW, NFL, NCAAF (college football, CFB), NHL, MLB, EPL, LALIGA, UCL, LIGAMX, MLS. Infer it from the teams when the post doesn't say. null only if the sport isn't one of these.
+- player, metric, opponent: fill when known, otherwise null.`;
 
 const userMessage = (batch: RawPost[]): string =>
   JSON.stringify(

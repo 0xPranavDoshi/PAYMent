@@ -2,7 +2,7 @@ import type { Prediction } from "@copayme/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { GeminiClient } from "../gemini/client.js";
 import type { GeminiEvent } from "../gemini/types.js";
-import { findGame, MATCH_WINDOW_MS, pickGame } from "./candidates.js";
+import { findGame, geminiLeague, MATCH_WINDOW_MS, pickGame, windowDays } from "./candidates.js";
 
 const TWEET = new Date("2026-11-18T12:00:00.000Z");
 
@@ -170,25 +170,90 @@ describe("pickGame", () => {
   });
 });
 
+describe("geminiLeague", () => {
+  it("maps league names to Gemini ticker codes", () => {
+    expect(geminiLeague("NBA")).toBe("NBA");
+    expect(geminiLeague("ncaam")).toBe("NCAAM");
+    expect(geminiLeague("NCAAB")).toBe("NCAAM");
+    expect(geminiLeague("CBB")).toBe("NCAAM");
+    expect(geminiLeague("CFB")).toBe("NCAAF");
+    expect(geminiLeague("Liga MX")).toBe("LIGAMX");
+    expect(geminiLeague("Premier League")).toBe("EPL");
+    expect(geminiLeague("XFL")).toBeNull();
+    expect(geminiLeague(null)).toBeNull();
+  });
+});
+
+describe("windowDays", () => {
+  it("covers every UTC day from 6 h before the tweet to 7 days after", () => {
+    // 2026-11-18T12:00Z: window is 2026-11-18T06:00Z .. 2026-11-25T12:00Z
+    expect(windowDays(TWEET)).toEqual(["261118", "261119", "261120", "261121", "261122", "261123", "261124", "261125"]);
+  });
+  it("includes the previous UTC day when the tweet is just after midnight", () => {
+    expect(windowDays(new Date("2026-11-18T02:00:00Z"))[0]).toBe("261117");
+  });
+});
+
 describe("findGame", () => {
-  it("searches every alias with active, settled and under_review, dedupes, and returns the full event", async () => {
-    const summary = lakersGame(at(1000));
-    const full = { ...summary, events: [] };
-    const gemini: GeminiClient = {
-      searchEvents: vi.fn(async () => [summary]),
-      getEvent: vi.fn(async () => full),
-    };
-    const result = await findGame(pred(["Lakers", "LAL"]), TWEET, gemini);
-    expect(result).toEqual({ game: full });
-    expect(gemini.searchEvents).toHaveBeenCalledTimes(6);
-    const statuses = vi.mocked(gemini.searchEvents).mock.calls.map((c) => c[1]);
-    expect(new Set(statuses)).toEqual(new Set(["active", "settled", "under_review"]));
-    expect(gemini.getEvent).toHaveBeenCalledWith("G1");
+  const gemini = (byTerm: (term: string) => GeminiEvent[]) => {
+    const full = (e: GeminiEvent) => ({ ...e, events: [] });
+    return {
+      searchGames: vi.fn(async (term: string, _opts?: { sport?: string }) => byTerm(term)),
+      getEvent: vi.fn(async (ticker: string) => full({ ...lakersGame(at(1000)), ticker })),
+    } satisfies GeminiClient;
+  };
+
+  it("searches league + each window day first, with the league's sport, and returns the full event", async () => {
+    const g = gemini((term) => (term === "NBA-261119" ? [lakersGame(at(1000), "NBA-2611191000-CHA-LAL-M")] : []));
+    const result = await findGame(pred(["Lakers", "LAL"], null, "NBA"), TWEET, g);
+    expect(result.game?.ticker).toBe("NBA-2611191000-CHA-LAL-M");
+    const terms = g.searchGames.mock.calls.map((c) => c[0]);
+    expect(terms).toEqual(windowDays(TWEET).map((d) => `NBA-${d}`));
+    expect(g.searchGames.mock.calls.every((c) => c[1]?.sport === "basketball")).toBe(true);
+    expect(g.getEvent).toHaveBeenCalledWith("NBA-2611191000-CHA-LAL-M");
+  });
+
+  it("normalizes the league before building day searches (NCAAB -> NCAAM)", async () => {
+    const g = gemini(() => []);
+    await findGame(pred(["UConn"], null, "NCAAB"), TWEET, g);
+    expect(g.searchGames.mock.calls[0]![0]).toBe("NCAAM-261118");
+  });
+
+  it("falls back to the ticker team code, then to names, when day searches find nothing", async () => {
+    const g = gemini((term) => (term === "lakers" ? [lakersGame(at(1000))] : []));
+    const result = await findGame(pred(["Lakers", "LAL"], null, "NBA"), TWEET, g);
+    expect(result.game).not.toBeNull();
+    const terms = g.searchGames.mock.calls.map((c) => c[0]);
+    const days = windowDays(TWEET).length;
+    expect(terms.slice(days, days + 1)).toEqual(["-LAL-"]);
+    expect(terms.slice(days + 1)).toEqual(["lakers", "lal"]);
+  });
+
+  it("skips day searches when the league is unknown", async () => {
+    const g = gemini((term) => (term === "-LAL-" ? [lakersGame(at(1000))] : []));
+    await findGame(pred(["Lakers", "LAL"]), TWEET, g);
+    expect(g.searchGames.mock.calls[0]![0]).toBe("-LAL-");
+  });
+
+  it("prefers the exact team over a name that merely contains it (Tennessee vs Tennessee State)", async () => {
+    const tnState = game({ ticker: "NCAAM-A", startTime: at(1), home: ["South Florida", "USF"], away: ["Tennessee State", "TNST"] });
+    const tennessee = game({ ticker: "NCAAM-B", startTime: at(10), home: ["Tennessee", "TENN"], away: ["Michigan State", "MSST"] });
+    const g = gemini((term) => (term.startsWith("NCAAM-26") ? [tnState, tennessee] : []));
+    const result = await findGame(pred(["Tennessee", "Tennessee Volunteers", "TENN"], null, "NCAAM"), TWEET, g);
+    expect(g.getEvent).toHaveBeenCalledWith("NCAAM-B");
+    expect(result.game?.ticker).toBe("NCAAM-B");
+  });
+
+  it("stops at the first tier that finds the team playing (in-game tweets aren't pushed to a later tier)", async () => {
+    const live = lakersGame(at(-1), "NBA-LIVE");
+    const g = gemini((term) => (term.startsWith("NBA-26") ? [live] : [lakersGame(at(1000))]));
+    expect(await findGame(pred(["Lakers", "LAL"], null, "NBA"), TWEET, g)).toEqual({ game: null, reason: "tweet during game" });
+    expect(g.searchGames.mock.calls.every((c) => (c[0] as string).startsWith("NBA-26"))).toBe(true);
   });
 
   it("returns the no-game reason without fetching an event when nothing matches", async () => {
-    const gemini: GeminiClient = { searchEvents: vi.fn(async () => []), getEvent: vi.fn() };
-    expect(await findGame(pred(["Lakers"]), TWEET, gemini)).toEqual({ game: null, reason: "no game within 7 days" });
-    expect(gemini.getEvent).not.toHaveBeenCalled();
+    const g = gemini(() => []);
+    expect(await findGame(pred(["Lakers"]), TWEET, g)).toEqual({ game: null, reason: "no game within 7 days" });
+    expect(g.getEvent).not.toHaveBeenCalled();
   });
 });

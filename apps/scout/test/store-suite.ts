@@ -1,6 +1,6 @@
 import type { Sentiment } from "@copayme/shared";
 import { beforeEach, describe, expect, it } from "vitest";
-import type { ScoutPostRow, ScoutStore } from "../src/store.js";
+import { PIPELINE_VERSION, type ScoutPostRow, type ScoutStore } from "../src/store.js";
 
 const T0 = new Date("2026-11-18T12:00:00Z");
 const MIN = 60_000;
@@ -20,7 +20,7 @@ function post(over: Partial<ScoutPostRow> = {}): ScoutPostRow {
     quotedText: null,
     sentiment: null,
     matches: null,
-    pipelineVersion: 1,
+    pipelineVersion: PIPELINE_VERSION,
     forwardedAt: null,
     ...over,
   };

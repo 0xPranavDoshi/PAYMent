@@ -91,15 +91,81 @@ export function pickGame(events: GeminiEvent[], p: Prediction, tweetedAt: Date):
   return best ? { game: best.event } : { game: null, reason: NO_GAME_REASON };
 }
 
+/** Gemini's ticker league codes (verified Nov 18 2026) and the `sport` filter value for each. */
+export const LEAGUE_SPORT: Record<string, string> = {
+  NBA: "basketball",
+  WNBA: "basketball",
+  NCAAM: "basketball",
+  NCAAW: "basketball",
+  NFL: "american_football",
+  NCAAF: "american_football",
+  NHL: "hockey",
+  MLB: "baseball",
+  EPL: "soccer",
+  LALIGA: "soccer",
+  UCL: "soccer",
+  LIGAMX: "soccer",
+  MLS: "soccer",
+};
+
+/** Common names for the same leagues that bettors (and Grok) use. */
+const LEAGUE_SYNONYMS: Record<string, string> = {
+  NCAAB: "NCAAM",
+  CBB: "NCAAM",
+  CFB: "NCAAF",
+  PREMIERLEAGUE: "EPL",
+  CHAMPIONSLEAGUE: "UCL",
+};
+
+/** Gemini's ticker code for a league name, or null when it isn't a league Gemini lists. */
+export function geminiLeague(league: string | null): string | null {
+  if (!league) return null;
+  const key = league.toUpperCase().replace(/[^A-Z]/g, "");
+  const code = LEAGUE_SYNONYMS[key] ?? key;
+  return code in LEAGUE_SPORT ? code : null;
+}
+
+/** UTC days (YYMMDD, as tickers encode them) that a matching game could start on. */
+export function windowDays(tweetedAt: Date): string[] {
+  const yymmdd = (ms: number) => new Date(ms).toISOString().slice(2, 10).replace(/-/g, "");
+  const from = tweetedAt.getTime() - IN_GAME_MS;
+  const to = tweetedAt.getTime() + MATCH_WINDOW_MS;
+  const days = new Set<string>();
+  for (let t = from; t < to; t += 24 * 60 * 60 * 1000) days.add(yymmdd(t));
+  days.add(yymmdd(to));
+  return [...days];
+}
+
+/** Aliases written as ticker team codes ("LAL", "UCONN"): 2-6 capital letters, as Grok gives abbreviations. */
+const teamCodes = (team: TeamRef) =>
+  [...new Set([team.name, ...team.aliases].map((a) => a.trim()))].filter((a) => /^[A-Z]{2,6}$/.test(a));
+
+/**
+ * Finds the game a prediction refers to. Gemini can't filter by date or team, but its search also
+ * matches tickers (`NCAAM-2611190200-UCONN-ARI-M`), so we search, in order, until a tier decides:
+ *   1. league + each UTC day in the window (`NCAAM-261119`): small, exact date filter;
+ *   2. the team's ticker code (`-UCONN-`);
+ *   3. the team's names in titles (also covers older tickers without dates).
+ * Teams and the time window are then matched in code against the returned games.
+ */
 export async function findGame(p: Prediction, tweetedAt: Date, gemini: GeminiClient): Promise<GamePick> {
-  const byTicker = new Map<string, GeminiEvent>();
-  for (const alias of aliasesOf(p.team)) {
-    for (const status of ["active", "settled", "under_review"] as const) {
-      for (const e of await gemini.searchEvents(alias, status)) {
-        if (!byTicker.has(e.ticker)) byTicker.set(e.ticker, e);
-      }
-    }
+  const league = geminiLeague(p.league);
+  const sport = league ? LEAGUE_SPORT[league] : undefined;
+  const prediction = { ...p, league };
+  const tiers: string[][] = [
+    league ? windowDays(tweetedAt).map((d) => `${league}-${d}`) : [],
+    teamCodes(p.team).map((c) => `-${c}-`),
+    aliasesOf(p.team),
+  ];
+  let last: GamePick = { game: null, reason: NO_GAME_REASON };
+  for (const terms of tiers) {
+    if (terms.length === 0) continue;
+    const results = await Promise.all(terms.map((t) => gemini.searchGames(t, sport ? { sport } : {})));
+    const byTicker = new Map<string, GeminiEvent>();
+    for (const e of results.flat()) if (!byTicker.has(e.ticker)) byTicker.set(e.ticker, e);
+    last = pickGame([...byTicker.values()], prediction, tweetedAt);
+    if (last.game) return { game: await gemini.getEvent(last.game.ticker) };
+    if (last.reason === IN_GAME_REASON) return last;
   }
-  const pick = pickGame([...byTicker.values()], p, tweetedAt);
-  return pick.game ? { game: await gemini.getEvent(pick.game.ticker) } : pick;
+  return last;
 }

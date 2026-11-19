@@ -10,23 +10,26 @@ export class GeminiError extends Error {
   }
 }
 
-export type SearchStatus = "active" | "settled" | "under_review";
-
 export interface GeminiClient {
-  searchEvents(term: string, status: SearchStatus): Promise<GeminiEvent[]>;
+  /**
+   * Full-game moneyline events (one per game) whose title or ticker contains `term`, across every
+   * status a matchable game can have. `search` also matches tickers (undocumented, verified Nov 18
+   * 2026), so `NBA-261118` returns that day's NBA games and `-LAL-` returns one team's games.
+   */
+  searchGames(term: string, opts?: { sport?: string }): Promise<GeminiEvent[]>;
   getEvent(ticker: string): Promise<GeminiEvent>;
 }
 
+/** Statuses a matchable game can be in: listed but not trading, trading, awaiting result, settled. */
+export const GAME_STATUSES = ["approved", "active", "under_review", "settled"] as const;
 const ACTIVE_TTL_MS = 5 * 60 * 1000;
-/** Settled and under_review search lists can still gain events, so they expire too (just more slowly). */
-const SEARCH_TTL_MS: Record<SearchStatus, number> = {
-  active: ACTIVE_TTL_MS,
-  settled: 10 * 60 * 1000,
-  under_review: 10 * 60 * 1000,
-};
+/** Search lists gain games and change status, so they expire. */
+const SEARCH_TTL_MS = 5 * 60 * 1000;
 const MIN_SEARCH_LENGTH = 3;
-const PAGE_SIZE = 50;
-const MAX_PAGES = 10;
+/** Gemini's maximum page size. */
+const PAGE_SIZE = 500;
+/** Backstop only: game-only searches are far smaller than one page. */
+const MAX_PAGES = 4;
 
 export function createGeminiClient(
   opts: { fetch?: typeof fetch; baseUrl?: string; now?: () => number } = {},
@@ -36,6 +39,8 @@ export function createGeminiClient(
   const now = opts.now ?? Date.now;
   // expiresAt === null means cached indefinitely (settled events from getEvent)
   const cache = new Map<string, { value: unknown; expiresAt: number | null }>();
+  /** Identical searches in flight at the same time share one request. */
+  const inFlight = new Map<string, Promise<GeminiEvent[]>>();
 
   async function getJson(url: string): Promise<unknown> {
     let res: Response;
@@ -68,25 +73,41 @@ export function createGeminiClient(
   }
 
   return {
-    async searchEvents(term, status) {
+    async searchGames(term, opts = {}) {
       const search = term.trim();
       if (search.length < MIN_SEARCH_LENGTH) return [];
-      const base = `${baseUrl}/v1/prediction-markets/events?category=Sports&status=${status}&search=${encodeURIComponent(search)}&limit=${PAGE_SIZE}`;
+      const params = new URLSearchParams({ category: "Sports", search, limit: String(PAGE_SIZE) });
+      for (const status of GAME_STATUSES) params.append("status", status);
+      params.append("sports_market_type", "moneyline");
+      params.append("sports_market_scope", "full_contest");
+      if (opts.sport) params.append("sport", opts.sport);
+      const base = `${baseUrl}/v1/prediction-markets/events?${params.toString()}`;
       const hit = cached<GeminiEvent[]>(base);
       if (hit) return hit;
-      const events: GeminiEvent[] = [];
-      for (let page = 0; page < MAX_PAGES; page++) {
-        const offset = page * PAGE_SIZE;
-        const url = `${base}&offset=${offset}`;
-        const parsed = GeminiEventsResponse.safeParse(await getJson(url));
-        if (!parsed.success) throw new GeminiError(`Unexpected Gemini search response for ${url}`);
-        const { data, pagination } = parsed.data;
-        events.push(...data);
-        // No pagination block: treat the page as the whole result.
-        if (data.length === 0 || offset + data.length >= (pagination?.total ?? 0)) break;
+      const pending = inFlight.get(base);
+      if (pending) return pending;
+
+      const run = (async () => {
+        const events: GeminiEvent[] = [];
+        for (let page = 0; page < MAX_PAGES; page++) {
+          const offset = page * PAGE_SIZE;
+          const url = `${base}&offset=${offset}`;
+          const parsed = GeminiEventsResponse.safeParse(await getJson(url));
+          if (!parsed.success) throw new GeminiError(`Unexpected Gemini search response for ${url}`);
+          const { data, pagination } = parsed.data;
+          events.push(...data);
+          // No pagination block: treat the page as the whole result.
+          if (data.length === 0 || offset + data.length >= (pagination?.total ?? 0)) break;
+        }
+        store(base, events, SEARCH_TTL_MS);
+        return events;
+      })();
+      inFlight.set(base, run);
+      try {
+        return await run;
+      } finally {
+        inFlight.delete(base);
       }
-      store(base, events, SEARCH_TTL_MS[status]);
-      return events;
     },
 
     async getEvent(ticker) {

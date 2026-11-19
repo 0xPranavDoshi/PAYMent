@@ -51,7 +51,7 @@ const spreadPick = (o: Partial<PickMatch> = {}) =>
 
 const gemini = (events: GeminiEvent[]): GeminiClient =>
   ({
-    searchEvents: vi.fn(),
+    searchGames: vi.fn(),
     getEvent: vi.fn(async (t: string) => {
       const e = events.find((x) => x.ticker === t);
       if (!e) throw new Error("nope");
