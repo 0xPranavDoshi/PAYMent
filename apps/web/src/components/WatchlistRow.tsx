@@ -23,9 +23,11 @@ function fmtPnl(v: number | null): string {
 export default function WatchlistRow({
   watch,
   onRemove,
+  onCopy,
 }: {
   watch: WatchItem;
   onRemove: (traderHandle: string) => void;
+  onCopy: (traderHandle: string) => void;
 }) {
   return (
     <tr>
@@ -42,7 +44,22 @@ export default function WatchlistRow({
       <td style={{ ...td, color: pnlColor(watch.paperPnlUsdc), fontWeight: 600 }}>
         {fmtPnl(watch.paperPnlUsdc)}
       </td>
-      <td style={td}>
+      <td style={{ ...td, display: "flex", gap: 8 }}>
+        <button
+          onClick={() => onCopy(watch.traderHandle)}
+          style={{
+            padding: "4px 10px",
+            borderRadius: 6,
+            border: "none",
+            background: "#8ab4f8",
+            color: "#0f0f0f",
+            cursor: "pointer",
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          Copy trade
+        </button>
         <button
           onClick={() => onRemove(watch.traderHandle)}
           style={{

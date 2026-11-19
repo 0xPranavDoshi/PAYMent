@@ -14,7 +14,8 @@ import {
 export default function PnlChart({ trades }: { trades: TailResponse[] }) {
   let running = 0;
   const data = trades.map((t, i) => {
-    running += t.pnlUsdc ?? 0;
+    // Realized pnl once settled, otherwise the live mark-to-market.
+    running += t.pnlUsdc ?? t.unrealizedPnlUsdc ?? 0;
     return { index: i + 1, cumulative: Number(running.toFixed(2)) };
   });
 

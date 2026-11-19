@@ -12,7 +12,8 @@ import {
 import { z } from "zod";
 import type { TradingStore } from "./store.js";
 import type { GeminiClient } from "./gemini.js";
-import { snapDown, formatToIncrement } from "./gemini.js";
+import { snapDown, formatToIncrement, sidePriceFromEvent } from "./gemini.js";
+import { liveMarkPrice } from "./mark.js";
 import { syncMarkets } from "./sync.js";
 
 /** Max allowed price movement between quotedOdds and live price before rejecting. */
@@ -233,7 +234,8 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
       );
     }
 
-    // Open paper tails are marked to market against the current price.
+    // Open paper tails are marked to market against the live price, falling back to the
+    // last synced price if Gemini can't be reached right now.
     if (tail.mode === "paper") {
       const call = await store.getCall(tail.callId);
       const market = call ? await store.getMarketById(call.marketId) : null;
@@ -243,11 +245,21 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
           )
         : undefined;
       // NO picks are priced off the buy.no leg; fall back to currentOdds when noOdds is missing.
-      const markPrice = outcome
+      const storedMark = outcome
         ? call?.side === "no" && outcome.noOdds !== null
           ? outcome.noOdds
           : outcome.currentOdds
         : null;
+      let markPrice = storedMark;
+      if (market) {
+        const live = await liveMarkPrice(
+          gemini,
+          market.geminiMarketId,
+          { instrumentSymbol: outcome?.instrumentSymbol, label: call?.pickedOutcome },
+          call?.side ?? null,
+        );
+        if (live !== null) markPrice = live;
+      }
       const unrealizedPnlUsdc =
         markPrice !== null
           ? paperPnlUsdc({ amountUsdc: tail.amountUsdc, entryOdds: tail.entryOdds, exitPrice: markPrice })
@@ -258,13 +270,67 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
     return c.json(toTailResponse(tail));
   });
 
-  /** List all tails for a user (used by extension portfolio view). */
+  /**
+   * List a user's tails (extension / website portfolio). Optional ?source=manual|watch|copy.
+   * Open paper tails are marked to market against the live price (one Gemini fetch per distinct
+   * market), falling back to the last synced price; settled tails carry their final pnl.
+   */
   app.get("/v1/users/:userId/tails", async (c) => {
     const userIdSchema = z.string().uuid();
     const idParsed = userIdSchema.safeParse(c.req.param("userId"));
     if (!idParsed.success) return c.json({ error: "invalid userId" }, 400);
-    const tails = await store.listUserTails(idParsed.data);
-    return c.json(tails.map((t) => toTailResponse(t)));
+
+    const sourceParam = c.req.query("source");
+    const source =
+      sourceParam === "manual" || sourceParam === "watch" || sourceParam === "copy"
+        ? sourceParam
+        : undefined;
+
+    const rows = await store.listUserTailsForPnl(idParsed.data, source);
+
+    // Fetch each distinct market once, in parallel, for the open paper tails that need marking.
+    const openPaperTickers = [
+      ...new Set(
+        rows
+          .filter((r) => r.tail.mode === "paper" && r.tail.status !== "settled")
+          .map((r) => r.ticker),
+      ),
+    ];
+    const events = new Map<string, Awaited<ReturnType<GeminiClient["getEvent"]>> | null>();
+    await Promise.all(
+      openPaperTickers.map(async (ticker) => {
+        try {
+          events.set(ticker, await gemini.getEvent(ticker));
+        } catch {
+          events.set(ticker, null);
+        }
+      }),
+    );
+
+    const body = rows.map((r) => {
+      const tail = r.tail;
+      if (tail.status === "settled") {
+        return toTailResponse(tail, {
+          realized: true,
+          exitOdds: tail.exitOdds,
+          settledAt: tail.settledAt ? tail.settledAt.toISOString() : null,
+        });
+      }
+      if (tail.mode === "paper") {
+        const event = events.get(r.ticker) ?? null;
+        const live = event
+          ? sidePriceFromEvent(event, { instrumentSymbol: r.instrumentSymbol, label: r.pickedOutcome }, r.side)
+          : null;
+        const markPrice = live ?? r.storedMarkPrice;
+        const unrealizedPnlUsdc =
+          markPrice !== null
+            ? paperPnlUsdc({ amountUsdc: tail.amountUsdc, entryOdds: tail.entryOdds, exitPrice: markPrice })
+            : null;
+        return toTailResponse(tail, { realized: false, markPrice, unrealizedPnlUsdc });
+      }
+      return toTailResponse(tail);
+    });
+    return c.json(body);
   });
 
   // ── Watches ─────────────────────────────────────────────────────────────────
@@ -302,8 +368,61 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
     if (!followerId || !/^[0-9a-f-]{36}$/.test(followerId)) {
       return c.json({ error: "x-follower-id header with a valid UUID is required" }, 400);
     }
-    const watches = await store.listWatches(followerId);
-    return c.json(watches.map((w) => WatchItem.parse(w)));
+
+    const bases = await store.listWatches(followerId);
+    const marks = await store.listOpenWatchMarks(followerId);
+
+    // Mark each distinct market once (live), then sum unrealized PnL per trader.
+    const tickers = [...new Set(marks.map((m) => m.ticker))];
+    const events = new Map<string, Awaited<ReturnType<GeminiClient["getEvent"]>> | null>();
+    await Promise.all(
+      tickers.map(async (ticker) => {
+        try {
+          events.set(ticker, await gemini.getEvent(ticker));
+        } catch {
+          events.set(ticker, null);
+        }
+      }),
+    );
+
+    const unrealizedByTrader = new Map<string, number>();
+    for (const m of marks) {
+      const event = events.get(m.ticker) ?? null;
+      const live = event
+        ? sidePriceFromEvent(event, { instrumentSymbol: m.instrumentSymbol, label: m.pickedOutcome }, m.side)
+        : null;
+      const markPrice = live ?? m.storedMarkPrice;
+      if (markPrice === null) continue;
+      const pnl = paperPnlUsdc({ amountUsdc: m.amountUsdc, entryOdds: m.entryOdds, exitPrice: markPrice });
+      const key = m.traderHandle.toLowerCase();
+      unrealizedByTrader.set(key, (unrealizedByTrader.get(key) ?? 0) + pnl);
+    }
+
+    const items = bases.map((b) => {
+      const key = b.traderHandle.toLowerCase();
+      const hasOpen = unrealizedByTrader.has(key);
+      const unrealized = unrealizedByTrader.get(key) ?? 0;
+      const projectedPnlUsdc =
+        b.realizedPnlUsdc !== null || hasOpen ? round2((b.realizedPnlUsdc ?? 0) + unrealized) : null;
+      const pnlPct =
+        projectedPnlUsdc !== null && b.stakedUsdc > 0 ? round2((projectedPnlUsdc / b.stakedUsdc) * 100) : null;
+      const scoreDelta =
+        b.scoreNow !== null && b.scoreAtWatch !== null ? b.scoreNow - b.scoreAtWatch : null;
+      return WatchItem.parse({
+        traderHandle: b.traderHandle,
+        watchedAt: b.watchedAt.toISOString(),
+        nPicks: b.nPicks,
+        activePicks: b.activePicks,
+        stakedUsdc: b.stakedUsdc,
+        paperPnlUsdc: b.realizedPnlUsdc,
+        projectedPnlUsdc,
+        pnlPct,
+        scoreNow: b.scoreNow,
+        scoreAtWatch: b.scoreAtWatch,
+        scoreDelta,
+      });
+    });
+    return c.json(items);
   });
 
   // ── Copy trades ─────────────────────────────────────────────────────────────
@@ -551,6 +670,8 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
 
   return app;
 }
+
+const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 function toTailResponse(
   tail: {

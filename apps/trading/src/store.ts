@@ -1,4 +1,4 @@
-import type { OutcomeInfo, MarketStatus, WatchItem, CopyTradeConfig } from "@copayme/shared";
+import type { OutcomeInfo, MarketStatus, CopyTradeConfig } from "@copayme/shared";
 
 export interface CallRow {
   id: string;
@@ -40,6 +40,30 @@ export interface TailRow {
   createdAt: Date;
 }
 
+/** Per-watched-trader aggregate that the database can compute directly (no live prices). */
+export interface WatchBase {
+  traderHandle: string;
+  watchedAt: Date;
+  nPicks: number;
+  activePicks: number;
+  stakedUsdc: number;
+  realizedPnlUsdc: number | null;
+  scoreNow: number | null;
+  scoreAtWatch: number | null;
+}
+
+/** One still-open watch tail with the context needed to mark it to market. */
+export interface WatchOpenMark {
+  traderHandle: string;
+  amountUsdc: number;
+  entryOdds: number;
+  side: "yes" | "no" | null;
+  instrumentSymbol: string | null;
+  pickedOutcome: string | null;
+  ticker: string;
+  storedMarkPrice: number | null;
+}
+
 export interface TradingStore {
   getCall(callId: string): Promise<CallRow | null>;
   getMarketById(marketId: string): Promise<MarketRow | null>;
@@ -65,6 +89,24 @@ export interface TradingStore {
   ): Promise<void>;
   getTail(tailId: string): Promise<TailRow | null>;
   listUserTails(userId: string): Promise<TailRow[]>;
+  /**
+   * A user's tails joined to the call and market details needed to mark open paper tails to
+   * market: the bought side, the picked contract's symbol/label, the market's Gemini ticker,
+   * and the last synced price for that side (used when a live fetch fails). Newest first.
+   */
+  listUserTailsForPnl(
+    userId: string,
+    source?: TailRow["source"],
+  ): Promise<
+    Array<{
+      tail: TailRow;
+      side: "yes" | "no" | null;
+      instrumentSymbol: string | null;
+      pickedOutcome: string | null;
+      ticker: string;
+      storedMarkPrice: number | null;
+    }>
+  >;
   /** Open paper tails on calls belonging to this market, with the call's side and picked outcome. */
   listOpenPaperTailsByMarket(marketId: string): Promise<Array<{
     tailId: string;
@@ -80,7 +122,9 @@ export interface TradingStore {
 
   addWatch(followerId: string, traderHandle: string): Promise<void>;
   removeWatch(followerId: string, traderHandle: string): Promise<void>;
-  listWatches(followerId: string): Promise<WatchItem[]>;
+  listWatches(followerId: string): Promise<WatchBase[]>;
+  /** Open watch tails for a follower, with per-tail marking context. */
+  listOpenWatchMarks(followerId: string): Promise<WatchOpenMark[]>;
 
   upsertCopyTrade(followerId: string, traderHandle: string, amountUsdc: number): Promise<CopyTradeConfig>;
   updateCopyTrade(followerId: string, traderHandle: string, patch: { amountUsdc?: number; active?: boolean }): Promise<CopyTradeConfig | null>;
