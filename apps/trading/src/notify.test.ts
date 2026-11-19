@@ -21,7 +21,7 @@ const market: MarketRow = {
   winningOutcome: null,
 };
 
-function setup(over: { call?: Partial<CallRow>; market?: Partial<MarketRow> } = {}) {
+function setup(over: { call?: Partial<CallRow>; market?: Partial<MarketRow>; orderFails?: boolean; updateFails?: boolean } = {}) {
   const call: CallRow = {
     id: CALL_ID,
     userId: "u1",
@@ -34,19 +34,34 @@ function setup(over: { call?: Partial<CallRow>; market?: Partial<MarketRow> } = 
     tweetedAt: new Date(NOW.getTime() - 60_000),
     ...over.call,
   };
-  const tails: unknown[] = [];
+  // The tails table, with the same rule as the unique index: one automatic tail per follower, call and source.
+  const tails: Record<string, unknown>[] = [];
+  const events: string[] = [];
   const store = {
     getCall: vi.fn(async () => call),
     getMarketById: vi.fn(async () => ({ ...market, ...over.market })),
     getActiveWatchers: vi.fn(async () => ["watcher-1", "watcher-2"]),
     getActiveCopyTraders: vi.fn(async () => [{ followerId: "copier-1", amountUsdc: 10 }]),
-    createTail: vi.fn(async (t: unknown) => {
-      tails.push(t);
-      return t;
+    claimAutoTail: vi.fn(async (t: { followerId: string; callId: string; source: string }) => {
+      if (tails.some((x) => x.followerId === t.followerId && x.callId === t.callId && x.source === t.source)) {
+        return null;
+      }
+      const row = { ...t, id: `tail-${tails.length + 1}` };
+      tails.push(row);
+      events.push(`claim:${t.source}:${t.followerId}`);
+      return row;
+    }),
+    updateTail: vi.fn(async (id: string, patch: Record<string, unknown>) => {
+      if (over.updateFails) throw new Error("db down");
+      Object.assign(tails.find((x) => x.id === id)!, patch);
     }),
   };
   const gemini = {
-    placeOrder: vi.fn(async () => ({ orderId: 42, filledQuantity: "16" })),
+    placeOrder: vi.fn(async () => {
+      events.push("order");
+      if (over.orderFails) throw new Error("Gemini 503");
+      return { orderId: 42, filledQuantity: "16" };
+    }),
   };
   const app = createApp({
     store: store as unknown as TradingStore,
@@ -59,7 +74,7 @@ function setup(over: { call?: Partial<CallRow>; market?: Partial<MarketRow> } = 
       headers: { "content-type": "application/json", ...(key ? { "x-service-key": key } : {}) },
       body: JSON.stringify({ callId: CALL_ID }),
     });
-  return { notify, store, gemini, tails };
+  return { notify, store, gemini, tails, events };
 }
 
 describe("POST /v1/calls/notify", () => {
@@ -116,5 +131,64 @@ describe("POST /v1/calls/notify", () => {
     expect(closed.gemini.placeOrder).not.toHaveBeenCalled();
     const resolved = setup({ market: { status: "resolved" } });
     expect((await resolved.notify()).status).toBe(409);
+  });
+
+  describe("running it more than once for the same call", () => {
+    it("does nothing the second time: no new tails and no second live order", async () => {
+      const { notify, gemini, tails } = setup();
+      expect(await (await notify()).json()).toMatchObject({ watchTails: 2, copyTails: 1, alreadyNotified: 0 });
+      const second = await (await notify()).json();
+      expect(second).toMatchObject({ watchTails: 0, copyTails: 0, alreadyNotified: 3, errors: [] });
+      expect(gemini.placeOrder).toHaveBeenCalledTimes(1);
+      expect(tails).toHaveLength(3);
+    });
+
+    it("places only one order when two notifications arrive at the same time", async () => {
+      const { notify, gemini, tails } = setup();
+      const results = await Promise.all([notify(), notify(), notify()]);
+      expect(results.every((r) => r.status === 200)).toBe(true);
+      expect(gemini.placeOrder).toHaveBeenCalledTimes(1);
+      expect(tails).toHaveLength(3);
+    });
+
+    it("saves the follower's tail before placing their order", async () => {
+      const { notify, events } = setup();
+      await notify();
+      expect(events.indexOf("claim:copy:copier-1")).toBeGreaterThanOrEqual(0);
+      expect(events.indexOf("claim:copy:copier-1")).toBeLessThan(events.indexOf("order"));
+    });
+  });
+
+  describe("when a live order fails", () => {
+    it("marks the tail cancelled, reports the error, and never retries the order automatically", async () => {
+      const { notify, gemini, tails } = setup({ orderFails: true });
+      const first = await (await notify()).json();
+      expect(first).toMatchObject({ watchTails: 2, copyTails: 0 });
+      expect(first.errors).toEqual([expect.stringContaining("Gemini 503")]);
+      expect(tails.find((t) => t.source === "copy")).toMatchObject({ status: "cancelled", geminiOrderId: null });
+
+      const retry = await (await notify()).json();
+      expect(retry).toMatchObject({ copyTails: 0, alreadyNotified: 3 });
+      expect(gemini.placeOrder).toHaveBeenCalledTimes(1); // the failed attempt only
+    });
+
+    it("cancels without ordering when the amount is too small for one contract", async () => {
+      const { notify, gemini, tails, store } = setup();
+      store.getActiveCopyTraders.mockResolvedValue([{ followerId: "copier-1", amountUsdc: 0.1 }]);
+      const body = await (await notify()).json();
+      expect(body.errors[0]).toContain("too small");
+      expect(gemini.placeOrder).not.toHaveBeenCalled();
+      expect(tails.find((t) => t.source === "copy")).toMatchObject({ status: "cancelled" });
+    });
+
+    it("names the order when it was placed but the tail row could not be updated", async () => {
+      const { notify, gemini } = setup({ updateFails: true });
+      const body = await (await notify()).json();
+      expect(body.errors[0]).toMatch(/order 42 was placed for tail .* could not be updated/);
+      expect(gemini.placeOrder).toHaveBeenCalledTimes(1);
+      const again = await (await notify()).json();
+      expect(gemini.placeOrder).toHaveBeenCalledTimes(1); // still not ordered twice
+      expect(again.copyTails).toBe(0);
+    });
   });
 });

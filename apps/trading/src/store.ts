@@ -43,6 +43,17 @@ export interface TradingStore {
   getMarketById(marketId: string): Promise<MarketRow | null>;
   getMarketByGeminiId(geminiMarketId: string): Promise<MarketRow | null>;
   createTail(tail: Omit<TailRow, "id" | "createdAt" | "source"> & { source?: TailRow["source"] }): Promise<TailRow>;
+  /**
+   * Creates an automatic (watch or copy) tail unless this follower already has one for this call.
+   * Returns null when one exists: that follower was already handled, so skip them. Atomic.
+   */
+  claimAutoTail(
+    tail: Omit<TailRow, "id" | "createdAt" | "source"> & { source: "watch" | "copy" },
+  ): Promise<TailRow | null>;
+  updateTail(
+    tailId: string,
+    patch: { geminiOrderId?: string | null; status?: TailRow["status"]; pnlUsdc?: number | null },
+  ): Promise<void>;
   getTail(tailId: string): Promise<TailRow | null>;
   listUserTails(userId: string): Promise<TailRow[]>;
   upsertMarket(
