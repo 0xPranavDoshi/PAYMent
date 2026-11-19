@@ -2,7 +2,7 @@ import type { CallEntry, UserProfile } from "@copayme/shared";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Gauge, Mark } from "../brand.js";
 import { REFRESH_MESSAGE, isContextInvalidated } from "../context.js";
-import { ArrowUpRightIcon, CheckIcon, CopyIcon, PaperIcon } from "../icons.js";
+import { ArrowUpRightIcon, CheckIcon, CopyIcon, EyeIcon } from "../icons.js";
 import { SIGNED_OUT, type TradingActions, type TradingState } from "../trading.js";
 import { callRowView, formatTweetTime, profileView } from "./view.js";
 
@@ -136,7 +136,7 @@ function Summary({
 
 const COPY_AMOUNTS = [5, 10, 25];
 
-/** Paper trade (follow with $1 paper bets) and Copy trade (mirror with real orders). */
+/** Watch (follow with $1 paper bets) and Copy trade (mirror each new pick). */
 function TradeActions({ handle, trading }: { handle: string; trading?: TradingActions }) {
   const [state, setState] = useState<TradingState | null>(null);
   const [busy, setBusy] = useState<"watch" | "copy" | null>(null);
@@ -200,7 +200,7 @@ function TradeActions({ handle, trading }: { handle: string; trading?: TradingAc
         <button
           type="button"
           className={`tbtn ${watching ? "on" : ""}`}
-          title={watching ? "Following: a $1 paper bet on each new pick. Press to stop." : "Follow with $1 paper bets on each new pick"}
+          title={watching ? "Watching: a $1 paper bet on each new pick. Press to stop." : "Watch: follow with $1 paper bets on each new pick"}
           aria-pressed={watching}
           aria-busy={busy === "watch"}
           onClick={() => {
@@ -211,8 +211,8 @@ function TradeActions({ handle, trading }: { handle: string; trading?: TradingAc
             );
           }}
         >
-          {watching ? <CheckIcon /> : <PaperIcon />}
-          {watching ? "Following" : "Paper trade"}
+          {watching ? <CheckIcon /> : <EyeIcon />}
+          {watching ? "Watching" : "Watch"}
         </button>
 
         <button

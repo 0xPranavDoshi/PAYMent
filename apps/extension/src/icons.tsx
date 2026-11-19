@@ -1,10 +1,10 @@
 /** Small line icons for the trade buttons. They take their colour from the text around them. */
 const base = { viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true } as const;
 
-export const PaperIcon = () => (
+export const EyeIcon = () => (
   <svg {...base}>
-    <path d="M4 2.5h5.2L12 5.3V13a.5.5 0 0 1-.5.5h-7A.5.5 0 0 1 4 13V2.5z" />
-    <path d="M9 2.5v3h3" />
+    <path d="M1.5 8s2.3-4.5 6.5-4.5S14.5 8 14.5 8s-2.3 4.5-6.5 4.5S1.5 8 1.5 8z" />
+    <circle cx="8" cy="8" r="2" />
   </svg>
 );
 

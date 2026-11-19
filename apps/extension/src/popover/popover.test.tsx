@@ -389,7 +389,7 @@ describe("the popover", () => {
 
     it("shows both buttons even when trading is not connected, and says so when one is pressed", async () => {
       await openCard(undefined);
-      expect(paper().textContent).toContain("Paper trade");
+      expect(paper().textContent).toBe("Watch");
       expect(copy().textContent).toContain("Copy trade");
       click(paper());
       await vi.waitFor(() => expect(toast()).toBe("Trading isn't available yet."));
@@ -411,18 +411,18 @@ describe("the popover", () => {
       await openCard(trading);
       await loaded();
       click(paper());
-      await vi.waitFor(() => expect(paper().textContent).toContain("Following"));
+      await vi.waitFor(() => expect(paper().textContent).toContain("Watching"));
       expect(trading.setWatch).toHaveBeenLastCalledWith("alice", true);
       expect(paper().getAttribute("aria-pressed")).toBe("true");
 
       click(paper());
-      await vi.waitFor(() => expect(paper().textContent).toContain("Paper trade"));
+      await vi.waitFor(() => expect(paper().textContent).toBe("Watch"));
       expect(trading.setWatch).toHaveBeenLastCalledWith("alice", false);
     });
 
     it("shows the current state when it opens", async () => {
       await openCard(fakeTrading({ watching: true, copy: { active: true, amountUsdc: 25 } }));
-      await vi.waitFor(() => expect(paper().textContent).toContain("Following"));
+      await vi.waitFor(() => expect(paper().textContent).toContain("Watching"));
       expect(copy().textContent).toContain("Copying · $25");
     });
 
@@ -486,7 +486,7 @@ describe("the popover", () => {
       click(paper());
       expect(trading.setWatch).toHaveBeenCalledTimes(1);
       release();
-      await vi.waitFor(() => expect(paper().textContent).toContain("Following"));
+      await vi.waitFor(() => expect(paper().textContent).toContain("Watching"));
       expect(trading.setWatch).toHaveBeenCalledTimes(1);
 
       // and a double-click on "Start copying" must not place two orders either

@@ -18,7 +18,7 @@ export interface StartOptions {
   loadProfile?: (handle: string) => Promise<ProfileData>;
   /** Base URL of the coPAYMe website, for the popover's link. */
   webUrl?: string;
-  /** What the popover's Paper trade and Copy trade buttons do. Without it they say trading is unavailable. */
+  /** What the popover's Watch and Copy trade buttons do. Without it they say trading is unavailable. */
   trading?: TradingActions;
   doc?: Document;
   /** Quiet period before a batch is sent. */

@@ -28,7 +28,7 @@ export function createPopoverManager(opts: {
   webUrl: string;
   /** Keeps the card in step with X's theme. Without it the card is light. */
   theme?: ThemeStore;
-  /** What the Paper trade and Copy trade buttons do. */
+  /** What the Watch and Copy trade buttons do. */
   trading?: TradingActions;
   doc?: Document;
 }): PopoverManager {
