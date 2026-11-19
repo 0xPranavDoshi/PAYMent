@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createThemeStore, detectTheme, luminance, parseColor } from "./theme.js";
+import { createThemeStore, detectSurface, detectTheme, luminance, parseColor } from "./theme.js";
 
 describe("parseColor and luminance", () => {
   it("reads rgb and rgba, and rejects other formats", () => {
@@ -71,9 +71,11 @@ describe("createThemeStore", () => {
     await vi.waitFor(() => expect(seen).toHaveBeenCalledWith("dark"));
     expect(store.get()).toBe("dark");
 
-    document.body.style.backgroundColor = "rgb(21, 32, 43)"; // Dim: still dark, so no second call
-    await new Promise((r) => setTimeout(r, 20));
-    expect(seen).toHaveBeenCalledTimes(1);
+    // Dim is also "dark", but it paints a different background, so the tweet shown by us must follow it.
+    document.body.style.backgroundColor = "rgb(21, 32, 43)";
+    await vi.waitFor(() => expect(seen).toHaveBeenCalledTimes(2));
+    expect(store.get()).toBe("dark");
+    expect(store.surface()).toBe("rgb(21, 32, 43)");
 
     document.body.style.backgroundColor = "rgb(255, 255, 255)";
     await vi.waitFor(() => expect(seen).toHaveBeenLastCalledWith("light"));
@@ -94,5 +96,27 @@ describe("createThemeStore", () => {
     document.body.style.backgroundColor = "rgb(255, 255, 255)";
     await new Promise((r) => setTimeout(r, 20));
     expect(b).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("detectSurface and the store's surface", () => {
+  beforeEach(() => {
+    document.documentElement.removeAttribute("style");
+    document.body.removeAttribute("style");
+  });
+
+  it("returns the exact page background, as X paints it in each theme", () => {
+    for (const bg of ["rgb(255, 255, 255)", "rgb(21, 32, 43)", "rgb(0, 0, 0)"]) {
+      document.body.style.backgroundColor = bg;
+      expect(detectSurface(document)).toBe(bg);
+    }
+  });
+
+  it("is null when nothing opaque is painted, and the store then falls back to white or black", () => {
+    document.body.style.backgroundColor = "transparent";
+    expect(detectSurface(document)).toBeNull();
+    const store = createThemeStore(document);
+    expect(store.surface()).toBe("rgb(255, 255, 255)"); // light fallback
+    store.stop();
   });
 });

@@ -357,12 +357,12 @@ describe("the popover", () => {
       await vi.waitFor(() => expect(rows().every((r) => r.classList.contains("flipped"))).toBe(true));
       const back = rows()[0]!.querySelector(".back")!;
       expect(back.querySelector("img")).toBeNull();
-      expect(back.querySelector(".tw")!.textContent).toBe(hostile);
+      expect(back.querySelector(".ttext")!.textContent).toBe(hostile);
     });
   });
 
   describe("the trade buttons", () => {
-    const buttons = () => [...popoverHosts()[0]!.shadowRoot!.querySelectorAll<HTMLButtonElement>(".actions .btn")];
+    const buttons = () => [...popoverHosts()[0]!.shadowRoot!.querySelectorAll<HTMLButtonElement>(".actions .tbtn")];
     const paper = () => buttons()[0]!;
     const copy = () => buttons()[1]!;
     const card = () => popoverHosts()[0]!.shadowRoot!;
@@ -411,19 +411,19 @@ describe("the popover", () => {
       await openCard(trading);
       await loaded();
       click(paper());
-      await vi.waitFor(() => expect(paper().textContent).toContain("Following · $1 per pick"));
+      await vi.waitFor(() => expect(paper().textContent).toContain("Following"));
       expect(trading.setWatch).toHaveBeenLastCalledWith("alice", true);
       expect(paper().getAttribute("aria-pressed")).toBe("true");
 
       click(paper());
-      await vi.waitFor(() => expect(paper().textContent).toContain("Follow with paper bets"));
+      await vi.waitFor(() => expect(paper().textContent).toContain("Paper trade"));
       expect(trading.setWatch).toHaveBeenLastCalledWith("alice", false);
     });
 
     it("shows the current state when it opens", async () => {
       await openCard(fakeTrading({ watching: true, copy: { active: true, amountUsdc: 25 } }));
       await vi.waitFor(() => expect(paper().textContent).toContain("Following"));
-      expect(copy().textContent).toContain("Copying · $25 per pick");
+      expect(copy().textContent).toContain("Copying · $25");
     });
 
     it("asks for confirmation before copy trading, then starts it for the chosen amount", async () => {
@@ -442,7 +442,7 @@ describe("the popover", () => {
       await vi.waitFor(() => expect(card().querySelector(".panel")!.textContent).toContain("buy $25"));
 
       click([...card().querySelectorAll<HTMLButtonElement>(".panel .btn")].find((b) => b.textContent === "Start copying")!);
-      await vi.waitFor(() => expect(copy().textContent).toContain("Copying · $25 per pick"));
+      await vi.waitFor(() => expect(copy().textContent).toContain("Copying · $25"));
       expect(trading.startCopy).toHaveBeenCalledWith("alice", 25);
       expect(card().querySelector(".panel")).toBeNull();
     });
@@ -462,7 +462,7 @@ describe("the popover", () => {
       await openCard(active);
       await vi.waitFor(() => expect(copy().textContent).toContain("Copying"));
       click(copy());
-      await vi.waitFor(() => expect(copy().textContent).toContain("Mirror with real orders"));
+      await vi.waitFor(() => expect(copy().textContent).toContain("Copy trade"));
       expect(active.stopCopy).toHaveBeenCalledWith("alice");
     });
 
@@ -503,5 +503,56 @@ describe("the popover", () => {
       expect(copyTrading.startCopy).toHaveBeenCalledTimes(1);
       releaseCopy();
     });
+  });
+});
+
+describe("the flipped card looks like a tweet", () => {
+  let stop: () => void;
+  afterEach(() => stop?.());
+  const lookup = async (handles: string[]): Promise<BadgesResponse> => Object.fromEntries(handles.map((h) => [h, badge]));
+  const rows = () => [...popoverHosts()[0]!.shadowRoot!.querySelectorAll(".pick")] as HTMLElement[];
+
+  async function openWith(background: string) {
+    document.body.style.backgroundColor = background;
+    document.body.innerHTML = `<main>${tweetHtml("ubc_conference")}</main>`;
+    document.body.style.backgroundColor = background;
+    stop = startBadges({
+      lookup,
+      loadProfile: async () => ({ profile: profile("ubc_conference"), calls: [call(1, { tweetText: "Registration is open for #UBC2026." })] }),
+      webUrl: WEB,
+      delayMs: 5,
+    });
+    await vi.waitFor(() => expect(badges().every((b) => b.shadowRoot?.querySelector("button"))).toBe(true));
+    click(badgeButton());
+    await vi.waitFor(() => expect(rows()).toHaveLength(1));
+  }
+
+  it("shows the tag, an avatar, the text and X's time format, like a tweet", async () => {
+    await openWith("rgb(0, 0, 0)");
+    const back = rows()[0]!.querySelector(".back")!;
+    expect(back.querySelector(".avatar")!.textContent).toBe("U");
+    expect(back.querySelector(".thead b")!.textContent).toBe("@ubc_conference");
+    expect(back.querySelector(".thead span")!.textContent).toMatch(/^· Nov \d+$/);
+    expect(back.querySelector(".ttext")!.textContent).toBe("Registration is open for #UBC2026.");
+    expect(back.querySelector(".tmeta")!.textContent).toMatch(/^\d+:\d{2} (AM|PM) · Nov \d+, 2026$/);
+    expect(back.querySelector(".tfoot")!.textContent).toContain("Pick: UConn · YES · 62¢");
+  });
+
+  it("is painted with the exact background of the page it sits on, so it matches X's own tweets", async () => {
+    for (const background of ["rgb(255, 255, 255)", "rgb(21, 32, 43)", "rgb(0, 0, 0)"]) {
+      await openWith(background);
+      expect(popoverHosts()[0]!.style.getPropertyValue("--tw-bg")).toBe(background);
+      popoverHosts()[0]!.remove();
+      stop();
+    }
+  });
+
+  it("follows the user switching X's theme while it is open", async () => {
+    await openWith("rgb(0, 0, 0)"); // Lights Out
+    document.body.style.backgroundColor = "rgb(21, 32, 43)"; // Dim
+    await vi.waitFor(() => expect(popoverHosts()[0]!.style.getPropertyValue("--tw-bg")).toBe("rgb(21, 32, 43)"));
+    document.body.style.backgroundColor = "rgb(255, 255, 255)"; // Light
+    await vi.waitFor(() => expect(popoverHosts()[0]!.style.getPropertyValue("--tw-bg")).toBe("rgb(255, 255, 255)"));
+    expect(popoverHosts()[0]!.dataset.theme).toBe("light");
   });
 });

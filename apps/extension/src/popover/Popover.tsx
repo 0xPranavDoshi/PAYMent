@@ -1,8 +1,9 @@
 import type { CallEntry, UserProfile } from "@copayme/shared";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Gauge, Mark } from "../brand.js";
+import { CheckIcon, CopyIcon, PaperIcon } from "../icons.js";
 import { SIGNED_OUT, type TradingActions, type TradingState } from "../trading.js";
-import { callRowView, profileView } from "./view.js";
+import { callRowView, formatTweetTime, profileView } from "./view.js";
 
 export type PopoverState =
   | { status: "loading" }
@@ -184,7 +185,8 @@ function TradeActions({ handle, trading }: { handle: string; trading?: TradingAc
       <div className="actions">
         <button
           type="button"
-          className={`btn ${watching ? "on" : ""}`}
+          className={`tbtn ${watching ? "on" : ""}`}
+          title={watching ? "Following: a $1 paper bet on each new pick. Press to stop." : "Follow with $1 paper bets on each new pick"}
           aria-pressed={watching}
           aria-busy={busy === "watch"}
           onClick={() => {
@@ -195,13 +197,14 @@ function TradeActions({ handle, trading }: { handle: string; trading?: TradingAc
             );
           }}
         >
-          Paper trade
-          <small>{watching ? "Following · $1 per pick" : "Follow with paper bets"}</small>
+          {watching ? <CheckIcon /> : <PaperIcon />}
+          {watching ? "Following" : "Paper trade"}
         </button>
 
         <button
           type="button"
-          className={`btn primary ${copying ? "on" : ""}`}
+          className={`tbtn solid ${copying ? "on" : ""}`}
+          title={copying ? `Copying: a $${state?.copy?.amountUsdc} real order on each new pick. Press to stop.` : "Mirror each new pick with a real order"}
           aria-pressed={copying}
           aria-busy={busy === "copy"}
           onClick={() => {
@@ -216,8 +219,8 @@ function TradeActions({ handle, trading }: { handle: string; trading?: TradingAc
             }
           }}
         >
-          Copy trade
-          <small>{copying ? `Copying · $${state?.copy?.amountUsdc} per pick` : "Mirror with real orders"}</small>
+          {copying ? <CheckIcon /> : <CopyIcon />}
+          {copying ? `Copying · $${state?.copy?.amountUsdc}` : "Copy trade"}
         </button>
       </div>
 
@@ -269,13 +272,10 @@ function TradeActions({ handle, trading }: { handle: string; trading?: TradingAc
   );
 }
 
-function whenTweeted(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-}
-
 /** One pick. "See tweet" flips the card over to show the tweet's text, instead of leaving the page. */
 function PickRow({ call, handle }: { call: CallEntry; handle: string }) {
   const row = callRowView(call);
+  const when = formatTweetTime(call.tweetedAt);
   const tone = row.points === null ? "none" : row.outcome.kind === "won" ? "won" : row.outcome.kind === "lost" ? "lost" : "none";
 
   const [flipped, setFlipped] = useState(false);
@@ -307,18 +307,31 @@ function PickRow({ call, handle }: { call: CallEntry; handle: string }) {
         </div>
 
         <div className="face back" ref={back} inert={!flipped}>
-          <div className="bhead">
-            <b>@{handle}</b>
-            <span>{whenTweeted(call.tweetedAt)}</span>
+          <div className="tweet">
+            <div className="avatar" aria-hidden="true">
+              {handle.charAt(0).toUpperCase()}
+            </div>
+            <div className="tmain">
+              <div className="thead">
+                <b>@{handle}</b>
+                <span>· {when.short}</span>
+              </div>
+              <p className="ttext">{call.tweetText}</p>
+              <div className="tmeta">{when.full}</div>
+            </div>
           </div>
-          <p className="tw">{call.tweetText}</p>
-          <div className="bfoot">
-            <a className="link" href={row.tweetUrl} target="_blank" rel="noopener noreferrer">
-              Open on X ↗
-            </a>
-            <button type="button" className="flipbtn" onClick={() => setFlipped(false)}>
-              Back
-            </button>
+          <div className="tfoot">
+            <span>
+              Pick: {row.pick} · {row.price}
+            </span>
+            <span className="acts">
+              <a className="link" href={row.tweetUrl} target="_blank" rel="noopener noreferrer">
+                Open on X ↗
+              </a>
+              <button type="button" className="flipbtn" onClick={() => setFlipped(false)}>
+                Back
+              </button>
+            </span>
           </div>
         </div>
       </div>

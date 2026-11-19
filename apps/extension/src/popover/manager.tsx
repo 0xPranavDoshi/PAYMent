@@ -69,7 +69,8 @@ export function createPopoverManager(opts: {
     const host = doc.createElement("div");
     host.dataset.copayme = "popover";
     host.dataset.theme = theme?.get() ?? "light";
-    host.style.cssText = "position:fixed;z-index:2147483647;";
+    host.style.cssText = "position:fixed;z-index:2147483647;"; // sets the whole style, so anything else goes after it
+    if (theme) host.style.setProperty("--tw-bg", theme.surface());
     const shadow = host.attachShadow({ mode: "open" });
     const style = doc.createElement("style");
     style.textContent = POPOVER_CSS;
@@ -121,6 +122,7 @@ export function createPopoverManager(opts: {
     };
     const stopTheme = theme?.subscribe((next: Theme) => {
       host.dataset.theme = next;
+      host.style.setProperty("--tw-bg", theme.surface()); // Dim and Lights Out are both dark but not the same colour
     });
 
     doc.addEventListener("pointerdown", onPointerDown, true);

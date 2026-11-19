@@ -34,8 +34,22 @@ export function detectTheme(doc: Document = document): Theme {
   return win.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+/** The page's actual background colour (what X paints behind tweets), or null if nothing opaque is painted. */
+export function detectSurface(doc: Document = document): string | null {
+  const win = doc.defaultView ?? window;
+  for (const el of [doc.body, doc.documentElement]) {
+    if (!el) continue;
+    const value = win.getComputedStyle(el).backgroundColor;
+    const color = parseColor(value);
+    if (color && color[3] > 0.5) return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+  }
+  return null;
+}
+
 export interface ThemeStore {
   get(): Theme;
+  /** The page background colour, so a tweet shown by us can use exactly X's own. Falls back to white or black. */
+  surface(): string;
   /** Called with the new theme whenever it changes. Returns an unsubscribe function. */
   subscribe(listener: (theme: Theme) => void): () => void;
   stop(): void;
@@ -45,12 +59,16 @@ export interface ThemeStore {
 export function createThemeStore(doc: Document = document): ThemeStore {
   const win = doc.defaultView ?? window;
   let current = detectTheme(doc);
+  let currentSurface = detectSurface(doc);
   const listeners = new Set<(theme: Theme) => void>();
 
+  // Dim and Lights Out are both "dark" but paint different backgrounds, so a change of either one counts.
   const refresh = () => {
     const next = detectTheme(doc);
-    if (next === current) return;
+    const nextSurface = detectSurface(doc);
+    if (next === current && nextSurface === currentSurface) return;
     current = next;
+    currentSurface = nextSurface;
     listeners.forEach((listener) => listener(next));
   };
 
@@ -64,6 +82,7 @@ export function createThemeStore(doc: Document = document): ThemeStore {
 
   return {
     get: () => current,
+    surface: () => currentSurface ?? (current === "dark" ? "rgb(0, 0, 0)" : "rgb(255, 255, 255)"),
     subscribe(listener) {
       listeners.add(listener);
       return () => void listeners.delete(listener);

@@ -1,6 +1,6 @@
 import type { CallEntry, UserProfile } from "@copayme/shared";
 import { describe, expect, it } from "vitest";
-import { callRowView, formatPoints, profileView, timeAgo } from "./view.js";
+import { callRowView, formatPoints, formatTweetTime, profileView, timeAgo } from "./view.js";
 
 const call = (over: Partial<CallEntry> = {}): CallEntry => ({
   callId: "11111111-1111-4111-8111-111111111111",
@@ -119,5 +119,14 @@ describe("profileView", () => {
     const bare = profileView(profile({ hitRate: null, lastCallAt: null }), now);
     expect(bare.hitRate).toBe("–");
     expect(bare.lastPick).toBeNull();
+  });
+});
+
+describe("formatTweetTime", () => {
+  it("writes a tweet's time the way X does", () => {
+    const { short, full } = formatTweetTime("2026-11-19T19:03:00.000Z");
+    expect(short).toBe(new Date("2026-11-19T19:03:00.000Z").toLocaleDateString("en-US", { month: "short", day: "numeric" }));
+    expect(full).toMatch(/^\d{1,2}:\d{2} (AM|PM) · [A-Z][a-z]{2} \d{1,2}, 2026$/);
+    expect(full).toContain(short);
   });
 });
