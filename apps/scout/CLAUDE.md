@@ -164,6 +164,14 @@ Adi's first scan of @Pickswise: 98 posts, 18 predictions, 15 picks forwarded, sc
 - **Wrong line (team decision, Pranav):** "Grambling St +37.5" matched the 40.5 line under the old nearest-implied-line rule. **Now only the exact line matches**; otherwise no match.
   - The one exception is a written "N+" ("30+ points"), the same bet as over N−0.5 for whole-number stats.
   - **Whole-number lines (team decision, Pranav):** these take the half-point line 0.5 away, since Gemini lists only half points. First choice is the line whose contract wins only when the bet wins, so a push counts as a loss: −7 → 7.5 YES; dog +7 → favourite's 6.5 NO; over 220 → 220.5; under 220 → 219.5. Otherwise the other neighbour; nothing further away.
+  - **Gemini drops sub-markets at random:** the same `getEvent` request alternates between returning a game's spread/total markets and not (measured: 0, 0, then 26 markets on three straight calls). The single refetch let totals fail by luck. Now up to 5 fetches, 1 s apart.
+  - **Dry run on all 98 stored @Pickswise posts** (re-read + re-match, nothing written), run twice:
+    - recap and brag gone;
+    - Grambling +37.5 dropped;
+    - all spreads, totals and winners on their exact lines;
+    - 3 picks that used to miss now match (Lakers −12.5, Western Michigan −14.5, Avalanche–Leafs over 6.5).
+    - Grok called the Chargers recap a prediction in run 1 and not in run 2, so the prompt alone isn't reliable for it; the opponent check in code stopped it from matching both times.
+    - West Virginia +9.5 and Florida −1.5 still came back without sub-markets after 5 tries; they stay pending and are retried each scan.
   - **Brags are recaps too:** "44 winning picks on Saturday ✅ Indiana -8.5, Iowa State -3, Heat +4.5, Sharks ML" had become two picks, Heat +4.5 on Miami's next game and Sharks ML. The Heat pick was unpriced because that market opened on Kalshi 6.4 h after the tweet. The prompt now names lists of past winners; real Grok rejects 3/3 brags and keeps 2/2 picks.
   - Stored rows made under the old rule: 4 of 27 line picks used a different line, all forwarded: Booker u23.5 → 24.5, total 44 → 44.5, Adebayo o17.5 → 14.5, Grambling +37.5 → 40.5.
 
