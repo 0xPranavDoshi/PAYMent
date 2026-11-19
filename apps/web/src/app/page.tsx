@@ -1,149 +1,105 @@
 import Link from "next/link";
 import { fetchLeaderboard, fetchTraderCalls, fetchTraderProfile, type LeaderboardEntry } from "@/lib/api";
-import { formatChange, scoreHue } from "@/lib/format";
-import LeaderboardTable from "@/components/LeaderboardTable";
-import Mark from "@/components/Mark";
-import ProductShot from "@/components/ProductShot";
+import { formatCents, formatChange, formatPct } from "@/lib/format";
+import Page from "@/components/Page";
 import ScoreRing from "@/components/ScoreRing";
+import TraderGrid from "@/components/TraderGrid";
 
 export const dynamic = "force-dynamic";
-
-const BADGE_EXAMPLES: { score: number | null; label: string }[] = [
-  { score: 82, label: "Beats the market" },
-  { score: 50, label: "Breaks even" },
-  { score: 31, label: "Trails it" },
-  { score: null, label: "Not enough picks" },
-];
 
 export default async function Home() {
   let board: LeaderboardEntry[] = [];
   try {
     board = await fetchLeaderboard(100);
   } catch {
-    // The page still renders without live numbers.
+    // The page degrades to an empty state below.
   }
   const scored = board.filter((e) => e.tier === "scored");
-  // Feature the best-scored trader who has real recorded picks, so the card shows what the product shows.
+  // Feature the best-scored trader who has real recorded picks, so the card shows a real record.
   const candidates = scored.slice(0, 5);
-  const found = await Promise.all(candidates.map((e) => fetchTraderCalls(e.handle, 3).catch(() => [])));
+  const found = await Promise.all(candidates.map((e) => fetchTraderCalls(e.handle, 4).catch(() => [])));
   const at = found.findIndex((f) => f.length > 0);
-  let lead: LeaderboardEntry | null = at >= 0 ? candidates[at]! : null;
-  const leadCalls = at >= 0 ? found[at]! : [];
-  lead ??= scored[0] ?? board[0] ?? null;
+  const lead = at >= 0 ? candidates[at]! : (scored[0] ?? board[0] ?? null);
+  const calls = at >= 0 ? found[at]! : [];
   const profile = lead ? await fetchTraderProfile(lead.handle).catch(() => null) : null;
-  const calls = leadCalls;
-  const picksTracked = board.reduce((s, e) => s + e.nResolved, 0);
-  const top3 = scored.slice(0, 3);
+  const movers = [...scored].filter((e) => formatChange(e.change14d)).sort((a, b) => Math.abs(b.change14d ?? 0) - Math.abs(a.change14d ?? 0)).slice(0, 5);
+  const picks = board.reduce((s, e) => s + e.nResolved, 0);
 
   return (
-    <>
-      <div className="container">
-        <section className="lhero">
-          <div>
-            <h1 className="display">
-              Every pick, scored against the <em>market</em>.
-            </h1>
-            <p className="lede">
-              Sports X is full of locks of the day. coPAYMe records every pick at the price it was made, so you can see who is
-              actually sharp, then watch them or copy their next pick.
-            </p>
-            <div className="cta">
-              <Link href="/leaderboard" className="btn primary lg">Find the sharps</Link>
-              <Link href="/how-scoring" className="btn lg">How we score it</Link>
-            </div>
-            {board.length > 0 && (
-              <div className="proof">
-                <div><b>{board.length}</b><span>traders scored</span></div>
-                <div><b>{picksTracked}</b><span>picks settled</span></div>
-                <div><b>Live</b><span>market prices</span></div>
-              </div>
+    <Page>
+      <div className="strap">
+        <h1>Every pick on X, scored against the market.</h1>
+        <p>
+          {board.length > 0 ? `${board.length} traders and ${picks} settled picks, ` : ""}each priced at the moment it was tweeted.{" "}
+          <Link href="/how-scoring" className="u">How scoring works</Link>
+        </p>
+      </div>
+
+      {board.length === 0 ? (
+        <div className="empty">The leaderboard is not available right now.</div>
+      ) : (
+        <>
+          <section className="feat">
+            {profile && lead && (
+              <Link href={`/traders/${encodeURIComponent(profile.handle)}`} className="fcard">
+                <div className="eyebrow muted">Featured trader</div>
+                <div className="f-head">
+                  <ScoreRing score={profile.tier === "new" ? null : profile.score} size={88} />
+                  <div>
+                    <div className="f-handle">@{profile.handle}</div>
+                    <div className="f-meta">
+                      <span><b className="w">{profile.nWins}</b>–<b className="l">{profile.nResolved - profile.nWins}</b> record</span>
+                      <span><b>{formatPct(profile.hitRate)}</b> hit rate</span>
+                      <span><b className={Math.round(profile.skill * 100) >= 0 ? "w" : "l"}>{formatCents(profile.skill)}</b> edge</span>
+                    </div>
+                  </div>
+                </div>
+                {calls.length > 0 && (
+                  <div className="f-picks">
+                    {calls.map((c) => {
+                      const tone = c.points === null ? "muted" : c.result === "won" ? "w" : c.result === "lost" ? "l" : "muted";
+                      return (
+                        <div className="f-pick" key={c.callId}>
+                          <div>
+                            <div className="e">{c.eventName}</div>
+                            <div className="s">{c.pickLabel}{c.side ? ` · ${c.side.toUpperCase()}` : ""}{c.oddsAtCall !== null ? ` · ${Math.round(c.oddsAtCall * 100)}¢` : ""}</div>
+                          </div>
+                          <span className={`r ${tone}`}>{c.points === null ? "Pending" : formatCents(c.points)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </Link>
             )}
-          </div>
-          {profile && <ProductShot profile={profile} calls={calls} />}
-        </section>
 
-        <section className="block">
-          <div className="kicker">The score</div>
-          <h2 className="display">Winning a lock isn&apos;t skill. <em>Beating the price</em> is.</h2>
-          <p className="sub">
-            A pick earns what a $1 contract bought at that moment would have made. Calling an underdog pays; riding a heavy
-            favourite barely moves the needle.
-          </p>
-
-          <div className="bento">
-            <div className="tile w4">
-              <div>
-                <h3>Scored against the market</h3>
-                <p>Same win, very different credit. Points are the outcome minus the price at the time of the tweet.</p>
-              </div>
-              <div className="viz bars">
-                <div className="bar"><span>Win an 85¢ favourite</span><div className="track"><div className="fillbar up" style={{ width: "15%" }} /></div><b className="w">+15¢</b></div>
-                <div className="bar"><span>Win a 35¢ underdog</span><div className="track"><div className="fillbar up" style={{ width: "65%" }} /></div><b className="w">+65¢</b></div>
-                <div className="bar"><span>Lose an 85¢ favourite</span><div className="track"><div className="fillbar down" style={{ width: "85%" }} /></div><b className="l">−85¢</b></div>
-              </div>
-            </div>
-
-            <div className="tile w2">
-              <div>
-                <h3>On every tweet</h3>
-                <p>The extension puts the score beside each handle on X.</p>
-              </div>
-              <div className="viz badges">
-                {BADGE_EXAMPLES.map((b) => (
-                  <span key={b.label} className="bsample" style={{ ["--h" as string]: scoreHue(b.score ?? 50) }} title={b.label}>
-                    <Mark />
-                    {b.score ?? "NEW"}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="tile w3">
-              <div>
-                <h3>Watch before you commit</h3>
-                <p>Add a trader to your watchlist and see how they do from that moment, as if you had put $1 on each pick.</p>
-              </div>
-              <div className="viz mini">
-                {top3.map((e) => {
-                  const ch = formatChange(e.change14d);
+            <aside className="side">
+              <h2>Biggest movers <small>14 days</small></h2>
+              {movers.length === 0 ? (
+                <p className="muted" style={{ fontSize: 14 }}>No big moves yet.</p>
+              ) : (
+                movers.map((e, i) => {
+                  const ch = formatChange(e.change14d)!;
                   return (
-                    <Link key={e.handle} href={`/traders/${encodeURIComponent(e.handle)}`} className="mrow">
-                      <ScoreRing score={e.score} size={34} />
+                    <Link key={e.handle} href={`/traders/${encodeURIComponent(e.handle)}`} className="mv">
+                      <span className="n">{i + 1}</span>
                       <b>@{e.handle}</b>
-                      <span className={ch ? ch.direction === "up" ? "up" : "down" : "muted"}>{ch ? ch.text : "–"}</span>
+                      <span className="sc">{e.score}</span>
+                      <span className={ch.direction === "up" ? "up" : "down"}>{ch.text}</span>
                     </Link>
                   );
-                })}
-              </div>
-            </div>
+                })
+              )}
+              <Link href="/leaderboard" className="btn sm" style={{ marginTop: 12, width: "100%" }}>Full leaderboard</Link>
+            </aside>
+          </section>
 
-            <div className="tile w3">
-              <div>
-                <h3>Then copy the next pick</h3>
-                <p>Choose an amount per pick and we mirror their next calls as they tweet them. Simulated for now, so no real money moves.</p>
-              </div>
-              <div className="viz" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <span className="btn is-copying">Copying · $10</span>
-                <span className="btn is-watching">Watching</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="block">
-          <div className="kicker">Leaderboard</div>
-          <h2 className="display">Who&apos;s ahead <em>right now</em>.</h2>
-          <LeaderboardTable entries={scored.slice(0, 5)} />
-          <p style={{ marginTop: 16 }}>
-            <Link href="/leaderboard" className="btn sm">See everyone →</Link>
-          </p>
-        </section>
-
-        <section className="band">
-          <h2 className="display">Stop trusting the screenshot. <em>Check the record.</em></h2>
-          <Link href="/leaderboard" className="btn primary lg">Open the leaderboard</Link>
-        </section>
-      </div>
-    </>
+          <section style={{ marginTop: 44 }}>
+            <h2 className="sect">Traders</h2>
+            <TraderGrid entries={board} />
+          </section>
+        </>
+      )}
+    </Page>
   );
 }

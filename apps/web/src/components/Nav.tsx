@@ -3,6 +3,7 @@ import { signOut } from "@/lib/actions";
 import { getFollowerId } from "@/lib/session";
 import Mark from "./Mark";
 import NavLinks from "./NavLinks";
+import SearchBox from "./SearchBox";
 
 export default async function Nav() {
   const signedIn = (await getFollowerId()) !== null;
@@ -11,8 +12,9 @@ export default async function Nav() {
       <div className="container">
         <Link href="/" className="brand">
           <span className="logo"><Mark /></span>
-          coPAYMe
+          <span className="brand-name">coPAYMe</span>
         </Link>
+        <SearchBox />
         <NavLinks />
         <div className="spacer" />
         {signedIn ? (
