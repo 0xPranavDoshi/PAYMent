@@ -1,8 +1,10 @@
-import type { NewPost, Pick } from "@copayme/shared";
+import { computeUserScore, type NewPost, type Pick } from "@copayme/shared";
 import postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app.js";
 import { ingestPosts } from "../ingest.js";
+import { inputsHash, runWorker, type WorkerStore } from "../worker.js";
+import { createPostgresWorkerStore } from "../worker.postgres.js";
 import { createPostgresIngestStore } from "../ingest.postgres.js";
 import { copyFile, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -412,6 +414,232 @@ describe.skipIf(!url)("against a real Postgres", () => {
       expect(results[1]!.error).toBeUndefined();
       expect(await sql`select 1 from users where x_user_id = 'u3'`).toHaveLength(0);
       expect(await sql`select 1 from posts where tweet_id = 't3'`).toHaveLength(0);
+    });
+  });
+
+  describe("scoring worker", () => {
+    const LOCK = "2026-11-20T02:00:00Z";
+    const SYNCED = "2026-11-19T12:00:00Z";
+    const TWEET = "2026-11-19T12:03:00Z";
+    const INGEST_NOW = new Date("2026-11-19T12:10:00Z");
+    const WORKER_NOW = new Date("2026-11-21T00:00:00Z");
+    const workerStore = () => createPostgresWorkerStore(sql);
+    const run = (now: Date = WORKER_NOW) => runWorker(workerStore(), now);
+    const later = (minutes: number) => new Date(WORKER_NOW.getTime() + minutes * 60_000);
+
+    const contracts = (result: "yes" | "no" | null) => [
+      { label: "UConn", instrumentSymbol: "GEMI-UCONN", currentOdds: 0.6, noOdds: 0.4, resolutionSide: result },
+    ];
+
+    async function market(ticker: string, status = "open") {
+      await sql`
+        insert into markets (gemini_market_id, sport, event_name, outcomes, lock_time, status, synced_at)
+        values (${ticker}, 'basketball', ${ticker}, ${sql.json(contracts(null))}, ${LOCK}, ${status}, ${SYNCED})`;
+    }
+    /** The market finishes: the contract resolves yes or no (null leaves its result unknown). */
+    const finish = (ticker: string, result: "yes" | "no" | null, status = "resolved") =>
+      sql`update markets set status = ${status}, outcomes = ${sql.json(contracts(result))} where gemini_market_id = ${ticker}`;
+
+    /** A user picks one market through the real ingest path. */
+    async function pick(user: string, tweetId: string, ticker: string, side: "yes" | "no", over: Partial<Pick> = {}) {
+      const [r] = await ingestPosts(createPostgresIngestStore(sql), [{
+        tweetId,
+        xUserId: `x-${user}`,
+        xHandle: user,
+        tweetedAt: TWEET,
+        tweetText: "pick",
+        sentiment: null,
+        picks: [{
+          geminiEventTicker: ticker,
+          instrumentSymbol: "GEMI-UCONN",
+          side,
+          gameStartTime: LOCK,
+          resolutionSide: null,
+          resolvedAt: null,
+          oddsAtTweet: null,
+          ...over,
+        }],
+      }], INGEST_NOW);
+      expect(r!.picks[0]!.status).toBe("created");
+    }
+
+    beforeAll(async () => {
+      await resetLocalDatabase(sql, url!);
+    });
+    beforeEach(async () => {
+      await sql`truncate calls, posts, markets, tails, user_scores, score_snapshots, users cascade`;
+    });
+
+    it("settles real ingested picks and scores the user exactly as the shared library does", async () => {
+      // yes/yes win, yes/no loss, no/no win, no/yes loss, yes/yes win, yes/no loss
+      const plan: [string, "yes" | "no", "yes" | "no"][] = [
+        ["M1", "yes", "yes"], ["M2", "yes", "no"], ["M3", "no", "no"],
+        ["M4", "no", "yes"], ["M5", "yes", "yes"], ["M6", "yes", "no"],
+      ];
+      for (const [i, [ticker, side]] of plan.entries()) {
+        await market(ticker);
+        await pick("Tipster", `t${i}`, ticker, side);
+      }
+      for (const [ticker, , result] of plan) await finish(ticker, result);
+
+      const summary = await run();
+      expect(summary).toEqual({ settled: 6, voided: 0, unsettleable: 0, usersUpdated: 1, handles: ["tipster"] });
+
+      const calls = await sql<{ side: string; status: string; points: number }[]>`select side, status, points from calls order by tweeted_at, id`;
+      expect(calls.every((c) => c.status === "scored")).toBe(true);
+      expect(calls.map((c) => Math.round(c.points * 100) / 100).sort((x, y) => x - y)).toEqual([-0.6, -0.6, -0.4, 0.4, 0.4, 0.6]);
+
+      const expected = computeUserScore([
+        { oddsAtCall: 0.6, won: true }, { oddsAtCall: 0.6, won: false }, { oddsAtCall: 0.4, won: true },
+        { oddsAtCall: 0.4, won: false }, { oddsAtCall: 0.6, won: true }, { oddsAtCall: 0.6, won: false },
+      ]);
+      const [row] = await sql`select * from user_scores`;
+      expect(row).toMatchObject({ score: expected.score, n_resolved: 6, n_wins: 3, hit_rate: 0.5, score_change_14d: null });
+      expect(row!.skill).toBeCloseTo(expected.skill);
+
+      // The snapshot is what the on-chain badge will read: its hash must match its calls.
+      const [snap] = await sql<{ id: string; score: number; call_ids: string[]; inputs_hash: string }[]>`select * from score_snapshots`;
+      expect(snap).toMatchObject({ score: expected.score });
+      expect(row!.snapshot_id).toBe(snap!.id);
+      const scored = await sql<{ id: string; points: number }[]>`select id, points from calls where id = any(${snap!.call_ids}::uuid[])`;
+      expect(scored).toHaveLength(6);
+      expect(snap!.inputs_hash).toBe(inputsHash(scored));
+    });
+
+    it("shows the new score through the API, and a settled user appears on the leaderboard", async () => {
+      for (let i = 1; i <= 5; i++) {
+        await market(`W${i}`);
+        await pick("Winner", `w${i}`, `W${i}`, "yes");
+        await finish(`W${i}`, "yes");
+      }
+      await run();
+      const app = createApp({ store: createPostgresStore(sql) });
+      const badge = (await (await app.request("/v1/badges?handles=winner")).json()).winner;
+      expect(badge).toMatchObject({ tier: "scored", nResolved: 5, hitRate: 1 });
+      expect(badge.score).toBeGreaterThan(50);
+      const board = await (await app.request("/v1/leaderboard")).json();
+      expect(board.map((e: { handle: string }) => e.handle)).toEqual(["winner"]);
+    });
+
+    it("scores unpriced calls without points and keeps them out of the score", async () => {
+      await market("PRICED");
+      await market("UNPRICED");
+      await pick("mix", "p1", "PRICED", "yes");
+      await pick("mix", "p2", "UNPRICED", "yes", { oddsAtTweet: null });
+      await sql`update calls set odds_at_call = null, odds_source = 'none' where picked_outcome = 'UConn' and market_id = (select id from markets where gemini_market_id = 'UNPRICED')`;
+      await finish("PRICED", "yes");
+      await finish("UNPRICED", "yes");
+
+      await run();
+      const calls = await sql<{ market: string; status: string; points: number | null }[]>`
+        select m.gemini_market_id as market, c.status, c.points from calls c join markets m on m.id = c.market_id order by 1`;
+      expect(calls).toMatchObject([{ market: "PRICED", status: "scored", points: 0.4 }, { market: "UNPRICED", status: "scored", points: null }]);
+      expect((await sql`select n_resolved, n_wins from user_scores`)[0]).toMatchObject({ n_resolved: 1, n_wins: 1 });
+    });
+
+    it("gives a user with only unpriced picks a New-badge row at score 50", async () => {
+      await market("U");
+      await pick("backfill", "b1", "U", "yes");
+      await sql`update calls set odds_at_call = null, odds_source = 'none'`;
+      await finish("U", "yes");
+      await run();
+      expect((await sql`select score, n_resolved, hit_rate from user_scores`)[0]).toMatchObject({ score: 50, n_resolved: 0, hit_rate: null });
+      const app = createApp({ store: createPostgresStore(sql) });
+      expect((await (await app.request("/v1/badges?handles=backfill")).json()).backfill).toMatchObject({ tier: "new" });
+    });
+
+    it("voids calls on a void market and leaves calls it cannot judge pending", async () => {
+      await market("VOID");
+      await market("NORESULT");
+      await market("STILLOPEN");
+      await pick("u", "v1", "VOID", "yes");
+      await pick("u2", "n1", "NORESULT", "yes");
+      await pick("u3", "o1", "STILLOPEN", "yes");
+      await finish("VOID", null, "void");
+      await finish("NORESULT", null); // resolved, but the contract has no result stored
+      const summary = await run();
+      expect(summary).toMatchObject({ settled: 0, voided: 1, unsettleable: 1, usersUpdated: 0 });
+      const statuses = await sql<{ m: string; status: string }[]>`select m.gemini_market_id as m, c.status from calls c join markets m on m.id = c.market_id order by 1`;
+      expect(statuses).toEqual([
+        { m: "NORESULT", status: "pending" },
+        { m: "STILLOPEN", status: "pending" },
+        { m: "VOID", status: "void" },
+      ]);
+      expect(await sql`select 1 from user_scores`).toHaveLength(0);
+
+      // Once the result arrives, the next run settles it.
+      await finish("NORESULT", "yes");
+      expect(await run()).toMatchObject({ settled: 1, unsettleable: 0 });
+    });
+
+    it("settles a pick that was ingested after its market had already resolved (a backfill)", async () => {
+      await market("DONE", "resolved");
+      await finish("DONE", "yes"); // resolved long before the pick arrives
+      await pick("late", "l1", "DONE", "yes");
+      expect((await sql`select odds_source, status from calls`)[0]).toMatchObject({ odds_source: "none", status: "pending" });
+
+      expect(await run()).toMatchObject({ settled: 1, usersUpdated: 1, handles: ["late"] });
+      expect((await sql`select status, points from calls`)[0]).toMatchObject({ status: "scored", points: null });
+    });
+
+    it("does nothing the second time, and adds a snapshot only when something new settled", async () => {
+      await market("A");
+      await pick("u", "a1", "A", "yes");
+      await finish("A", "yes");
+      await run();
+      expect(await run()).toEqual({ settled: 0, voided: 0, unsettleable: 0, usersUpdated: 0, handles: [] });
+      expect(await sql`select 1 from score_snapshots`).toHaveLength(1);
+
+      await market("B");
+      await pick("u", "b1", "B", "yes");
+      await finish("B", "no");
+      expect(await run(later(5))).toMatchObject({ settled: 1, usersUpdated: 1 }); // the next scheduled run
+      expect(await sql`select 1 from score_snapshots`).toHaveLength(2);
+      const [row] = await sql<{ n_resolved: number; snapshot_id: string }[]>`select n_resolved, snapshot_id from user_scores`;
+      expect(row!.n_resolved).toBe(2);
+      const [latest] = await sql<{ id: string }[]>`select id from score_snapshots order by computed_at desc, id limit 1`;
+      expect(row!.snapshot_id).toBe(latest!.id);
+    });
+
+    it("measures the 14-day change from an older snapshot", async () => {
+      await market("A");
+      await pick("u", "a1", "A", "yes");
+      const [u] = await sql<{ id: string }[]>`select id from users where x_handle = 'u'`;
+      const id = u!.id;
+      await sql`insert into score_snapshots (user_id, score, inputs_hash, computed_at) values (${id}, 40, repeat('0', 64), '2026-11-01T00:00:00Z')`;
+      await finish("A", "yes");
+      await run();
+      const [row] = await sql<{ score: number; score_change_14d: number }[]>`select score, score_change_14d from user_scores`;
+      expect(row!.score_change_14d).toBe(row!.score - 40);
+    });
+
+    it("scores each call once when two runs overlap", async () => {
+      for (let i = 1; i <= 4; i++) {
+        await market(`C${i}`);
+        await pick(`user${i}`, `c${i}`, `C${i}`, "yes");
+        await finish(`C${i}`, "yes");
+      }
+      const results = await Promise.all([run(), run(), run()]);
+      expect(results.reduce((n, r) => n + (r?.settled ?? 0), 0)).toBe(4);
+      expect(await sql`select 1 from score_snapshots`).toHaveLength(4); // one per user, not one per run
+      expect(await sql`select 1 from user_scores`).toHaveLength(4);
+      expect(await sql`select 1 from calls where status = 'scored'`).toHaveLength(4);
+    });
+
+    it("rolls everything back if a run fails partway", async () => {
+      await market("A");
+      await pick("u", "a1", "A", "yes");
+      await finish("A", "yes");
+      const failing: WorkerStore = {
+        transaction: (fn) =>
+          workerStore().transaction(async (db) =>
+            fn({ ...db, upsertUserScore: async () => { throw new Error("boom"); } }),
+          ),
+      };
+      await expect(runWorker(failing, WORKER_NOW)).rejects.toThrow("boom");
+      expect((await sql`select status from calls`)[0]).toMatchObject({ status: "pending" });
+      expect(await sql`select 1 from score_snapshots`).toHaveLength(0);
+      expect(await run()).toMatchObject({ settled: 1 }); // and a later run succeeds
     });
   });
 
