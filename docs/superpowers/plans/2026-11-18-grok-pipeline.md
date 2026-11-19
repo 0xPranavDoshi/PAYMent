@@ -75,7 +75,7 @@ packages/shared/src/
   scout.ts            PickMatch, ScoutResult, ScoutResponse, NewPost      (Task 1)
   sentiment.test.ts                                                       (Task 1)
 supabase/migrations/
-  20261118120000_scout.sql   scout_handles, scout_posts                   (Task 6)
+  20261120120000_scout.sql   scout_handles, scout_posts                   (Task 6)
 apps/scout/
   package.json, tsconfig.json                                             (Task 2)
   src/time.ts                 tweetIdToDate                               (Task 2)
@@ -373,7 +373,7 @@ git add apps/scout && git commit -m "Add contract choice, line rule, and predict
 
 **Files:**
 - Create:
-  - `supabase/migrations/20261118120000_scout.sql`. It must sort after Yash's `20261118000000_markets_calls_tails.sql`, which uses the same date.
+  - `supabase/migrations/20261120120000_scout.sql`. It must sort after Yash's `20261118000000_markets_calls_tails.sql`, which uses the same date.
   - `apps/scout/src/store.ts`, `src/store.postgres.ts`
   - `src/store.test.ts` (runs against the memory store)
   - `src/store.postgres.test.ts` (`describe.skipIf(!process.env.TEST_DATABASE_URL)`, using the same localhost guard as Aditya's `db.test.ts`)
