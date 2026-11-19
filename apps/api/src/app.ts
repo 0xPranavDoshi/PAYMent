@@ -1,6 +1,10 @@
 import {
   CallStatus,
   DEFAULT_CALLS_LIMIT,
+  DEFAULT_HISTORY_LIMIT,
+  DEFAULT_RECENT_LIMIT,
+  MAX_HISTORY_LIMIT,
+  MAX_RECENT_LIMIT,
   DEFAULT_LEADERBOARD_LIMIT,
   MAX_CALLS_LIMIT,
   IngestRequest,
@@ -75,6 +79,13 @@ function toProfile(row: ScoreRow): UserProfile {
         }
       : null,
   };
+}
+
+/** A ?limit= value clamped to 1..max, the default when absent, or null when it is not a whole number. */
+function parseLimit(raw: string | undefined, fallback: number, max: number): number | null {
+  if (raw === undefined) return fallback;
+  if (!/^\d+$/.test(raw)) return null;
+  return Math.min(Math.max(Number(raw), 1), max);
 }
 
 export function createApp({ store, ingest, serviceKey, notifyNewCall, worker, calls, now = Date.now }: AppDeps) {
@@ -162,6 +173,25 @@ export function createApp({ store, ingest, serviceKey, notifyNewCall, worker, ca
     const rows = await calls.listCalls(handle.data, { limit, statuses });
     if (!rows) return c.json({ error: "not found" }, 404);
     return c.json(rows.map(toCallEntry));
+  });
+
+  app.get("/v1/calls/recent", async (c) => {
+    if (!calls) return c.json({ error: "the call ledger is not configured" }, 503);
+    const limit = parseLimit(c.req.query("limit"), DEFAULT_RECENT_LIMIT, MAX_RECENT_LIMIT);
+    if (limit === null) return c.json({ error: "limit must be a whole number" }, 400);
+    const rows = await calls.listRecent(limit);
+    return c.json(rows.map((r) => ({ ...toCallEntry(r), handle: r.handle })));
+  });
+
+  app.get("/v1/users/:handle/score-history", async (c) => {
+    if (!calls) return c.json({ error: "the call ledger is not configured" }, 503);
+    const handle = XHandle.safeParse(c.req.param("handle"));
+    if (!handle.success) return c.json({ error: "invalid handle" }, 400);
+    const limit = parseLimit(c.req.query("limit"), DEFAULT_HISTORY_LIMIT, MAX_HISTORY_LIMIT);
+    if (limit === null) return c.json({ error: "limit must be a whole number" }, 400);
+    const points = await calls.scoreHistory(handle.data, limit);
+    if (!points) return c.json({ error: "not found" }, 404);
+    return c.json(points.map((p) => ({ score: p.score, computedAt: p.computedAt.toISOString() })));
   });
 
   app.post("/v1/posts", async (c) => {

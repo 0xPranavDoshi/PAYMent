@@ -22,6 +22,10 @@ export interface LedgerRow {
 export interface CallsStore {
   /** The user's calls, newest first; null when no user has this handle. */
   listCalls(handle: string, opts: { limit: number; statuses: readonly CallStatus[] | null }): Promise<LedgerRow[] | null>;
+  /** The latest picks across all traders (pending or scored), newest first, with who made each. */
+  listRecent(limit: number): Promise<Array<LedgerRow & { handle: string }>>;
+  /** A trader's score snapshots, oldest first (the latest `limit` of them); null when no user has this handle. */
+  scoreHistory(handle: string, limit: number): Promise<Array<{ score: number; computedAt: Date }> | null>;
 }
 
 const Contract = z.object({

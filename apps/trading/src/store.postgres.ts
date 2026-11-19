@@ -239,13 +239,16 @@ export function createPostgresStore(sql: postgres.Sql): TradingStore {
           picked_outcome: string | null;
           gemini_market_id: string;
           outcomes: OutcomeInfo[];
+          event_name: string;
+          trader_handle: string;
         })[]
       >`
         select t.*, c.side, c.instrument_symbol, c.picked_outcome,
-               m.gemini_market_id, m.outcomes
+               m.gemini_market_id, m.outcomes, m.event_name, u.x_handle as trader_handle
         from tails t
         join calls c   on c.id = t.call_id
         join markets m on m.id = c.market_id
+        join users u   on u.id = c.user_id
         where t.follower_id = ${userId}
           ${source ? sql`and t.source = ${source}` : sql``}
         order by t.created_at desc
@@ -269,6 +272,8 @@ export function createPostgresStore(sql: postgres.Sql): TradingStore {
           pickedOutcome: r.picked_outcome,
           ticker: r.gemini_market_id,
           storedMarkPrice,
+          eventName: r.event_name,
+          traderHandle: r.trader_handle,
         };
       });
     },

@@ -29,6 +29,12 @@ export const TailResponse = z.object({
   unrealizedPnlUsdc: z.number().nullable().optional(),       // mark-to-market pnl while open
   exitOdds: z.number().min(0).max(1).nullable().optional(),  // resolved exit price (0/1) once settled
   settledAt: z.string().datetime().nullable().optional(),
+  // What the trade was on, so a portfolio can say more than an id. Only on the portfolio endpoint.
+  eventName: z.string().optional(),
+  pickLabel: z.string().nullable().optional(),
+  side: z.enum(["yes", "no"]).nullable().optional(),
+  traderHandle: z.string().optional(),
+  createdAt: z.string().datetime().optional(),
 });
 export type TailResponse = z.infer<typeof TailResponse>;
 
