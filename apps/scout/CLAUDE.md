@@ -109,6 +109,22 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
   - Single run only. Grok is not deterministic, so confirm with the accuracy check.
   - Not checked: Grok named UConn "Connecticut Huskies". Its aliases must still include "UConn" for Gemini's title search; check on the next live scan.
 
+- **Gemini API review (Nov 18, free).** I read the OpenAPI spec, the sports ticker guide and the market taxonomy guide, and probed live.
+  - List Events has no date, team or sort filter. It does have `sport`, `sports_market_type`, `sports_market_scope`, repeatable `status` (`approved`/`active`/`under_review`/`settled`) and `limit` up to 500.
+  - **Undocumented:** `search` also matches tickers (`NCAAM-2611190200-UCONN-ARI-M`). So `NBA-261118` returns that day's NBA games (5), and `-LAL-` returns exactly 22 Lakers games.
+  - Searching by title has problems: "Lakers" also matches the Mercyhurst Lakers, and "Los Angeles Lakers" matches nothing, because titles say "Los Angeles L".
+  - League codes in tickers: NCAAM, NFL, NCAAF, NBA, NHL, UCL, EPL, LALIGA, LIGAMX.
+  - Still no contract price history (candles exist only for crypto indexes).
+- **Smoke test re-run (Nov 18, after the league + day search and sign prompt; v2 re-read of the stored posts plus a top-up of up to 20 tweets).**
+  - **Duration: 203 s**, down from 748 s. Most of what's left is probably the 4 Grok read batches running one after another (not measured yet).
+  - 71 posts, all re-read at v2. 14 matched, 9 no_market.
+  - Fixed: "UConn +3.5" → "Arizona wins by more than 3.5" NO. "Charlotte +8.5" (from a parlay) → "Los Angeles L wins by more than 8.5" NO.
+  - Still wrong or missed:
+    - (a) "Tennessee to cover +3.5": Grok said `covers` again on this read, so the prompt-only fix holds only some of the time.
+    - (b) "Hawaii Warriors Team Total u17.5" was matched to the *game* total ("More than 22.5 points scored" NO). Team totals aren't game totals.
+    - (c) Tennessee got "no sub-event for bet type", but re-running `findGame` now returns the right game with its spread. Gemini apparently returned the game without child markets once, and we stored that as final.
+    - (d) "Kevin Huerter o10.5": Grok gave the wrong team (Kings), so no prop was found.
+
 ## Changes in progress / next
 - [x] **Underdog spreads:** fixed in the prompt (sign decides), verified 8 of 8 on a live test. The fallback, if errors come back, is a code check on a verbatim signed line from Grok.
 - [ ] **Speed up Gemini lookups** (smoke test: 12.5 min):
