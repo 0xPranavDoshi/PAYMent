@@ -62,3 +62,12 @@ export const tone = (v: number | null): "up" | "down" | "muted" => (v === null |
 export function shortDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
+
+/** A tweet's time the way X writes it: "Nov 19" beside the name, "7:03 AM · Nov 19, 2026" under the text. */
+export function formatTweetTime(iso: string): { short: string; full: string } {
+  const date = new Date(iso);
+  const day = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const time = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const year = date.toLocaleDateString("en-US", { year: "numeric" });
+  return { short: day, full: `${time} · ${day}, ${year}` };
+}

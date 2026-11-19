@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import { Inter, Instrument_Serif } from "next/font/google";
+import { Geist } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import Nav from "@/components/Nav";
 
-const sans = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
-const serif = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--font-serif", display: "swap" });
+const sans = Geist({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 
 export const metadata: Metadata = {
   title: "coPAYMe",
@@ -14,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${sans.variable} ${serif.variable}`}>
+    <html lang="en" className={sans.variable}>
       <body>
         <Nav />
         <main>{children}</main>

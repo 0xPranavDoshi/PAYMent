@@ -1,17 +1,33 @@
 import Page from "@/components/Page";
-import { notFound } from "next/navigation";
+import Link from "next/link";
 import { fetchCopyMode, fetchCopyTrades, fetchTraderCalls, fetchTraderProfile, fetchWatches } from "@/lib/api";
 import { getFollowerId } from "@/lib/session";
 import { CopyButton, WatchButton } from "@/components/TradeButtons";
-import { formatCents, formatChange, formatPct, timeAgo } from "@/lib/format";
+import { formatCents, formatChange, formatPct, formatTweetTime, timeAgo } from "@/lib/format";
 import ScoreRing from "@/components/ScoreRing";
+import PickRow from "@/components/PickRow";
 
 export const dynamic = "force-dynamic";
 
 export default async function TraderPage({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params;
   const profile = await fetchTraderProfile(handle);
-  if (!profile) notFound();
+  if (!profile) {
+    return (
+      <Page>
+        <div className="narrow" style={{ marginTop: 40 }}>
+          <h1 style={{ fontSize: 30 }}>We haven&apos;t scored @{handle.replace(/^@/, "")} yet</h1>
+          <p className="muted" style={{ marginTop: 10 }}>
+            A trader shows up here once they tweet a pick on a market we track. Check the spelling, or find someone from the board.
+          </p>
+          <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+            <Link href="/leaderboard" className="btn primary">Browse the leaderboard</Link>
+            <Link href="/" className="btn">Back home</Link>
+          </div>
+        </div>
+      </Page>
+    );
+  }
   const calls = await fetchTraderCalls(profile.handle).catch(() => []);
 
   const followerId = await getFollowerId();
@@ -80,25 +96,21 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
             calls.map((c) => {
               const outcome = c.status === "pending" ? "Pending" : c.status === "void" ? "Void" : c.status === "rejected" ? "Rejected" : c.result === "won" ? "Won" : c.result === "lost" ? "Lost" : "Scored";
               const tone = c.points === null ? "muted" : c.result === "won" ? "w" : c.result === "lost" ? "l" : "muted";
+              const t = formatTweetTime(c.tweetedAt);
               return (
-                <div className="pick" key={c.callId}>
-                  <div className="top">
-                    <span className="event">{c.eventName}</span>
-                    <span className={`res ${tone}`}>{c.points === null ? outcome : formatCents(c.points)}</span>
-                  </div>
-                  <div className="sub">
-                    {c.pickLabel}
-                    {c.side ? ` · ${c.side.toUpperCase()}` : ""} · {c.oddsAtCall === null ? "unpriced" : `${Math.round(c.oddsAtCall * 100)}¢`}
-                    {c.points !== null ? ` · ${outcome}` : ""}
-                  </div>
-                  <div className="tw">{c.tweetText}</div>
-                  <div className="foot">
-                    <span>{timeAgo(c.tweetedAt)}</span>
-                    <a href={`https://x.com/i/status/${encodeURIComponent(c.tweetId)}`} target="_blank" rel="noopener noreferrer">
-                      Open on X ↗
-                    </a>
-                  </div>
-                </div>
+                <PickRow
+                  key={c.callId}
+                  handle={profile.handle}
+                  event={c.eventName}
+                  pick={`${c.pickLabel}${c.side ? ` · ${c.side.toUpperCase()}` : ""} · ${c.oddsAtCall === null ? "unpriced" : `${Math.round(c.oddsAtCall * 100)}¢`}`}
+                  result={c.points === null ? outcome : formatCents(c.points)}
+                  tone={tone}
+                  outcome={c.points !== null ? `${outcome} · ${timeAgo(c.tweetedAt)}` : timeAgo(c.tweetedAt)}
+                  tweetText={c.tweetText}
+                  tweetId={c.tweetId}
+                  short={t.short}
+                  full={t.full}
+                />
               );
             })
           )}

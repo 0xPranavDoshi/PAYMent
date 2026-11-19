@@ -29,10 +29,8 @@ export default async function Home() {
     <Page>
       <div className="strap">
         <h1>Every pick on X, scored against the market.</h1>
-        <p>
-          {board.length > 0 ? `${board.length} traders and ${picks} settled picks, ` : ""}each priced at the moment it was tweeted.{" "}
-          <Link href="/how-scoring" className="u">How scoring works</Link>
-        </p>
+        <p>{board.length > 0 ? `${board.length} traders and ${picks} settled picks, ` : ""}each priced at the moment it was tweeted.</p>
+        <Link href="/how-scoring" className="btn sm" style={{ marginTop: 16 }}>How scoring works →</Link>
       </div>
 
       {board.length === 0 ? (
