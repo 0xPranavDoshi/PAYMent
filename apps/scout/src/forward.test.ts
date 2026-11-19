@@ -93,10 +93,26 @@ const post = (id: string, matches: PickMatch[]): ScoutPostRow => ({
 
 type Reply = { status?: number; errorFor?: string[]; body?: unknown } | Error;
 
-/** Ingest stub: echoes a result per posted tweet (with `error` for ids in errorFor). */
-function setup(events: GeminiEvent[], reply: Reply = {}, prices: Record<string, number> = {}) {
+/**
+ * Ingest stub: echoes a result per posted tweet (with `error` for ids in errorFor). POST /v1/worker/run
+ * answers with `worker` statuses in turn (default one 200).
+ */
+function setup(
+  events: GeminiEvent[],
+  reply: Reply = {},
+  prices: Record<string, number> = {},
+  worker: (number | Error)[] = [200],
+) {
   const store = createMemoryStore();
-  const fetchFn = vi.fn(async (_url: string, init: RequestInit) => {
+  let workerCalls = 0;
+  const fetchFn = vi.fn(async (url: string, init: RequestInit) => {
+    if (url.endsWith("/v1/worker/run")) {
+      const next = worker[Math.min(workerCalls++, worker.length - 1)]!;
+      if (next instanceof Error) throw next;
+      return new Response(JSON.stringify({ settled: 3, voided: 0, unsettleable: 0, usersUpdated: 1, handles: ["bob"] }), {
+        status: next,
+      });
+    }
     if (reply instanceof Error) throw reply;
     const posts = JSON.parse(init.body as string) as { tweetId: string }[];
     const body = reply.body ?? {
@@ -109,16 +125,20 @@ function setup(events: GeminiEvent[], reply: Reply = {}, prices: Record<string, 
     };
     return new Response(JSON.stringify(body), { status: reply.status ?? 200 });
   });
+  const logs: string[] = [];
   const forwarder = createForwarder({
     url: "http://ingest",
     serviceKey: "k",
     store,
     gemini: gemini(events, prices),
     fetch: fetchFn as unknown as typeof fetch,
+    sleep: async () => {},
+    log: (m) => logs.push(m),
   });
   const call = (i = 0) => fetchFn.mock.calls[i] as unknown as [string, RequestInit];
   const body = (i = 0) => JSON.parse(call(i)[1].body as string);
-  return { store, fetchFn, forwarder, call, body };
+  const urls = () => fetchFn.mock.calls.map((c) => String(c[0]));
+  return { store, fetchFn, forwarder, call, body, urls, logs };
 }
 
 describe("createForwarder", () => {
@@ -255,11 +275,46 @@ describe("createForwarder", () => {
   });
 
   it("batches requests at 50 posts", async () => {
-    const { forwarder, fetchFn, body } = setup([winEvent]);
+    const { forwarder, body, urls } = setup([winEvent]);
     const posts = Array.from({ length: 120 }, (_, i) => post(`t${i}`, [match({})]));
     expect(await forwarder.forward(posts, "bob")).toHaveLength(120);
-    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect(urls().filter((u) => u.endsWith("/v1/posts"))).toHaveLength(3);
     expect([body(0).length, body(1).length, body(2).length]).toEqual([50, 50, 20]);
+  });
+
+  describe("scoring right after forwarding", () => {
+    it("asks the API to run its scoring worker once, after the picks are stored", async () => {
+      const { forwarder, fetchFn, urls, logs } = setup([winEvent]);
+      await forwarder.forward([post("t1", [match({})]), post("t2", [match({})])], "bob");
+      expect(urls()).toEqual(["http://ingest/v1/posts", "http://ingest/v1/worker/run"]);
+      const init = fetchFn.mock.calls[1]![1] as RequestInit;
+      expect(init.method).toBe("POST");
+      expect(init.headers).toEqual({ "x-service-key": "k" });
+      expect(logs).toContain("[scout] scoring run: settled 3, users updated 1");
+    });
+
+    it("doesn't run scoring when ingest stored nothing", async () => {
+      const { forwarder, urls } = setup([winEvent], { status: 500 });
+      await forwarder.forward([post("t1", [match({})])], "bob");
+      expect(urls().some((u) => u.endsWith("/v1/worker/run"))).toBe(false);
+      const empty = setup([winEvent]);
+      await empty.forwarder.forward([post("t1", [])], "bob");
+      expect(empty.fetchFn).not.toHaveBeenCalled();
+    });
+
+    it("waits and asks again while a run is already in progress (409)", async () => {
+      const { forwarder, urls } = setup([winEvent], {}, {}, [409, 409, 200]);
+      await forwarder.forward([post("t1", [match({})])], "bob");
+      expect(urls().filter((u) => u.endsWith("/v1/worker/run"))).toHaveLength(3);
+    });
+
+    it("never fails the forward when the scoring run errors", async () => {
+      for (const worker of [[500], [new TypeError("fetch failed")], [409]]) {
+        const { forwarder, logs } = setup([winEvent], {}, {}, worker);
+        expect(await forwarder.forward([post("t1", [match({})])], "bob")).toEqual(["t1"]);
+        expect(logs.some((l) => l.includes("worker's schedule") || l.includes("next run"))).toBe(true);
+      }
+    });
   });
 });
 
