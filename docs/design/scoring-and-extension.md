@@ -122,7 +122,7 @@ A call is scored only when we know the price of its pick at the moment the user 
 
 - **History.** The pick arrives with `oddsAtTweet` from Gemini's price candles. Gemini has no reliable price history (the candles came back empty for a game that settled the day before), so this is mostly null. `odds_source = history`.
 - **Snapshot.** The market is open and its row was last synced within 600 s of `tweeted_at` (before or after), so the stored price in `markets.outcomes` is close to the price at tweet time. `odds_source = snapshot`. `ingest_lag_s` records how long after the tweet the pick was ingested; it does not decide the price.
-- **Unpriced.** Everything else. That includes every pick the scout backfills from old tweets, because a scan always runs after the tweet. The call is stored with `odds_source = none`. It shows in the ledger and counts toward the hit rate, but not toward the score.
+- **Unpriced.** Everything else. That includes every pick the scout backfills from old tweets, because a scan always runs after the tweet. The call is stored with `odds_source = none`. It shows in the ledger, but counts toward neither the score nor the hit rate.
 
 Scoring unpriced picks against a flat 0.5 would reward favourites: a user who picks 0.82 favourites and wins 80% of them would score 95, against 45 with the true prices. That is why unpriced picks are left out of the score.
 
@@ -139,6 +139,7 @@ A Hono app on Node, versioned under `/v1`. Read routes are public and cached. Wr
 | `GET /v1/users/:handle/calls?cursor=` | Paged call ledger, newest first | Extension popover |
 | `GET /v1/calls/by-tweet/:tweetId` | The calls parsed from that tweet and their markets, if any exist | Extension tail card |
 | `POST /v1/posts` (header `x-service-key`; one post or up to 50) | `201` with `{ results }`, one per post: the post id and an outcome per pick. `created` or `updated`, or `skipped` with a reason: `no_market`, `unknown_contract`, `market_void`, `after_lock` or `duplicate_pick`. A post that fails to store comes back with an `error` and can be re-sent. Re-sending a post is safe | Pranav's scout service |
+| `POST /v1/worker/run` (header `x-service-key`) | What the run did: calls settled, voided and left pending, and the handles rescored. 409 if a run is already going | Anyone triggering a settle on demand |
 | `GET /v1/leaderboard?limit=` (default 50, at most 100) | `[{ handle, score, change14d, tier, nResolved, hitRate }]`, best score first (ties: more resolved picks, then handle). Only users with at least 5 resolved picks, so the board never shows a number the badge hides behind New | Website (Yash) |
 | `GET /v1/users/:handle/snapshot` | Latest `score_snapshots` row | Mugdha's on-chain minter |
 
@@ -153,13 +154,17 @@ When ingest creates a call, the scoring API calls `POST /v1/calls/notify` on the
 
 ### Scoring worker
 
-A `node-cron` job inside the API process runs every 5 minutes:
+A timer inside the API process (`apps/api/src/worker.ts`) runs every 5 minutes, 10 seconds after startup for the first run. Each run is one database transaction, so a failure leaves nothing half-done, and a database lock stops two runs, or two API processes, from working at once.
 
-1. Find pending calls whose market is `resolved` or `void`. Selecting calls rather than newly resolved markets also covers calls ingested after their game had already settled. The trading service's sync stores each contract's result, so the worker does not call Gemini itself.
-2. For each such call, the pick is a win when its contract's `resolutionSide` equals its `side`. Set `points` and mark the call `scored`, or `void` for a void market. Unpriced calls are marked `scored` with no points.
-3. Recompute `user_scores` for the affected users with one SQL aggregate, including the 14-day score change. The score and the New threshold use priced calls only; `hit_rate` uses all scored calls.
-4. Write a `score_snapshots` row with `inputs_hash = sha256(sorted call_id:points pairs)`.
-5. Evict those handles from the API cache, so the next badge lookup gets the new score.
+1. Find pending calls whose market is `resolved` or `void`, up to 500 per run. Selecting calls rather than newly resolved markets also covers calls ingested after their game had already settled. The trading service's sync stores each contract's result, so the worker does not call Gemini itself.
+2. For each such call, the pick is a win when its contract's `resolutionSide` equals its `side`. A priced call gets `points` (1 if it won, else 0, minus its price) and is marked `scored`; an unpriced call is marked `scored` with no points; a call on a void market is marked `void`. A call that cannot be judged (no side recorded, the contract missing, or no result stored yet) stays pending and is tried again next run.
+3. For each user who had a call scored, recompute `user_scores` from all their priced, scored calls using the same functions as the unit-tested scoring library, including the 14-day change. `n_resolved`, `n_wins` and `hit_rate` all describe those priced calls, so the New badge, the score and the hit rate always agree. A user with only unpriced calls still gets a row, at score 50 with no resolved picks, so their badge reads New instead of nothing.
+4. Write a `score_snapshots` row for each rescored user, with `inputs_hash = sha256(sorted call_id:points lines)`, and point `user_scores.snapshot_id` at it. Users with nothing newly settled get no new snapshot.
+5. Evict those users' handles from the API cache, so the next badge lookup shows the new score instead of waiting out the 60 s cache.
+
+`POST /v1/worker/run` (header `x-service-key`) runs the same job on demand and returns what it did, which is useful right after a sync or before the demo. It answers 409 if a run is already in progress. `WORKER_ENABLED=false` turns the schedule off and `WORKER_INTERVAL_S` changes the gap.
+
+Unpriced calls stay out of `user_scores` entirely. They appear in the call ledger (with their result and no points), and the popover can show them as unpriced history.
 
 ### Caching
 
@@ -193,7 +198,7 @@ The whole workstream is TypeScript, so the extension, the API and teammates' ser
 | API | Hono | Small and typed; route schemas come from Zod |
 | Database | Supabase Postgres through the `postgres` driver and a `DATABASE_URL`, migrations in `supabase/migrations` | One hosted database the whole team can reach, with a free tier and built-in X OAuth. A plain connection string also works against a local Postgres for development |
 | Shared types | Zod schemas in `packages/shared` | One definition validates API input and types the extension |
-| Scheduling | `node-cron` in the API process | No extra infrastructure for a 5-minute job |
+| Scheduling | A timer in the API process | No extra infrastructure or dependency for a 5-minute job; runs never overlap and a database lock covers several processes |
 | Extension | WXT + React, Manifest V3 | Hot reload and shadow-DOM content-script UI out of the box |
 | Repo | pnpm workspaces: `apps/api`, `apps/extension`, `apps/trading` (Yash), `apps/scout` (Pranav), `packages/shared` | Teammates add `apps/<service>` next to these |
 | API hosting | Railway (proposed) | Always-on Node process so the cron job keeps running |
@@ -259,7 +264,7 @@ gantt
 
 The extension runs longest because it needs the live API before its popover and tail card can be finished.
 
-**Status on Nov 18.** Done: the scoring library, all migrations (applied to Supabase), `GET /v1/badges`, `GET /v1/users/:handle` and `POST /v1/posts`, the first extension version with badges, the trading service (Yash) and the scout design (Pranav). Not done: the worker, the popover and tail card, and the scout service itself. With two days left the extension is the critical path. If time runs short, cut in this order: toolbar popup, popover call ledger, profile-scan hook.
+**Status on Nov 18.** Done: the scoring library, all migrations (applied to Supabase), `GET /v1/badges`, `GET /v1/users/:handle`, `GET /v1/leaderboard`, `POST /v1/posts` and the scoring worker, the first extension version with badges, the trading service (Yash) and the scout design (Pranav). Not done: the popover and tail card, and the scout service itself. With two days left the extension is the critical path. If time runs short, cut in this order: toolbar popup, popover call ledger, profile-scan hook.
 
 Done means:
 
@@ -275,10 +280,10 @@ The biggest risk to the demo is having too few resolved sports calls to show rea
 
 | Risk | Effect | Mitigation |
 | --- | --- | --- |
-| Few resolved calls before Nov 20 | Every badge reads New | Backfill fills the ledger and hit rate but cannot produce scores, because old tweets have no price at tweet time. Scores need picks whose market was synced within 600 s of the tweet (run the sync on a short schedule and pre-warm demo handles) or seeded demo data labelled as such |
+| Few resolved calls before Nov 20 | Every badge reads New | Backfill fills the ledger but cannot produce scores or hit rates, because old tweets have no price at tweet time. Scores need picks whose market was synced within 600 s of the tweet (run the sync on a short schedule and pre-warm demo handles) or seeded demo data labelled as such |
 | Copy-trader manipulation: a high-score user tweets a pick, followers move a thin market, and the user sells into it | Followers buy at a worse price | Score at the price when the user tweeted; tail card shows how far the odds moved since the call; cap tail amount per call |
 | Hedging or deleting losers | Inflated scores | First pick per market is the only one that counts; deleted tweets still scored |
-| No Gemini price history | Backfilled picks have no price at tweet time | Unpriced picks (`odds_source = none`) count toward the hit rate but not the score; picks with no market sync within 600 s of the tweet are unpriced |
+| No Gemini price history | Backfilled picks have no price at tweet time | Unpriced picks (`odds_source = none`) count toward neither the score nor the hit rate, and only show in the ledger; picks with no market sync within 600 s of the tweet are unpriced |
 | Users delete losing tweets before the first scan | Backfilled history is curated by its owner | Say so in the README; capture picks live for handles we expect to be looked up |
 | Market odds go stale between syncs | Scores, the slippage check and live order prices use old odds | Run the sync every 5 minutes, or have ingest read the live price from Gemini |
 | Follower id is a plain header and live orders use one shared Gemini key | Anyone can place tails as anyone, all live trades hit the team's account | Sandbox only for the demo; replace the header with Mugdha's X login before anything real |
@@ -295,7 +300,7 @@ The biggest risk to the demo is having too few resolved sports calls to show rea
 - [x] Who owns the Gemini market sync? Yash's trading service.
 - [x] Tail card: the extension is this workstream's, so this workstream builds the card UI and the trading service owns `POST /v1/tails`.
 - [x] Accept `picks[]` in `NewPost`? Yes, with the three clarifications above.
-- [ ] Confirm that unpriced picks (backfilled or ingested late) are left out of the score and counted in the hit rate only.
+- [ ] Confirm that unpriced picks (backfilled or ingested late) are left out of the score and the hit rate, and only shown in the ledger. This replaces the earlier plan to count them toward the hit rate: the database requires `n_wins` not to exceed `n_resolved`, and a hit rate over different calls than the resolved count would disagree with the badge.
 - [ ] Choose `k`: 10 (current) or 20.
 - [ ] Who runs the market sync on a schedule? Proposed: Yash's service, every 5 minutes.
 - [ ] What does live mode mean in the demo, given the sandbox has no sports markets? Either paper trades only, or real orders on production with a small cap. Yash and the team decide.

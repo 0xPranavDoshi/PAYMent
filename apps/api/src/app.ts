@@ -17,6 +17,7 @@ import { TtlLru } from "./cache.js";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { ingestPosts, type IngestStore } from "./ingest.js";
 import type { ScoreRow, ScoreStore } from "./store.js";
+import type { Worker } from "./worker.js";
 
 export const BADGE_CACHE_MAX = 5_000;
 export const BADGE_CACHE_TTL_MS = 60_000;
@@ -32,6 +33,8 @@ export interface AppDeps {
    * created call, and only for picks tweeted recently. Without it, nothing is notified.
    */
   notifyNewCall?: (callId: string) => Promise<void>;
+  /** The scoring worker, so POST /v1/worker/run can trigger a run on demand. */
+  worker?: Pick<Worker, "runNow">;
   now?: () => number;
 }
 
@@ -68,7 +71,7 @@ function toProfile(row: ScoreRow): UserProfile {
   };
 }
 
-export function createApp({ store, ingest, serviceKey, notifyNewCall, now = Date.now }: AppDeps) {
+export function createApp({ store, ingest, serviceKey, notifyNewCall, worker, now = Date.now }: AppDeps) {
   const app = new Hono();
   // Badge per lowercase handle. Unknown handles are cached as null so a busy
   // timeline does not hit the database for the same unknown handle every time.
@@ -167,6 +170,17 @@ export function createApp({ store, ingest, serviceKey, notifyNewCall, now = Date
     }
 
     return c.json({ results }, 201);
+  });
+
+  // Settle finished markets and rescore now instead of waiting for the next scheduled run.
+  app.post("/v1/worker/run", async (c) => {
+    if (!worker || !serviceKey) return c.json({ error: "the worker is not configured" }, 503);
+    if (!keyMatches(c.req.header("x-service-key"), serviceKey)) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+    const summary = await worker.runNow();
+    if (!summary) return c.json({ error: "a run is already in progress" }, 409);
+    return c.json(summary);
   });
 
   app.get("/v1/leaderboard", async (c) => {
