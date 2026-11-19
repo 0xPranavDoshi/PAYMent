@@ -2,9 +2,9 @@ import type { CallEntry, UserProfile } from "@copayme/shared";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Gauge, Mark } from "../brand.js";
 import { REFRESH_MESSAGE, isContextInvalidated } from "../context.js";
-import { ArrowUpRightIcon, CheckIcon, CopyIcon, EyeIcon } from "../icons.js";
+import { ArrowUpRightIcon, CheckIcon, ChevronDownIcon, CopyIcon, EyeIcon } from "../icons.js";
 import { SIGNED_OUT, type TradingActions, type TradingState } from "../trading.js";
-import { callRowView, formatAmount, formatTweetTime, parseAmount, profileView, watchView } from "./view.js";
+import { callRowView, formatAmount, formatTweetTime, parseAmount, profileView } from "./view.js";
 
 export type PopoverState =
   | { status: "loading" }
@@ -66,7 +66,7 @@ export function Popover(props: {
       {state.status === "ready" && !state.profile && <div className="state">No track record for @{handle} yet.</div>}
 
       {state.status === "ready" && state.profile && (
-        <Summary profile={state.profile} calls={state.calls} now={now} trading={trading} />
+        <Summary profile={state.profile} calls={state.calls} now={now} trading={trading} webUrl={webUrl} />
       )}
 
       <div className="foot">
@@ -84,11 +84,13 @@ function Summary({
   calls,
   now,
   trading,
+  webUrl,
 }: {
   profile: UserProfile;
   calls: CallEntry[];
   now?: Date;
   trading?: TradingActions;
+  webUrl: string;
 }) {
   const view = profileView(profile, now);
   return (
@@ -112,13 +114,13 @@ function Summary({
           <b>{view.hitRate}</b>
           <span>Hit rate</span>
         </div>
-        <div title="Average cents per $1 contract beyond the market price, shrunk for small samples">
+        <div title="On average, how far their picks beat the market's odds, in percentage points, shrunk for small samples">
           <b>{view.edge}</b>
           <span>Edge</span>
         </div>
       </div>
 
-      <TradeActions handle={profile.handle} trading={trading} score={view.gauge} />
+      <TradeActions handle={profile.handle} trading={trading} webUrl={webUrl} />
 
       <div className="sec">Recent picks</div>
       {calls.length === 0 ? (
@@ -136,18 +138,32 @@ function Summary({
 
 const COPY_PRESETS = [5, 10, 25];
 const DEFAULT_COPY_AMOUNT = 10;
+/** How long a confirmation line stays before it clears itself. */
+const NOTICE_MS = 5000;
 
-/** Watch (a watchlist that shows how a trader does from now on) and Copy trade (mirror each new pick). */
-function TradeActions({ handle, trading, score }: { handle: string; trading?: TradingActions; score: number | null }) {
+interface Notice {
+  kind: "info" | "error";
+  text: string;
+  /** An optional link shown after the text, e.g. to the website's watchlist. */
+  link?: { href: string; label: string };
+}
+
+/**
+ * Watch (add the trader to your watchlist, which lives on the website) and Copy trade (mirror each new
+ * pick). Both are plain toggles; there are no panels that stay open. While copying, the Copy trade
+ * pill opens a small menu to change the amount or stop.
+ */
+function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: TradingActions; webUrl: string }) {
   const [state, setState] = useState<TradingState | null>(null);
   const [busy, setBusy] = useState<"watch" | "copy" | null>(null);
   // State updates land after the next render, so rapid clicks would all see "not busy". The ref is
   // set immediately, which is what stops a double-click from submitting twice.
   const working = useRef(false);
-  const [panel, setPanel] = useState<"copy" | null>(null);
+  const [panel, setPanel] = useState<"amount" | "menu" | null>(null);
   const [preset, setPreset] = useState<number | "custom">(DEFAULT_COPY_AMOUNT);
   const [custom, setCustom] = useState("");
-  const [notice, setNotice] = useState<{ kind: "info" | "error"; text: string } | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const watchlistUrl = `${webUrl.replace(/\/$/, "")}/watchlist`;
 
   useEffect(() => {
     let live = true;
@@ -160,6 +176,13 @@ function TradeActions({ handle, trading, score }: { handle: string; trading?: Tr
       live = false;
     };
   }, [trading, handle]);
+
+  // A confirmation clears itself, so nothing is left sitting in the card.
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   /** Whether trading can be used right now; if not, says why. */
   function ready(): boolean {
@@ -175,7 +198,7 @@ function TradeActions({ handle, trading, score }: { handle: string; trading?: Tr
   }
 
   /** Runs one action, then re-reads the truth from the service so what is shown is what is saved. */
-  async function run(which: "watch" | "copy", action: () => Promise<void>, done: string, after?: () => void) {
+  async function run(which: "watch" | "copy", action: () => Promise<void>, done: Notice, after?: () => void) {
     if (working.current) return;
     working.current = true;
     setBusy(which);
@@ -183,7 +206,7 @@ function TradeActions({ handle, trading, score }: { handle: string; trading?: Tr
     try {
       await action();
       after?.();
-      setNotice({ kind: "info", text: done });
+      setNotice(done);
       setState(await trading!.state(handle).catch(() => state));
     } catch (err) {
       setNotice({
@@ -196,14 +219,14 @@ function TradeActions({ handle, trading, score }: { handle: string; trading?: Tr
     }
   }
 
-  const watch = state?.watch ?? null;
+  const watching = state?.watching === true;
   const copying = state?.copy?.active === true;
   const paperMode = state?.copyMode === "paper";
   const amount = preset === "custom" ? parseAmount(custom) : preset;
   const customInvalid = preset === "custom" && custom.trim() !== "" && amount === null;
 
-  function openCopyPanel() {
-    // Editing an existing copy starts from its current amount.
+  function openAmountPanel() {
+    // Changing an existing copy starts from its current amount.
     const current = state?.copy?.active ? state.copy.amountUsdc : DEFAULT_COPY_AMOUNT;
     if (COPY_PRESETS.includes(current)) {
       setPreset(current);
@@ -213,118 +236,71 @@ function TradeActions({ handle, trading, score }: { handle: string; trading?: Tr
       setCustom(String(current));
     }
     setNotice(null);
-    setPanel("copy");
+    setPanel("amount");
   }
 
-  const stopWatching = () =>
-    void run("watch", () => trading!.setWatch(handle, false), `Stopped watching @${handle}.`);
   const stopCopying = () =>
-    void run("copy", () => trading!.stopCopy(handle), `Stopped copying @${handle}. Picks already copied stay open.`);
-
-  const view = watch ? watchView(watch, score) : null;
+    void run("copy", () => trading!.stopCopy(handle), { kind: "info", text: `Stopped copying @${handle}. Picks already copied stay open.` }, () =>
+      setPanel(null),
+    );
 
   return (
     <>
       <div className="actions">
         <button
           type="button"
-          className={`tbtn ${watch ? "on" : ""}`}
-          title={
-            watch
-              ? "Watching. Press to stop."
-              : "Watch: add to your watchlist and see how their score and a $1-per-pick paper P&L move from now on"
-          }
-          aria-pressed={watch !== null}
+          className={`tbtn ${watching ? "on" : ""}`}
+          title={watching ? "On your watchlist. Press to remove." : "Add to your watchlist, where you can follow how they do"}
+          aria-pressed={watching}
           aria-busy={busy === "watch"}
           onClick={() => {
             setPanel(null);
             if (!ready() || working.current) return;
             void run(
               "watch",
-              () => trading!.setWatch(handle, !watch),
-              watch ? `Stopped watching @${handle}.` : `Watching @${handle}. You'll see how they do from now on.`,
+              () => trading!.setWatch(handle, !watching),
+              watching
+                ? { kind: "info", text: "Removed from your watchlist." }
+                : { kind: "info", text: "Added to your watchlist.", link: { href: watchlistUrl, label: "View watchlist ↗" } },
             );
           }}
         >
-          {watch ? <CheckIcon /> : <EyeIcon />}
-          {watch ? "Watching" : "Watch"}
+          {watching ? <CheckIcon /> : <EyeIcon />}
+          {watching ? "Watching" : "Watch"}
         </button>
 
         <button
           type="button"
           className={`tbtn solid ${copying ? "on" : ""}`}
-          title={copying ? `Copying at ${formatAmount(state?.copy?.amountUsdc ?? 0)} per pick. Press to stop.` : "Copy trade: mirror each new pick"}
+          title={copying ? `Copying at ${formatAmount(state?.copy?.amountUsdc ?? 0)} per pick. Press for options.` : "Copy trade: mirror each new pick"}
           aria-pressed={copying}
+          aria-expanded={copying ? panel === "menu" : panel === "amount"}
           aria-busy={busy === "copy"}
           onClick={() => {
             if (!ready() || working.current) return;
-            if (copying) stopCopying();
-            else if (panel === "copy") setPanel(null);
-            else openCopyPanel();
+            if (copying) setPanel((open) => (open === "menu" ? null : "menu"));
+            else if (panel === "amount") setPanel(null);
+            else openAmountPanel();
           }}
         >
           {copying ? <CheckIcon /> : <CopyIcon />}
           {copying ? `Copying · ${formatAmount(state?.copy?.amountUsdc ?? 0)}` : "Copy trade"}
+          {copying && <ChevronDownIcon />}
         </button>
       </div>
 
-      {view && (
-        <div className="status" role="group" aria-label="Watching">
-          <div className="shead">
-            <b>Watching</b>
-            <span>since {view.since}</span>
-          </div>
-          <dl className="srows">
-            <div>
-              <dt>Score</dt>
-              <dd>
-                {view.score.then} → {view.score.now}
-                {view.score.delta && <em className={view.score.delta.direction}>{view.score.delta.text}</em>}
-              </dd>
-            </div>
-            <div>
-              <dt title="Settled results plus the live value of picks still open, on $1 paper bets">Projected P&L</dt>
-              <dd className={view.pnl.tone}>{view.pnl.text}</dd>
-            </div>
-            <div>
-              <dt>Picks</dt>
-              <dd>{view.picks}</dd>
-            </div>
-          </dl>
-          <div className="sacts">
-            {!copying && (
-              <button type="button" className="btn sm primary" onClick={openCopyPanel}>
-                Start copying
-              </button>
-            )}
-            <button type="button" className="stopbtn" onClick={stopWatching}>
-              Stop watching
-            </button>
-          </div>
+      {copying && panel === "menu" && (
+        <div className="menu" role="menu" aria-label="Copy trading options">
+          <button type="button" role="menuitem" onClick={openAmountPanel}>
+            Change amount
+          </button>
+          <button type="button" role="menuitem" className="danger" onClick={stopCopying}>
+            Stop copying
+          </button>
         </div>
       )}
 
-      {copying && (
-        <div className="status" role="group" aria-label="Copying">
-          <div className="shead">
-            <b>Copying</b>
-            <span>
-              {formatAmount(state?.copy?.amountUsdc ?? 0)} per new pick · {paperMode ? "simulated" : "real orders"}
-            </span>
-          </div>
-          <p className="sdesc">Every new pick from @{handle} is copied automatically. Stopping doesn't close picks already copied.</p>
-          <div className="sacts">
-            <button type="button" className="btn sm" onClick={openCopyPanel}>
-              Change amount
-            </button>
-            <button type="button" className="stopbtn" onClick={stopCopying}>
-              Stop copying
-            </button>
-          </div>
-        </div>
-      )}
-
-      {panel === "copy" && (
+      {panel === "amount" && (
         <div className="panel" role="group" aria-label="Copy trade amount">
           <p>
             {paperMode ? (
@@ -372,7 +348,7 @@ function TradeActions({ handle, trading, score }: { handle: string; trading?: Tr
                 void run(
                   "copy",
                   () => trading!.startCopy(handle, amount),
-                  copying ? `Now copying @${handle} at ${formatAmount(amount)} per pick.` : `Copying @${handle} at ${formatAmount(amount)} per pick.`,
+                  { kind: "info", text: copying ? `Now copying @${handle} at ${formatAmount(amount)} per pick.` : `Copying @${handle} at ${formatAmount(amount)} per pick.` },
                   () => setPanel(null),
                 )
               }
@@ -389,6 +365,11 @@ function TradeActions({ handle, trading, score }: { handle: string; trading?: Tr
       {notice && (
         <div className={`toast ${notice.kind === "error" ? "error" : ""}`} role="status">
           {notice.text}
+          {notice.link && (
+            <a href={notice.link.href} target="_blank" rel="noopener noreferrer">
+              {notice.link.label}
+            </a>
+          )}
         </div>
       )}
     </>
@@ -399,7 +380,7 @@ function TradeActions({ handle, trading, score }: { handle: string; trading?: Tr
 function PickRow({ call, handle }: { call: CallEntry; handle: string }) {
   const row = callRowView(call);
   const when = formatTweetTime(call.tweetedAt);
-  const tone = row.points === null ? "none" : row.outcome.kind === "won" ? "won" : row.outcome.kind === "lost" ? "lost" : "none";
+  const tone = row.gain === null ? "none" : row.outcome.kind === "won" ? "won" : row.outcome.kind === "lost" ? "lost" : "none";
 
   const [flipped, setFlipped] = useState(false);
   const front = useRef<HTMLDivElement>(null);
@@ -426,7 +407,7 @@ function PickRow({ call, handle }: { call: CallEntry; handle: string }) {
               </button>
             </div>
           </div>
-          <span className={`pts ${tone}`}>{row.points ?? row.outcome.text}</span>
+          <span className={`pts ${tone}`} title={row.gain === null ? undefined : "Return on the money put into this pick"}>{row.gain ?? row.outcome.text}</span>
         </div>
 
         <div className="face back" ref={back} inert={!flipped}>

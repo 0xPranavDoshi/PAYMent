@@ -4,32 +4,12 @@ import { z } from "zod";
 /** How the trading service runs copy trades: "paper" simulates, "live" places real orders. */
 export type CopyMode = "paper" | "live";
 
-/** What watching a trader has shown since the user started, as the trading service reports it. */
-export interface WatchInfo {
-  /** When the user started watching (ISO). */
-  since: string;
-  /** Paper bets placed on this trader's picks since then, settled or not. */
-  picks: number;
-  /** Of those, how many have not settled yet. */
-  openPicks: number;
-  /** Total staked across those bets ($1 each). */
-  stakedUsdc: number;
-  /** Settled results plus the live value of picks still open, or null when there is nothing to measure yet. */
-  projectedPnlUsdc: number | null;
-  /** The projected P&L as a percentage of what was staked. */
-  pnlPct: number | null;
-  /** The trader's score when the user started watching, now, and the change; null where unknown. */
-  scoreAtWatch: number | null;
-  scoreNow: number | null;
-  scoreDelta: number | null;
-}
-
 /** What the popover needs to know about the signed-in user's relationship to one trader. */
 export interface TradingState {
   /** False when no user is configured, so trading buttons explain that instead of failing. */
   signedIn: boolean;
-  /** Watching this trader, with what has happened since. Null when not watching. */
-  watch: WatchInfo | null;
+  /** On the user's watchlist. How the trader is doing is shown on the website's watchlist page, not here. */
+  watching: boolean;
   /** Copying this trader, and for how much per pick. */
   copy: { active: boolean; amountUsdc: number } | null;
   /** How copy trades run, so the confirmation can say truthfully whether real orders are placed. */
@@ -37,7 +17,7 @@ export interface TradingState {
 }
 
 /** Signed out, and if anything is unknown the cautious reading: assume copy trades place real orders. */
-export const SIGNED_OUT: TradingState = { signedIn: false, watch: null, copy: null, copyMode: "live" };
+export const SIGNED_OUT: TradingState = { signedIn: false, watching: false, copy: null, copyMode: "live" };
 
 export interface TradingActions {
   state(handle: string): Promise<TradingState>;
@@ -103,19 +83,7 @@ export function createTradingService(opts: {
       const copy = copies.find((c) => handleOf(c.traderHandle) === handleOf(handle));
       return {
         signedIn: true,
-        watch: watch
-          ? {
-              since: watch.watchedAt,
-              picks: watch.nPicks,
-              openPicks: watch.activePicks,
-              stakedUsdc: watch.stakedUsdc,
-              projectedPnlUsdc: watch.projectedPnlUsdc,
-              pnlPct: watch.pnlPct,
-              scoreAtWatch: watch.scoreAtWatch,
-              scoreNow: watch.scoreNow,
-              scoreDelta: watch.scoreDelta,
-            }
-          : null,
+        watching: watch !== undefined,
         copy: copy ? { active: copy.active, amountUsdc: copy.amountUsdc } : null,
         copyMode: mode,
       };
@@ -139,20 +107,13 @@ export function createTradingService(opts: {
   };
 }
 
-/** For mock mode: a signed-in user whose choices are kept in memory, with sample numbers, so the buttons can be tried without a backend. */
+/** For mock mode: a signed-in user whose choices are kept in memory, so the buttons can be tried without a backend. */
 export function createMockTrading(): TradingActions {
-  const watching = new Map<string, string>(); // handle -> started
+  const watching = new Set<string>();
   const copies = new Map<string, { active: boolean; amountUsdc: number }>();
   return {
-    state: async (h) => ({
-      signedIn: true,
-      watch: watching.has(h)
-        ? { since: watching.get(h)!, picks: 9, openPicks: 2, stakedUsdc: 9, projectedPnlUsdc: 0.54, pnlPct: 6, scoreAtWatch: 68, scoreNow: 72, scoreDelta: 4 }
-        : null,
-      copy: copies.get(h) ?? null,
-      copyMode: "paper",
-    }),
-    setWatch: async (h, on) => void (on ? watching.set(h, new Date(Date.now() - 3 * 86_400_000).toISOString()) : watching.delete(h)),
+    state: async (h) => ({ signedIn: true, watching: watching.has(h), copy: copies.get(h) ?? null, copyMode: "paper" }),
+    setWatch: async (h, on) => void (on ? watching.add(h) : watching.delete(h)),
     startCopy: async (h, amountUsdc) => void copies.set(h, { active: true, amountUsdc }),
     stopCopy: async (h) => void copies.set(h, { active: false, amountUsdc: copies.get(h)?.amountUsdc ?? 0 }),
   };

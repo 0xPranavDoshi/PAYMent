@@ -108,6 +108,7 @@ export const POPOVER_CSS = `
     color: var(--ink); border: 1px solid var(--chip-line); transition: border-color .12s ease, background .12s ease;
   }
   .tbtn svg { width: 14px; height: 14px; flex: none; }
+  .tbtn svg:last-child:not(:first-child) { width: 12px; height: 12px; margin-left: -2px; opacity: .85; }
   .tbtn:hover { border-color: var(--ink-3); background: var(--chip); }
   .tbtn.solid { background: var(--ember); border-color: var(--ember); color: var(--ember-ink); }
   .tbtn.solid:hover { background: var(--ember); filter: brightness(1.07); }
@@ -121,23 +122,12 @@ export const POPOVER_CSS = `
   .btn.primary:hover { filter: brightness(1.06); }
   .btn.sm { padding: 7px 12px; font-size: 12px; border-radius: 10px; }
   .btn:disabled { opacity: .45; cursor: not-allowed; }
-  .status { margin: 10px 16px 0; padding: 10px 12px; border-radius: 12px; background: var(--raised); border: 1px solid var(--card-line); }
-  .shead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
-  .shead b { font: 700 12px/1 var(--font); letter-spacing: .1em; text-transform: uppercase; color: var(--win); }
-  .shead span { color: var(--ink-2); font-size: 12px; }
-  .srows { margin: 0; display: grid; gap: 4px; }
-  .srows div { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; }
-  .srows dt { color: var(--ink-3); }
-  .srows dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; display: inline-flex; gap: 6px; align-items: baseline; }
-  .srows dd em { font-style: normal; font-weight: 700; }
-  .srows .up, .srows dd em.up { color: var(--win); }
-  .srows .down, .srows dd em.down { color: var(--coral); }
-  .srows .none { color: var(--ink-2); font-weight: 500; }
-  .sdesc { margin: 0 0 8px; color: var(--ink-2); font-size: 12px; }
-  .sacts { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
-  .stopbtn { all: unset; cursor: pointer; margin-left: auto; font: 600 12px/1 var(--font); color: var(--coral); padding: 6px 2px; }
-  .stopbtn:hover { text-decoration: underline; }
-  .stopbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .menu { margin: 8px 16px 0; padding: 4px; border-radius: 12px; background: var(--raised); border: 1px solid var(--card-line); display: grid; }
+  .menu button { all: unset; cursor: pointer; padding: 9px 10px; border-radius: 8px; font: 600 13px/1 var(--font); color: var(--ink); }
+  .menu button:hover, .menu button:focus-visible { background: var(--chip); }
+  .menu button.danger { color: var(--coral); }
+  .toast a { margin-left: 8px; color: var(--ember); font-weight: 600; text-decoration: none; }
+  .toast a:hover { text-decoration: underline; }
   .amount { flex: 1.3; display: flex; align-items: center; gap: 2px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--chip-line); color: var(--ink-2); font: 700 12px/1 var(--font); }
   .amount.active { border-color: var(--ember); color: var(--ember); }
   .amount.bad { border-color: var(--coral); color: var(--coral); }

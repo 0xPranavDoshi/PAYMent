@@ -1,6 +1,22 @@
 import { NEW_BADGE_MIN_RESOLVED, type CallEntry, type UserProfile } from "@copayme/shared";
 import { badgeView, type BadgeView } from "../badgeView.js";
-import type { WatchInfo } from "../trading.js";
+
+/** A whole-number percentage with a real minus sign, so + and − line up: "+61%", "−100%", "0%". */
+export function formatReturn(pct: number): string {
+  const whole = Math.round(pct);
+  if (whole === 0) return "0%";
+  return `${whole > 0 ? "+" : "−"}${Math.abs(whole)}%`;
+}
+
+/**
+ * What a pick returned on the money put into it, as a percentage. A $1 contract bought at 62¢ that
+ * wins pays $1, so it returned 38/62 = +61%; one that loses returns −100%. Null when the pick has no
+ * price, or has not settled.
+ */
+export function returnPct(call: Pick<CallEntry, "oddsAtCall" | "points">): number | null {
+  if (call.points === null || call.oddsAtCall === null || call.oddsAtCall <= 0) return null;
+  return (call.points / call.oddsAtCall) * 100;
+}
 
 export interface CallRowView {
   event: string;
@@ -9,20 +25,9 @@ export interface CallRowView {
   /** Price of the pick when it was made, in cents, or "unpriced". */
   price: string;
   outcome: { kind: "won" | "lost" | "scored" | "pending" | "void"; text: string };
-  /** "+40¢", "−60¢", or null when the call earned no points. */
-  points: string | null;
+  /** The pick's return on what was put in: "+61%", "−100%", or null when it has no price or has not settled. */
+  gain: string | null;
   tweetUrl: string;
-}
-
-/**
- * Points as cents per $1 contract, with a real minus sign so + and − line up: 0.38 is "+38¢". A pick
- * bought at 62¢ that wins pays $1, so it made 38¢; one that loses costs the 62¢. That matches the
- * price shown beside it, and unlike a percentage it cannot be mistaken for a return on the amount staked.
- */
-export function formatCents(points: number): string {
-  const cents = Math.round(points * 100);
-  if (cents === 0) return "0¢";
-  return `${cents > 0 ? "+" : "−"}${Math.abs(cents)}¢`;
 }
 
 export function callRowView(call: CallEntry): CallRowView {
@@ -39,12 +44,13 @@ export function callRowView(call: CallEntry): CallRowView {
               ? { kind: "lost", text: "Lost" }
               : { kind: "scored", text: "Scored" };
 
+  const pct = returnPct(call);
   return {
     event: call.eventName,
     pick: call.side ? `${call.pickLabel} · ${call.side.toUpperCase()}` : call.pickLabel,
     price: call.oddsAtCall === null ? "unpriced" : `${Math.round(call.oddsAtCall * 100)}¢`,
     outcome,
-    points: call.points === null ? null : formatCents(call.points),
+    gain: pct === null ? null : formatReturn(pct),
     tweetUrl: `https://x.com/i/status/${encodeURIComponent(call.tweetId)}`,
   };
 }
@@ -66,7 +72,7 @@ export interface ProfileView {
   record: string;
   hitRate: string;
   picks: string;
-  /** Average cents per $1 contract beyond the market price, shrunk for small samples, "+11¢". */
+  /** How far the trader's picks beat the market's odds on average, in percentage points, shrunk for small samples: "+11%". */
   edge: string;
   /** The 14-day change as a chip, or null when there is none worth showing. */
   delta: { direction: "up" | "down"; text: string } | null;
@@ -84,7 +90,7 @@ export function profileView(profile: UserProfile, now: Date = new Date()): Profi
     record: `${profile.nWins}–${profile.nResolved - profile.nWins}`,
     hitRate: profile.hitRate === null ? "–" : `${Math.round(profile.hitRate * 100)}%`,
     picks: String(profile.nResolved),
-    edge: isNew ? "–" : formatCents(profile.skill),
+    edge: isNew ? "–" : formatReturn(profile.skill * 100),
     delta: badge.arrow
       ? { direction: badge.arrow.direction, text: `${badge.arrow.direction === "up" ? "▲" : "▼"} ${badge.arrow.amount} in 14 days` }
       : null,
@@ -111,56 +117,6 @@ export function parseAmount(text: string): number | null {
   if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
   const value = Number(cleaned);
   return value > 0 ? value : null;
-}
-
-/** Dollars, signed, with a real minus sign: "+$0.42", "−$1.10", "$0.00". */
-export function formatUsd(dollars: number): string {
-  const cents = Math.round(dollars * 100);
-  if (cents === 0) return "$0.00";
-  return `${cents > 0 ? "+" : "−"}$${(Math.abs(cents) / 100).toFixed(2)}`;
-}
-
-/** A signed percentage to one decimal: "+6.0%", "−12.5%". */
-export function formatPct(pct: number): string {
-  const tenths = Math.round(pct * 10);
-  if (tenths === 0) return "0.0%";
-  return `${tenths > 0 ? "+" : "−"}${(Math.abs(tenths) / 10).toFixed(1)}%`;
-}
-
-export interface WatchView {
-  since: string;
-  /** The trader's score when watching started and now, with the change between them. */
-  score: { then: string; now: string; delta: { direction: "up" | "down"; text: string } | null };
-  /** Projected P&L on the $1 paper bets: settled results plus the live value of open picks. */
-  pnl: { text: string; tone: "up" | "down" | "none" };
-  picks: string;
-}
-
-/**
- * What a watch has shown since it started, from the numbers the trading service computes. The score
- * now falls back to the one on the popover if the service has none.
- */
-export function watchView(watch: WatchInfo, scoreNowFallback: number | null): WatchView {
-  const now = watch.scoreNow ?? scoreNowFallback;
-  const diff = watch.scoreDelta ?? (watch.scoreAtWatch !== null && now !== null ? now - watch.scoreAtWatch : null);
-  const pnl = watch.projectedPnlUsdc;
-  const settled = Math.max(0, watch.picks - watch.openPicks);
-  return {
-    since: new Date(watch.since).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-    score: {
-      then: watch.scoreAtWatch === null ? "—" : String(watch.scoreAtWatch),
-      now: now === null ? "—" : String(now),
-      delta: diff === null || diff === 0 ? null : { direction: diff > 0 ? "up" : "down", text: `${diff > 0 ? "+" : "−"}${Math.abs(diff)}` },
-    },
-    pnl:
-      pnl === null
-        ? { text: watch.picks === 0 ? "No picks yet" : "Not priced yet", tone: "none" }
-        : {
-            text: watch.pnlPct === null ? formatUsd(pnl) : `${formatUsd(pnl)} · ${formatPct(watch.pnlPct)}`,
-            tone: pnl > 0 ? "up" : pnl < 0 ? "down" : "none",
-          },
-    picks: `${settled} settled · ${watch.openPicks} open`,
-  };
 }
 
 /** A dollar amount the way a person writes it: "$25", "$7.50". */

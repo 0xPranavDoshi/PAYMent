@@ -47,43 +47,20 @@ describe("createTradingService", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it("reads whether this trader is watched or copied, with the watch numbers the service computed", async () => {
+  it("reads whether this trader is watched or copied, ignoring other traders and handle case", async () => {
     const { actions, fetcher } = service({
-      "GET /v1/watches": [
-        watchItem("other"),
-        { ...watchItem("Alice"), nPicks: 9, activePicks: 2, stakedUsdc: 9, paperPnlUsdc: 0.42, projectedPnlUsdc: 0.54, pnlPct: 6, scoreNow: 72, scoreAtWatch: 68, scoreDelta: 4 },
-      ],
+      "GET /v1/watches": [watchItem("other"), watchItem("Alice")],
       "GET /v1/copy-trades": [copyItem("other", true), copyItem("alice", true, 25)],
       "GET /v1/config": { copyTradeMode: "paper" },
     });
-    expect(await actions.state("ALICE")).toEqual({
-      signedIn: true,
-      watch: {
-        since: "2026-11-19T12:00:00.000Z",
-        picks: 9,
-        openPicks: 2,
-        stakedUsdc: 9,
-        projectedPnlUsdc: 0.54,
-        pnlPct: 6,
-        scoreAtWatch: 68,
-        scoreNow: 72,
-        scoreDelta: 4,
-      },
-      copy: { active: true, amountUsdc: 25 },
-      copyMode: "paper",
-    });
+    expect(await actions.state("ALICE")).toEqual({ signedIn: true, watching: true, copy: { active: true, amountUsdc: 25 }, copyMode: "paper" });
     const watchesCall = fetcher.mock.calls.find(([url]) => String(url).endsWith("/v1/watches"))!;
     expect((watchesCall[1]!.headers as Record<string, string>)["x-follower-id"]).toBe(FOLLOWER);
   });
 
-  it("keeps the nulls the service sends for a watch with nothing to measure yet", async () => {
-    const { actions } = service({ "GET /v1/watches": [watchItem("alice")], "GET /v1/copy-trades": [], "GET /v1/config": { copyTradeMode: "paper" } });
-    expect((await actions.state("alice")).watch).toMatchObject({ picks: 0, projectedPnlUsdc: null, pnlPct: null, scoreAtWatch: null, scoreDelta: null });
-  });
-
   it("is not watching or copying when the trader is in neither list", async () => {
     const { actions } = service({ "GET /v1/watches": [], "GET /v1/copy-trades": [], "GET /v1/config": { copyTradeMode: "live" } });
-    expect(await actions.state("alice")).toEqual({ signedIn: true, watch: null, copy: null, copyMode: "live" });
+    expect(await actions.state("alice")).toEqual({ signedIn: true, watching: false, copy: null, copyMode: "live" });
   });
 
   it("assumes copy trades place real orders when the service does not say how it runs them", async () => {
@@ -118,18 +95,16 @@ describe("createTradingService", () => {
 });
 
 describe("createMockTrading", () => {
-  it("keeps choices in memory so the buttons can be tried without a backend, with sample watch numbers", async () => {
+  it("keeps choices in memory so the buttons can be tried without a backend", async () => {
     const mock = createMockTrading();
-    expect(await mock.state("alice")).toEqual({ signedIn: true, watch: null, copy: null, copyMode: "paper" });
+    expect(await mock.state("alice")).toEqual({ signedIn: true, watching: false, copy: null, copyMode: "paper" });
     await mock.setWatch("alice", true);
     await mock.startCopy("alice", 25);
-    const state = await mock.state("alice");
-    expect(state.watch).toMatchObject({ picks: 9, openPicks: 2, projectedPnlUsdc: 0.54, scoreAtWatch: 68, scoreNow: 72 });
-    expect(state.copy).toEqual({ active: true, amountUsdc: 25 });
+    expect(await mock.state("alice")).toMatchObject({ watching: true, copy: { active: true, amountUsdc: 25 } });
     await mock.stopCopy("alice");
     await mock.setWatch("alice", false);
-    expect(await mock.state("alice")).toMatchObject({ watch: null, copy: { active: false, amountUsdc: 25 } });
-    expect((await mock.state("bob")).watch).toBeNull();
+    expect(await mock.state("alice")).toMatchObject({ watching: false, copy: { active: false, amountUsdc: 25 } });
+    expect((await mock.state("bob")).watching).toBe(false);
   });
 });
 
@@ -138,9 +113,9 @@ describe("createTradingBridge", () => {
     const sent: TradingRequest[] = [];
     const bridge = createTradingBridge(async (request): Promise<TradingReply> => {
       sent.push(request);
-      return request.op === "state" ? { ok: true, state: { signedIn: true, watch: null, copy: null, copyMode: "paper" as const } } : { ok: true };
+      return request.op === "state" ? { ok: true, state: { signedIn: true, watching: false, copy: null, copyMode: "paper" as const } } : { ok: true };
     });
-    expect(await bridge.state("alice")).toEqual({ signedIn: true, watch: null, copy: null, copyMode: "paper" });
+    expect(await bridge.state("alice")).toEqual({ signedIn: true, watching: false, copy: null, copyMode: "paper" });
     await bridge.setWatch("alice", false);
     await bridge.startCopy("alice", 10);
     await bridge.stopCopy("alice");

@@ -26,3 +26,9 @@ export const CheckIcon = () => (
     <path d="M3.5 8.4l3 3 6-6.8" />
   </svg>
 );
+
+export const ChevronDownIcon = () => (
+  <svg {...base}>
+    <path d="M4 6.5l4 4 4-4" />
+  </svg>
+);

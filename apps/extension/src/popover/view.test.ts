@@ -1,7 +1,6 @@
 import type { CallEntry, UserProfile } from "@copayme/shared";
 import { describe, expect, it } from "vitest";
-import type { WatchInfo } from "../trading.js";
-import { callRowView, formatCents, formatPct, formatTweetTime, formatUsd, formatAmount, parseAmount, profileView, timeAgo, watchView } from "./view.js";
+import { callRowView, formatAmount, formatReturn, formatTweetTime, parseAmount, profileView, returnPct, timeAgo } from "./view.js";
 
 const call = (over: Partial<CallEntry> = {}): CallEntry => ({
   callId: "11111111-1111-4111-8111-111111111111",
@@ -19,20 +18,24 @@ const call = (over: Partial<CallEntry> = {}): CallEntry => ({
   ...over,
 });
 
-describe("formatCents", () => {
-  it("writes points as signed cents per $1 contract, with a real minus sign", () => {
-    expect(formatCents(0.38)).toBe("+38¢");
-    expect(formatCents(-0.62)).toBe("−62¢");
-    expect(formatCents(1)).toBe("+100¢");
-    expect(formatCents(-1)).toBe("−100¢");
-    expect(formatCents(0)).toBe("0¢");
-    expect(formatCents(0.004)).toBe("0¢");
-    expect(formatCents(-0.0004)).toBe("0¢");
+describe("formatReturn and returnPct", () => {
+  it("writes whole percentages with a real minus sign", () => {
+    expect(formatReturn(61.3)).toBe("+61%");
+    expect(formatReturn(-100)).toBe("−100%");
+    expect(formatReturn(0)).toBe("0%");
+    expect(formatReturn(0.4)).toBe("0%");
+    expect(formatReturn(-0.4)).toBe("0%");
   });
 
-  it("matches the price shown beside it: bought at 62¢, a win makes 38¢ and a loss costs 62¢", () => {
-    expect(formatCents(1 - 0.62)).toBe("+38¢");
-    expect(formatCents(0 - 0.62)).toBe("−62¢");
+  it("is the return on the money put in: a win bought at 62¢ returns +61%, a loss −100%", () => {
+    expect(returnPct({ oddsAtCall: 0.62, points: 0.38 })).toBeCloseTo(61.29, 1);
+    expect(returnPct({ oddsAtCall: 0.62, points: -0.62 })).toBeCloseTo(-100);
+  });
+
+  it("is null without a price, a result, or with a zero price", () => {
+    expect(returnPct({ oddsAtCall: null, points: 0.3 })).toBeNull();
+    expect(returnPct({ oddsAtCall: 0.5, points: null })).toBeNull();
+    expect(returnPct({ oddsAtCall: 0, points: 1 })).toBeNull();
   });
 });
 
@@ -43,14 +46,14 @@ describe("callRowView", () => {
       pick: "UConn · YES",
       price: "62¢",
       outcome: { kind: "won", text: "Won" },
-      points: "+38¢",
+      gain: "+61%",
       tweetUrl: "https://x.com/i/status/1001",
     });
   });
 
   it("shows a lost NO pick with negative points", () => {
     const row = callRowView(call({ side: "no", result: "lost", points: -0.4, oddsAtCall: 0.4 }));
-    expect(row).toMatchObject({ pick: "UConn · NO", price: "40¢", points: "−40¢", outcome: { kind: "lost", text: "Lost" } });
+    expect(row).toMatchObject({ pick: "UConn · NO", price: "40¢", gain: "−100%", outcome: { kind: "lost", text: "Lost" } });
   });
 
   it("shows pending, void and rejected picks with no points", () => {
@@ -61,7 +64,7 @@ describe("callRowView", () => {
 
   it("marks an unpriced pick as such and gives it no points, but still shows whether it won", () => {
     const row = callRowView(call({ oddsAtCall: null, oddsSource: "none", points: null }));
-    expect(row).toMatchObject({ price: "unpriced", points: null, outcome: { kind: "won" } });
+    expect(row).toMatchObject({ price: "unpriced", gain: null, outcome: { kind: "won" } });
   });
 
   it("drops the side when it was not recorded, and handles a scored call with no known result", () => {
@@ -106,7 +109,7 @@ describe("profileView", () => {
       record: "29–13",
       hitRate: "69%",
       picks: "42",
-      edge: "+11¢",
+      edge: "+11%",
       delta: { direction: "up", text: "▲ 8 in 14 days" },
       lastPick: "Last pick 3h ago",
       note: null,
@@ -153,70 +156,6 @@ describe("parseAmount", () => {
     for (const bad of ["", " ", "0", "0.00", "-5", "abc", "1.234", "1e3", "5 dollars", "$", "1..5", ".5", "∞"]) {
       expect(parseAmount(bad), bad).toBeNull();
     }
-  });
-});
-
-describe("formatUsd and formatPct", () => {
-  it("sign dollars and percentages with a real minus sign", () => {
-    expect(formatUsd(0.42)).toBe("+$0.42");
-    expect(formatUsd(-1.1)).toBe("−$1.10");
-    expect(formatUsd(0)).toBe("$0.00");
-    expect(formatUsd(0.004)).toBe("$0.00");
-    expect(formatPct(6)).toBe("+6.0%");
-    expect(formatPct(-12.54)).toBe("−12.5%");
-    expect(formatPct(0)).toBe("0.0%");
-  });
-});
-
-describe("watchView", () => {
-  const watch: WatchInfo = {
-    since: "2026-11-17T12:00:00.000Z",
-    picks: 9,
-    openPicks: 2,
-    stakedUsdc: 9,
-    projectedPnlUsdc: 0.54,
-    pnlPct: 6,
-    scoreAtWatch: 68,
-    scoreNow: 72,
-    scoreDelta: 4,
-  };
-
-  it("shows the score then and now, the projected P&L the service computed, and the pick counts", () => {
-    expect(watchView(watch, 72)).toMatchObject({
-      score: { then: "68", now: "72", delta: { direction: "up", text: "+4" } },
-      pnl: { text: "+$0.54 · +6.0%", tone: "up" },
-      picks: "7 settled · 2 open",
-    });
-  });
-
-  it("shows a falling score and a losing P&L the other way", () => {
-    expect(watchView({ ...watch, projectedPnlUsdc: -2.1, pnlPct: -23.33, scoreAtWatch: 80, scoreNow: 72, scoreDelta: -8 }, 72)).toMatchObject({
-      score: { delta: { direction: "down", text: "−8" } },
-      pnl: { text: "−$2.10 · −23.3%", tone: "down" },
-    });
-  });
-
-  it("uses the popover's score when the service has none, and works the change out itself when it sends none", () => {
-    expect(watchView({ ...watch, scoreNow: null, scoreDelta: null }, 75).score).toEqual({ then: "68", now: "75", delta: { direction: "up", text: "+7" } });
-  });
-
-  it("has no change to show when the score is unchanged, or either end is unknown", () => {
-    expect(watchView({ ...watch, scoreDelta: 0 }, 72).score.delta).toBeNull();
-    expect(watchView({ ...watch, scoreAtWatch: null, scoreDelta: null }, 72).score).toEqual({ then: "—", now: "72", delta: null });
-    expect(watchView({ ...watch, scoreNow: null, scoreDelta: null }, null).score).toEqual({ then: "68", now: "—", delta: null });
-  });
-
-  it("says what is missing before there is anything to measure", () => {
-    expect(watchView({ ...watch, picks: 0, openPicks: 0, stakedUsdc: 0, projectedPnlUsdc: null, pnlPct: null }, 72).pnl).toEqual({ text: "No picks yet", tone: "none" });
-    expect(watchView({ ...watch, picks: 3, openPicks: 3, projectedPnlUsdc: null, pnlPct: null }, 72)).toMatchObject({
-      pnl: { text: "Not priced yet", tone: "none" },
-      picks: "0 settled · 3 open",
-    });
-  });
-
-  it("shows dollars alone when there is no percentage, and a flat result as zero", () => {
-    expect(watchView({ ...watch, pnlPct: null }, 72).pnl).toEqual({ text: "+$0.54", tone: "up" });
-    expect(watchView({ ...watch, projectedPnlUsdc: 0, pnlPct: 0 }, 72).pnl).toEqual({ text: "$0.00 · 0.0%", tone: "none" });
   });
 });
 
