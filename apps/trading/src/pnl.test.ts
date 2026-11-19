@@ -125,6 +125,8 @@ describe("GET /v1/users/:id/tails — portfolio with live PnL", () => {
       pickedOutcome: "UConn",
       ticker: "NCAAM-UCONN",
       storedMarkPrice: extra.storedMarkPrice ?? 0.6,
+      eventName: "UConn vs Arizona",
+      traderHandle: "sharp",
     };
   }
 
@@ -140,7 +142,7 @@ describe("GET /v1/users/:id/tails — portfolio with live PnL", () => {
     const rows = [
       ctxRow({ id: TAIL_ID, entryOdds: 0.5, amountUsdc: 10 }),
       ctxRow({ id: "44444444-4444-4444-8444-444444444444", entryOdds: 0.4, amountUsdc: 10 }),
-      { tail: settled, side: "yes" as const, instrumentSymbol: "GEMI-UCONN", pickedOutcome: "UConn", ticker: "NCAAM-UCONN", storedMarkPrice: 0.6 },
+      { tail: settled, side: "yes" as const, instrumentSymbol: "GEMI-UCONN", pickedOutcome: "UConn", ticker: "NCAAM-UCONN", storedMarkPrice: 0.6, eventName: "UConn vs Arizona", traderHandle: "sharp" },
     ];
     const gemini = { getEvent: vi.fn(async () => liveEvent()) };
     const store = { listUserTailsForPnl: vi.fn(async () => rows) };
@@ -159,6 +161,9 @@ describe("GET /v1/users/:id/tails — portfolio with live PnL", () => {
     expect(body[0]).toMatchObject({ realized: false, markPrice: 0.7, unrealizedPnlUsdc: 4 });
     // tail B: 10 * (0.70 - 0.4) / 0.4 = 7.5
     expect(body[1]).toMatchObject({ realized: false, markPrice: 0.7, unrealizedPnlUsdc: 7.5 });
+    // each trade says what it was on and whose pick it copied
+    expect(body[0]).toMatchObject({ eventName: "UConn vs Arizona", pickLabel: "UConn", side: "yes", traderHandle: "sharp" });
+    expect(body[2]).toMatchObject({ eventName: "UConn vs Arizona", traderHandle: "sharp" });
     // settled tail keeps its persisted pnl
     expect(body[2]).toMatchObject({ realized: true, pnlUsdc: 5, exitOdds: 1 });
   });

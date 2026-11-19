@@ -56,6 +56,18 @@ export async function fetchTraderCalls(handle: string, limit = 50): Promise<Call
 
 // ── Trading service (watches / copy-trades / tails) ──────────────────────────
 
+/** Whether copy trades are simulated ("paper") or place real orders ("live"). Assumes live if unknown. */
+export async function fetchCopyMode(): Promise<"paper" | "live"> {
+  try {
+    const res = await fetch(`${TRADING}/v1/config`, { cache: "no-store" });
+    if (!res.ok) return "live";
+    const body = (await res.json()) as { copyTradeMode?: string };
+    return body.copyTradeMode === "paper" ? "paper" : "live";
+  } catch {
+    return "live";
+  }
+}
+
 export async function fetchWatches(followerId: string): Promise<WatchItem[]> {
   const res = await fetch(`${TRADING}/v1/watches`, {
     headers: followerHeaders(followerId),

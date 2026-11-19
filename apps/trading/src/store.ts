@@ -105,6 +105,8 @@ export interface TradingStore {
       pickedOutcome: string | null;
       ticker: string;
       storedMarkPrice: number | null;
+      eventName: string;
+      traderHandle: string;
     }>
   >;
   /** Open paper tails on calls belonging to this market, with the call's side and picked outcome. */

@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
-import { fetchTraderCalls, fetchTraderProfile } from "@/lib/api";
+import { fetchCopyMode, fetchCopyTrades, fetchTraderCalls, fetchTraderProfile, fetchWatches } from "@/lib/api";
+import { getFollowerId } from "@/lib/session";
+import { CopyButton, WatchButton } from "@/components/TradeButtons";
 import { formatCents, formatChange, formatPct, timeAgo } from "@/lib/format";
 import ScoreRing from "@/components/ScoreRing";
 
@@ -10,6 +12,14 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
   const profile = await fetchTraderProfile(handle);
   if (!profile) notFound();
   const calls = await fetchTraderCalls(profile.handle).catch(() => []);
+
+  const followerId = await getFollowerId();
+  const key = profile.handle.toLowerCase();
+  const [watches, copies, mode] = followerId
+    ? await Promise.all([fetchWatches(followerId).catch(() => []), fetchCopyTrades(followerId).catch(() => []), fetchCopyMode()])
+    : [[], [], "paper" as const];
+  const watching = watches.some((w) => w.traderHandle.toLowerCase() === key);
+  const copy = copies.find((c) => c.traderHandle.toLowerCase() === key) ?? null;
 
   const isNew = profile.tier === "new";
   const change = formatChange(profile.change14d);
@@ -28,6 +38,10 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
             <a href={`https://x.com/${encodeURIComponent(profile.handle)}`} target="_blank" rel="noopener noreferrer">
               View on X ↗
             </a>
+          </div>
+          <div className="actions">
+            <WatchButton handle={profile.handle} watching={watching} signedIn={followerId !== null} />
+            <CopyButton handle={profile.handle} copy={copy} signedIn={followerId !== null} paper={mode === "paper"} />
           </div>
         </div>
       </div>

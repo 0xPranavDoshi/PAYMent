@@ -41,3 +41,24 @@ export function timeAgo(iso: string, now: Date = new Date()): string {
   if (seconds < 86_400) return `${Math.floor(seconds / 3600)}h ago`;
   return `${Math.floor(seconds / 86_400)}d ago`;
 }
+
+/** Dollars, signed, with a real minus sign: "+$0.42", "−$1.10", "$0.00". */
+export function formatUsd(dollars: number, signed = true): string {
+  const cents = Math.round(dollars * 100);
+  if (cents === 0) return "$0.00";
+  const body = `$${(Math.abs(cents) / 100).toFixed(2)}`;
+  return signed ? `${cents > 0 ? "+" : "−"}${body}` : cents < 0 ? `−${body}` : body;
+}
+
+/** A signed percentage to one decimal: "+6.0%", "−12.5%". */
+export function formatSignedPct(pct: number): string {
+  const tenths = Math.round(pct * 10);
+  if (tenths === 0) return "0.0%";
+  return `${tenths > 0 ? "+" : "−"}${(Math.abs(tenths) / 10).toFixed(1)}%`;
+}
+
+export const tone = (v: number | null): "up" | "down" | "muted" => (v === null || Math.round(v * 100) === 0 ? "muted" : v > 0 ? "up" : "down");
+
+export function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}

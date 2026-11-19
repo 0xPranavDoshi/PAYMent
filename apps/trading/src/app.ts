@@ -309,8 +309,16 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
 
     const body = rows.map((r) => {
       const tail = r.tail;
+      const what = {
+        eventName: r.eventName,
+        pickLabel: r.pickedOutcome,
+        side: r.side,
+        traderHandle: r.traderHandle,
+        createdAt: tail.createdAt.toISOString(),
+      };
       if (tail.status === "settled") {
         return toTailResponse(tail, {
+          ...what,
           realized: true,
           exitOdds: tail.exitOdds,
           settledAt: tail.settledAt ? tail.settledAt.toISOString() : null,
@@ -326,9 +334,9 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
           markPrice !== null
             ? paperPnlUsdc({ amountUsdc: tail.amountUsdc, entryOdds: tail.entryOdds, exitPrice: markPrice })
             : null;
-        return toTailResponse(tail, { realized: false, markPrice, unrealizedPnlUsdc });
+        return toTailResponse(tail, { ...what, realized: false, markPrice, unrealizedPnlUsdc });
       }
-      return toTailResponse(tail);
+      return toTailResponse(tail, what);
     });
     return c.json(body);
   });
@@ -684,6 +692,11 @@ function toTailResponse(
     pnlUsdc: number | null;
   },
   extra?: {
+    eventName?: string;
+    pickLabel?: string | null;
+    side?: "yes" | "no" | null;
+    traderHandle?: string;
+    createdAt?: string;
     realized?: boolean;
     markPrice?: number | null;
     unrealizedPnlUsdc?: number | null;

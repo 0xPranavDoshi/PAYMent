@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { fetchLeaderboard, type LeaderboardEntry } from "@/lib/api";
 import LeaderboardTable from "@/components/LeaderboardTable";
+import ScoreRing from "@/components/ScoreRing";
+import { formatChange, formatPct } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -11,19 +13,43 @@ export default async function Home() {
   } catch {
     // The page still works without the leaderboard preview.
   }
+  const lead = top[0] ?? null;
   return (
     <>
       <section className="hero">
-        <div className="eyebrow">coPAYMe</div>
-        <h1>Find out who is actually sharp.</h1>
-        <p className="lede">
-          Everyone on X has a lock of the day. We score every pick against the market&apos;s own odds, so you can see who
-          really beats it, and follow them.
-        </p>
-        <div className="cta">
-          <Link href="/leaderboard" className="btn primary">See the leaderboard</Link>
-          <Link href="/how-scoring" className="btn">How scoring works</Link>
+        <div className="hero-text">
+          <div className="eyebrow">coPAYMe</div>
+          <h1>Find out who is actually sharp.</h1>
+          <p className="lede">
+            Everyone on X has a lock of the day. We score every pick against the market&apos;s own odds, so you can see who
+            really beats it, and follow them.
+          </p>
+          <div className="cta">
+            <Link href="/leaderboard" className="btn primary lg">See the leaderboard</Link>
+            <Link href="/how-scoring" className="btn lg">How scoring works</Link>
+          </div>
         </div>
+        {lead && (
+          <Link href={`/traders/${encodeURIComponent(lead.handle)}`} className="hero-card" aria-label={`Top trader @${lead.handle}`}>
+            <div className="eyebrow muted">Top trader right now</div>
+            <div className="hc-main">
+              <ScoreRing score={lead.tier === "new" ? null : lead.score} size={104} />
+              <div>
+                <div className="hc-handle">@{lead.handle}</div>
+                <div className="muted">{lead.nResolved} resolved picks</div>
+                {formatChange(lead.change14d) && (
+                  <span className={`chip ${formatChange(lead.change14d)!.direction}`} style={{ marginTop: 8 }}>
+                    {formatChange(lead.change14d)!.text} in 14 days
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="hc-foot">
+              <span>Hit rate <b>{formatPct(lead.hitRate)}</b></span>
+              <span>Beats the market? <b>{lead.score >= 50 ? "Yes" : "Not yet"}</b></span>
+            </div>
+          </Link>
+        )}
       </section>
 
       <section className="section">
