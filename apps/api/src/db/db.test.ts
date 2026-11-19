@@ -602,7 +602,7 @@ describe.skipIf(!url)("against a real Postgres", () => {
       const ledger = await (await app.request("/v1/users/ledger/calls")).json();
       expect(ledger.map((c: { eventName: string }) => c.eventName)).toEqual(["NOPRICE", "WAITING", "VOIDED", "LOST", "WON"]); // newest first
       const by = Object.fromEntries(ledger.map((c: { eventName: string }) => [c.eventName, c]));
-      expect(by.WON).toMatchObject({ status: "scored", result: "won", oddsAtCall: 0.6, oddsSource: "snapshot", tweetId: "led0", side: "yes", pickLabel: "UConn" });
+      expect(by.WON).toMatchObject({ status: "scored", result: "won", oddsAtCall: 0.6, oddsSource: "snapshot", tweetId: "led0", tweetText: "pick", side: "yes", pickLabel: "UConn" });
       expect(by.WON.points).toBeCloseTo(0.4);
       expect(by.LOST).toMatchObject({ status: "scored", result: "lost" });
       expect(by.LOST.points).toBeCloseTo(-0.6);

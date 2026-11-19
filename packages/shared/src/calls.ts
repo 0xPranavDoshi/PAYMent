@@ -12,6 +12,8 @@ export const CallEntry = z.object({
   /** The tweet the pick came from: https://x.com/i/status/<tweetId>. */
   tweetId: z.string(),
   tweetedAt: z.string().datetime(),
+  /** The tweet's text as we stored it when the pick was ingested. */
+  tweetText: z.string(),
   /** The game, e.g. "UConn vs Arizona". */
   eventName: z.string(),
   /** The contract picked, e.g. "UConn". */

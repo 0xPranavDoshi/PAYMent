@@ -10,6 +10,7 @@ const contracts = (result: "yes" | "no" | null | undefined) => [
 const row = (over: Partial<LedgerRow> = {}): LedgerRow => ({
   id: "11111111-1111-4111-8111-111111111111",
   tweetId: "1001",
+  tweetText: "UConn wins it",
   tweetedAt: new Date("2026-11-19T12:03:00Z"),
   eventName: "UConn vs Arizona",
   pickedOutcome: "UConn",
@@ -51,6 +52,7 @@ describe("toCallEntry", () => {
     expect(toCallEntry(row())).toEqual({
       callId: "11111111-1111-4111-8111-111111111111",
       tweetId: "1001",
+      tweetText: "UConn wins it",
       tweetedAt: "2026-11-19T12:03:00.000Z",
       eventName: "UConn vs Arizona",
       pickLabel: "UConn",

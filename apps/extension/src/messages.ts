@@ -1,4 +1,5 @@
 import type { Badge, BadgesResponse, CallEntry, UserProfile } from "@copayme/shared";
+import type { TradingState } from "./trading.js";
 
 /** Content script to background worker. */
 export interface BadgesRequest {
@@ -36,4 +37,13 @@ export type ScanReply =
   | { ok: true; status: "skipped" | "failed" | "timeout" }
   | { ok: false; error: string };
 
-export type ExtensionRequest = BadgesRequest | ProfileRequest | ScanRequest;
+/** The popover's trading buttons: read or change this user's watch and copy-trade settings for a trader. */
+export type TradingRequest =
+  | { type: "trading"; op: "state"; handle: string }
+  | { type: "trading"; op: "watch"; handle: string; on: boolean }
+  | { type: "trading"; op: "copy-start"; handle: string; amountUsdc: number }
+  | { type: "trading"; op: "copy-stop"; handle: string };
+
+export type TradingReply = ({ ok: true } & { state?: TradingState }) | { ok: false; error: string };
+
+export type ExtensionRequest = BadgesRequest | ProfileRequest | ScanRequest | TradingRequest;

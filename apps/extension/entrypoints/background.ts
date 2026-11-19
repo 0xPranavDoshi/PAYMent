@@ -3,10 +3,11 @@ import { defineBackground } from "wxt/utils/define-background";
 import { fetchBadges, fetchProfileData } from "../src/api.js";
 import { createBadgeCache, type KeyValueStore } from "../src/badgeCache.js";
 import { createBadgeService } from "../src/badgeService.js";
-import { MOCK, SCOUT_URL } from "../src/config.js";
-import type { BadgesReply, ExtensionRequest, ProfileReply, ScanReply } from "../src/messages.js";
+import { FOLLOWER_ID, MOCK, SCOUT_URL, TRADING_URL } from "../src/config.js";
+import type { BadgesReply, ExtensionRequest, ProfileReply, ScanReply, TradingReply } from "../src/messages.js";
 import { createProfileService } from "../src/profileService.js";
 import { createScanService } from "../src/scanService.js";
+import { createMockTrading, createTradingService, validFollowerId } from "../src/trading.js";
 
 export default defineBackground(() => {
   const storage: KeyValueStore = {
@@ -36,6 +37,18 @@ export default defineBackground(() => {
     },
   });
 
+  // Who to trade as: the session the X login stores in chrome.storage.local, else the configured
+  // user. With neither, trading stays off and the buttons say so.
+  const trading = MOCK
+    ? createMockTrading()
+    : createTradingService({
+        baseUrl: TRADING_URL,
+        getFollowerId: async () => {
+          const { session } = (await browser.storage.local.get("session")) as { session?: { userId?: unknown } };
+          return validFollowerId(session?.userId) ?? validFollowerId(FOLLOWER_ID);
+        },
+      });
+
   browser.runtime.onMessage.addListener((message: ExtensionRequest, _sender, sendResponse) => {
     if (message?.type === "badges") {
       badges
@@ -51,6 +64,20 @@ export default defineBackground(() => {
         .get(message.handle)
         .then((data): ProfileReply => ({ ok: true, ...data }))
         .catch((err: unknown): ProfileReply => ({ ok: false, error: String(err) }))
+        .then(sendResponse);
+      return true;
+    }
+
+    if (message?.type === "trading") {
+      const run = async (): Promise<TradingReply> => {
+        if (message.op === "state") return { ok: true, state: await trading.state(message.handle) };
+        if (message.op === "watch") await trading.setWatch(message.handle, message.on);
+        else if (message.op === "copy-start") await trading.startCopy(message.handle, message.amountUsdc);
+        else await trading.stopCopy(message.handle);
+        return { ok: true };
+      };
+      run()
+        .catch((err: unknown): TradingReply => ({ ok: false, error: err instanceof Error ? err.message : String(err) }))
         .then(sendResponse);
       return true;
     }
