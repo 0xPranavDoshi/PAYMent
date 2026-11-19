@@ -7,6 +7,7 @@ import {
   CopyTradeConfig,
   MAX_COPY_PICK_AGE_S,
   isFreshForCopy,
+  paperPnlUsdc,
 } from "@copayme/shared";
 import { z } from "zod";
 import type { TradingStore } from "./store.js";
@@ -209,26 +210,37 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
     const tail = await store.getTail(c.req.param("id"));
     if (!tail) return c.json({ error: "not found" }, 404);
 
-    // Compute paper-trade P&L on-the-fly if the market has resolved
-    if (tail.mode === "paper" && tail.pnlUsdc === null) {
+    // Settled tails (paper or live) carry final persisted pnl. Nothing to compute.
+    if (tail.status === "settled") {
+      return c.json(
+        toTailResponse(tail, {
+          realized: true,
+          exitOdds: tail.exitOdds,
+          settledAt: tail.settledAt ? tail.settledAt.toISOString() : null,
+        }),
+      );
+    }
+
+    // Open paper tails are marked to market against the current price.
+    if (tail.mode === "paper") {
       const call = await store.getCall(tail.callId);
-      if (call) {
-        const market = await store.getMarketById(call.marketId);
-        if (market?.status === "resolved") {
-          const pickedContract = market.outcomes.find(
+      const market = call ? await store.getMarketById(call.marketId) : null;
+      const outcome = call && market
+        ? market.outcomes.find(
             (o) => o.label === call.pickedOutcome || o.instrumentSymbol === call.pickedOutcome,
-          );
-          // win if the contract's resolution direction matches the side we bought
-          const won =
-            pickedContract?.resolutionSide != null &&
-            call.side != null &&
-            pickedContract.resolutionSide === call.side;
-          const contracts = Math.floor(tail.amountUsdc / tail.entryOdds);
-          tail.pnlUsdc = won
-            ? contracts - tail.amountUsdc
-            : -tail.amountUsdc;
-        }
-      }
+          )
+        : undefined;
+      // NO picks are priced off the buy.no leg; fall back to currentOdds when noOdds is missing.
+      const markPrice = outcome
+        ? call?.side === "no" && outcome.noOdds !== null
+          ? outcome.noOdds
+          : outcome.currentOdds
+        : null;
+      const unrealizedPnlUsdc =
+        markPrice !== null
+          ? paperPnlUsdc({ amountUsdc: tail.amountUsdc, entryOdds: tail.entryOdds, exitPrice: markPrice })
+          : null;
+      return c.json(toTailResponse(tail, { realized: false, markPrice, unrealizedPnlUsdc }));
     }
 
     return c.json(toTailResponse(tail));
@@ -240,7 +252,7 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
     const idParsed = userIdSchema.safeParse(c.req.param("userId"));
     if (!idParsed.success) return c.json({ error: "invalid userId" }, 400);
     const tails = await store.listUserTails(idParsed.data);
-    return c.json(tails.map(toTailResponse));
+    return c.json(tails.map((t) => toTailResponse(t)));
   });
 
   // ── Watches ─────────────────────────────────────────────────────────────────
@@ -504,15 +516,24 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
   return app;
 }
 
-function toTailResponse(tail: {
-  id: string;
-  status: string;
-  mode: string;
-  entryOdds: number;
-  amountUsdc: number;
-  geminiOrderId: string | null;
-  pnlUsdc: number | null;
-}) {
+function toTailResponse(
+  tail: {
+    id: string;
+    status: string;
+    mode: string;
+    entryOdds: number;
+    amountUsdc: number;
+    geminiOrderId: string | null;
+    pnlUsdc: number | null;
+  },
+  extra?: {
+    realized?: boolean;
+    markPrice?: number | null;
+    unrealizedPnlUsdc?: number | null;
+    exitOdds?: number | null;
+    settledAt?: string | null;
+  },
+) {
   return TailResponse.parse({
     tailId: tail.id,
     status: tail.status,
@@ -521,5 +542,6 @@ function toTailResponse(tail: {
     amountUsdc: tail.amountUsdc,
     geminiOrderId: tail.geminiOrderId,
     pnlUsdc: tail.pnlUsdc,
+    ...extra,
   });
 }

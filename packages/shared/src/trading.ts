@@ -23,6 +23,12 @@ export const TailResponse = z.object({
   amountUsdc: z.number(),
   geminiOrderId: z.string().nullable(),
   pnlUsdc: z.number().nullable(),
+  // Paper-sim settlement detail. Optional so existing clients keep working.
+  realized: z.boolean().optional(),          // true once the market resolved and pnl is final
+  markPrice: z.number().min(0).max(1).nullable().optional(), // current/exit price per contract
+  unrealizedPnlUsdc: z.number().nullable().optional(),       // mark-to-market pnl while open
+  exitOdds: z.number().min(0).max(1).nullable().optional(),  // resolved exit price (0/1) once settled
+  settledAt: z.string().datetime().nullable().optional(),
 });
 export type TailResponse = z.infer<typeof TailResponse>;
 
