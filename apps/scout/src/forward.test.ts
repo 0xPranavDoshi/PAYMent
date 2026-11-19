@@ -1,8 +1,9 @@
 import { IngestRequest, type PickMatch } from "@copayme/shared";
 import { describe, expect, it, vi } from "vitest";
-import { createForwarder, noopForwarder } from "./forward.js";
+import { createForwarder, noopForwarder, yesPriceAtTweet } from "./forward.js";
 import type { GeminiClient } from "./gemini/client.js";
 import type { GeminiEvent } from "./gemini/types.js";
+import type { KalshiClient } from "./kalshi/client.js";
 import { PIPELINE_VERSION, createMemoryStore, type ScoutPostRow } from "./store.js";
 
 const GAME = "G-M";
@@ -265,5 +266,79 @@ describe("createForwarder", () => {
 describe("noopForwarder", () => {
   it("accepts nothing", async () => {
     expect(await noopForwarder.forward([post("t1", [match({})])], "bob")).toEqual([]);
+  });
+});
+
+describe("yesPriceAtTweet (Gemini first, then the Kalshi mirror)", () => {
+  const tweetedAt = new Date("2026-11-18T12:00:00.000Z");
+  const contract = winEvent.contracts[0]!;
+  const kalshiStub = (price: number | null, found = true) =>
+    ({
+      findMarket: vi.fn(async () =>
+        found
+          ? { series: "KXNBAGAME" as string, market: { ticker: "KXNBAGAME-26NOV18CHALAL-LAL" } }
+          : { series: null, reason: "0 candidate markets" },
+      ),
+      getYesPriceAt: vi.fn(async () => price),
+    }) as unknown as KalshiClient & { findMarket: ReturnType<typeof vi.fn>; getYesPriceAt: ReturnType<typeof vi.fn> };
+
+  it("uses Gemini's own price when it has one, without asking Kalshi", async () => {
+    const kalshi = kalshiStub(0.9);
+    const r = await yesPriceAtTweet(match({}), winEvent, contract, tweetedAt, {
+      gemini: gemini([winEvent], { "S-LAL": 0.6 }),
+      kalshi,
+      log: () => {},
+    });
+    expect(r).toEqual({ yes: 0.6, source: "gemini", ref: "S-LAL" });
+    expect(kalshi.findMarket).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the Kalshi mirror when Gemini has no price", async () => {
+    const kalshi = kalshiStub(0.515);
+    const r = await yesPriceAtTweet(match({}), winEvent, contract, tweetedAt, { gemini: gemini([winEvent]), kalshi, log: () => {} });
+    expect(r).toEqual({ yes: 0.515, source: "kalshi", ref: "KXNBAGAME-26NOV18CHALAL-LAL" });
+    expect(kalshi.findMarket).toHaveBeenCalledWith(winEvent, winEvent, contract);
+    expect(kalshi.getYesPriceAt).toHaveBeenCalledWith("KXNBAGAME", { ticker: "KXNBAGAME-26NOV18CHALAL-LAL" }, tweetedAt);
+  });
+
+  it("returns null and logs why when Kalshi has no match or no quote", async () => {
+    const logs: string[] = [];
+    const deps = (k: KalshiClient) => ({ gemini: gemini([winEvent]), kalshi: k, log: (m: string) => logs.push(m) });
+    expect(await yesPriceAtTweet(match({}), winEvent, contract, tweetedAt, deps(kalshiStub(null, false)))).toBeNull();
+    expect(await yesPriceAtTweet(match({}), winEvent, contract, tweetedAt, deps(kalshiStub(null)))).toBeNull();
+    expect(logs).toEqual([
+      "[scout] no Kalshi price for S-LAL: 0 candidate markets",
+      "[scout] no Kalshi price for S-LAL: KXNBAGAME-26NOV18CHALAL-LAL had no quote at the tweet",
+    ]);
+  });
+
+  it("loads the parent game for a sub-market pick before asking Kalshi", async () => {
+    const kalshi = kalshiStub(0.48);
+    const r = await yesPriceAtTweet(spreadPick(), spread, spread.contracts[0]!, tweetedAt, {
+      gemini: gemini([winEvent, spread]),
+      kalshi,
+      log: () => {},
+    });
+    expect(r?.source).toBe("kalshi");
+    expect(kalshi.findMarket).toHaveBeenCalledWith(winEvent, spread, spread.contracts[0]);
+  });
+
+  it("forwards the Kalshi-priced odds (1 - YES for a NO pick)", async () => {
+    const store = createMemoryStore();
+    const fetchFn = vi.fn(async (_u: string, init: RequestInit) => {
+      const posts = JSON.parse(init.body as string) as { tweetId: string }[];
+      return new Response(JSON.stringify({ results: posts.map((p) => ({ tweetId: p.tweetId, postId: null, picks: [] })) }));
+    });
+    const forwarder = createForwarder({
+      url: "http://ingest",
+      serviceKey: "k",
+      store,
+      gemini: gemini([winEvent]),
+      kalshi: kalshiStub(0.62),
+      fetch: fetchFn as unknown as typeof fetch,
+    });
+    await forwarder.forward([post("t1", [match({ instrumentSymbol: "S-CHA", contractLabel: "Hornets", side: "no" })])], "bob");
+    const sent = JSON.parse((fetchFn.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(sent[0].picks[0].oddsAtTweet).toBe(0.38);
   });
 });
