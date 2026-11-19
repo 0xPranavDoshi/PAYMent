@@ -26,7 +26,7 @@ if (env.SCOUT_FORWARD_ENABLED === "true") {
     console.error("SCOUT_FORWARD_ENABLED=true requires INGEST_URL and INGEST_SERVICE_KEY.");
     process.exit(1);
   }
-  forwarder = createForwarder({ url: env.INGEST_URL, serviceKey: env.INGEST_SERVICE_KEY, store, gemini });
+  forwarder = createForwarder({ url: env.INGEST_URL, serviceKey: env.INGEST_SERVICE_KEY, store, gemini, log: console.warn });
 }
 
 const scanDeps: ScanDeps = {

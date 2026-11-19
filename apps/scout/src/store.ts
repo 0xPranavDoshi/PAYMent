@@ -1,4 +1,4 @@
-import { countsAsPrediction, type PickMatch, type ScoutStatus, type Sentiment } from "@copayme/shared";
+import { countsAsPrediction, type OutcomeInfo, type PickMatch, type ScoutStatus, type Sentiment } from "@copayme/shared";
 
 /**
  * Bump when the read prompt or matching changes; rows from older versions are re-read and re-matched.
@@ -39,7 +39,7 @@ export interface MarketRow {
   geminiMarketId: string;
   sport: string;
   eventName: string;
-  outcomes: { label: string; instrumentSymbol: string; currentOdds: number }[];
+  outcomes: OutcomeInfo[];
   lockTime: Date;
   status: "open" | "resolved";
   winningOutcome: string | null;

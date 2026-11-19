@@ -68,17 +68,17 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
 - **Freshness:** a handle scanned less than 10 min ago is served from cache. New handles are capped at 30 per day (`SCOUT_DAILY_NEW_HANDLES`); top-ups don't count.
 - **Hosting:** an always-on Node process (Railway), because scans run in the background in-process.
 
-### Forwarding to scoring (off by default)
-- **Uses the existing `NewPost` from `packages/shared/src/trading.ts`:** one pick per post, with no side field.
-- **Only game-winner picks are forwarded.** Spread, total and prop markets are ladders where several lines resolve YES at once, but `markets.winning_outcome` holds one label. Forwarding them would score correct picks as losses.
-- **"Team loses"** is sent as the opponent's label on 2-outcome games. Other NO picks stay in `scout_posts`.
-- **The scout upserts matched games into `markets` before forwarding,** because `posts.gemini_market_id` is a foreign key and Yash's sync only covers recent events. `lock_time` is the game's start time.
+### Forwarding to scoring (off by default; updated Nov 18 after merging main)
+- **Uses Aditya's live `POST /v1/posts` contract** (`packages/shared/src/ingest.ts`). The body is a `NewPost` or an array of up to 50. Each post carries `picks[]`, and every pick has `geminiEventTicker`, `instrumentSymbol`, `side` (YES/NO), `gameStartTime`, `resolutionSide` and `resolvedAt`. Auth is the `x-service-key` header.
+- **Every matched pick is forwarded, with its side,** including spreads, totals and props. *Why the earlier limit to winner picks is gone:* `markets.outcomes` now stores `resolutionSide` per contract, so ladder markets can be settled per contract.
+- **Markets are keyed by the event ticker** (`markets.gemini_market_id`), matching Yash's sync. The scout upserts each matched event before forwarding, because ingest skips picks whose market isn't in the table, and the sync only covers recent games. `lock_time` is the game's start time.
+- **What counts as forwarded:** a post only when ingest stored it. A result carrying `error` is retried on the next scan. A pick is held back if its event can't be loaded or its market upsert fails.
+- `oddsAtTweet` is always null: Gemini has no contract price history, so ingest prices picks itself.
 
 ## Open questions for the team (block turning forwarding on)
-- **Gemini environment:** scout reads production Gemini, but Yash's market sync may use the sandbox. IDs can collide in `markets`. Pick one environment.
-- **Lock time:** Yash's sync sets `lock_time = expiryDate` (about 2 days after the game), and scoring uses it as the lock time. Picks tweeted mid-game would count. It should be `startTime`.
-- **Backfilled calls have no price history:** how does Aditya's ingest score picks on settled games (odds at tweet time)?
-- **Multiple picks per post, and a side field:** needed to forward spread/total/prop picks. This is Aditya's `NewPost` contract.
+- ~~**Gemini environment**~~ **resolved on main:** market data reads production (`GEMINI_READ_BASE_URL`), and orders go to the sandbox.
+- **Lock time (still open, Yash's sync):** the sync sets `lock_time = expiryDate` (about 2 days after the game), and ingest rejects picks `after_lock` using that value. Picks tweeted mid-game would count. The scout writes `startTime`, but the sync can overwrite it. It should be `startTime`.
+- ~~**Multiple picks per post, and a side field**~~ **resolved:** Aditya's ingest accepts `picks[]` with `side`.
 
 ## Test results
 

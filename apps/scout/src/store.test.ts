@@ -11,7 +11,7 @@ describe("memory store", () => {
       geminiMarketId: "474538",
       sport: "basketball",
       eventName: "A vs B",
-      outcomes: [{ label: "A", instrumentSymbol: "GEMI-A", currentOdds: 0.5 }],
+      outcomes: [{ label: "A", instrumentSymbol: "GEMI-A", currentOdds: 0.5, noOdds: 0.5, resolutionSide: null }],
       lockTime: new Date("2026-11-20T00:00:00Z"),
     };
     await store.upsertMarket({ ...base, status: "open", winningOutcome: null, resolvedAt: null });

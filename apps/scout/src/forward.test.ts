@@ -1,4 +1,4 @@
-import { NewPost, type PickMatch } from "@copayme/shared";
+import { IngestRequest, type PickMatch } from "@copayme/shared";
 import { describe, expect, it, vi } from "vitest";
 import { createForwarder, noopForwarder } from "./forward.js";
 import type { GeminiClient } from "./gemini/client.js";
@@ -88,11 +88,24 @@ const post = (id: string, matches: PickMatch[]): ScoutPostRow => ({
   forwardedAt: null,
 });
 
-function setup(events: GeminiEvent[], res: { ok: boolean } | Error = { ok: true }) {
+
+type Reply = { status?: number; errorFor?: string[]; body?: unknown } | Error;
+
+/** Ingest stub: echoes a result per posted tweet (with `error` for ids in errorFor). */
+function setup(events: GeminiEvent[], reply: Reply = {}) {
   const store = createMemoryStore();
-  const fetchFn = vi.fn(async () => {
-    if (res instanceof Error) throw res;
-    return res as Response;
+  const fetchFn = vi.fn(async (_url: string, init: RequestInit) => {
+    if (reply instanceof Error) throw reply;
+    const posts = JSON.parse(init.body as string) as { tweetId: string }[];
+    const body = reply.body ?? {
+      results: posts.map((p) => ({
+        tweetId: p.tweetId,
+        postId: reply.errorFor?.includes(p.tweetId) ? null : "00000000-0000-4000-8000-000000000000",
+        picks: [],
+        ...(reply.errorFor?.includes(p.tweetId) ? { error: "db down" } : {}),
+      })),
+    };
+    return new Response(JSON.stringify(body), { status: reply.status ?? 200 });
   });
   const forwarder = createForwarder({
     url: "http://ingest",
@@ -101,141 +114,135 @@ function setup(events: GeminiEvent[], res: { ok: boolean } | Error = { ok: true 
     gemini: gemini(events),
     fetch: fetchFn as unknown as typeof fetch,
   });
-  const body = () => JSON.parse((fetchFn.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
-  return { store, fetchFn, forwarder, body };
+  const call = (i = 0) => fetchFn.mock.calls[i] as unknown as [string, RequestInit];
+  const body = (i = 0) => JSON.parse(call(i)[1].body as string);
+  return { store, fetchFn, forwarder, call, body };
 }
 
 describe("createForwarder", () => {
-  it("posts valid NewPosts with the bearer key and a YES pick", async () => {
-    const { forwarder, fetchFn, body } = setup([winEvent]);
-    const ids = await forwarder.forward([post("1", [match({})])], "bob");
-    expect(ids).toEqual(["1"]);
-    const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+  it("posts an array of NewPosts to /v1/posts with the x-service-key header", async () => {
+    const { forwarder, call, body } = setup([winEvent]);
+    expect(await forwarder.forward([post("t1", [match({})])], "bob")).toEqual(["t1"]);
+    const [url, init] = call();
     expect(url).toBe("http://ingest/v1/posts");
-    expect(init.method).toBe("POST");
-    expect(init.headers).toEqual({ "content-type": "application/json", authorization: "Bearer k" });
-    const posts = body().posts;
-    expect(posts).toHaveLength(1);
-    expect(NewPost.parse(posts[0])).toMatchObject({
-      tweetId: "1",
-      xHandle: "bob",
-      geminiMarketId: "100",
-      pickedOutcome: "Lakers",
-    });
+    expect(init.headers).toEqual({ "content-type": "application/json", "x-service-key": "k" });
+    expect(IngestRequest.safeParse(body()).success).toBe(true);
+    expect(body()).toEqual([
+      {
+        tweetId: "t1",
+        xUserId: "u1",
+        xHandle: "bob",
+        tweetedAt: "2026-11-18T12:00:00.000Z",
+        tweetText: "lakers lock",
+        sentiment: null,
+        picks: [
+          {
+            geminiEventTicker: GAME,
+            instrumentSymbol: "S-LAL",
+            side: "yes",
+            gameStartTime: START,
+            resolutionSide: null,
+            resolvedAt: null,
+            oddsAtTweet: null,
+          },
+        ],
+      },
+    ]);
   });
 
-  it("sends a win NO pick on a 2-contract event as the other label", async () => {
-    const { forwarder, body } = setup([winEvent]);
-    await forwarder.forward([post("1", [match({ side: "no" })])], "bob");
-    expect(body().posts[0].pickedOutcome).toBe("Hornets");
+  it("sends every matched pick of a post, including NO sides and ladder markets", async () => {
+    const { forwarder, body } = setup([winEvent, spread]);
+    const picks = [
+      match({ side: "no", instrumentSymbol: "S-CHA", contractLabel: "Hornets" }),
+      spreadPick({ side: "no", instrumentSymbol: "S-2", contractLabel: "Lakers by 9" }),
+      match({ status: "no_market", geminiEventTicker: null, instrumentSymbol: null }),
+    ];
+    await forwarder.forward([post("t1", picks)], "bob");
+    expect(body()[0].picks).toEqual([
+      expect.objectContaining({ geminiEventTicker: GAME, instrumentSymbol: "S-CHA", side: "no" }),
+      expect.objectContaining({ geminiEventTicker: "G-S", instrumentSymbol: "S-2", side: "no", resolutionSide: "no" }),
+    ]);
   });
 
-  it("does not forward a post whose only matched pick is a spread, and does not upsert its market", async () => {
-    const { forwarder, fetchFn, store } = setup([winEvent, spread]);
-    expect(await forwarder.forward([post("1", [spreadPick()])], "bob")).toEqual([]);
-    expect(fetchFn).not.toHaveBeenCalled();
-    expect(store.markets.size).toBe(0);
+  it("carries a settled contract's own resolution", async () => {
+    const { forwarder, body } = setup([spread]);
+    await forwarder.forward([post("t1", [spreadPick()])], "bob");
+    expect(body()[0].picks[0]).toMatchObject({ resolutionSide: "yes", resolvedAt: "2026-11-19T05:00:00.000Z" });
   });
 
-  it("forwards the win pick when a spread pick comes first", async () => {
-    const { forwarder, body, store } = setup([winEvent, spread]);
-    const ids = await forwarder.forward(
-      [post("1", [spreadPick(), match({ predictionIndex: 1 })]), post("2", [spreadPick({ side: "no" })])],
-      "bob",
-    );
-    expect(ids).toEqual(["1"]);
-    expect(body().posts).toHaveLength(1);
-    expect(body().posts[0]).toMatchObject({ geminiMarketId: "100", pickedOutcome: "Lakers" });
-    expect([...store.markets.keys()]).toEqual(["100"]);
-  });
-
-  it("upserts the market with the mapped fields", async () => {
-    const { forwarder, store } = setup([winEvent]);
-    await forwarder.forward([post("1", [match({})])], "bob");
-    expect(store.markets.get("100")).toEqual({
-      geminiMarketId: "100",
+  it("upserts each market keyed by ticker, with per-contract resolution and the game start as lock time", async () => {
+    const { forwarder, store } = setup([winEvent, spread]);
+    await forwarder.forward([post("t1", [match({}), spreadPick()]), post("t2", [spreadPick()])], "bob");
+    const markets = (store as unknown as { markets: Map<string, unknown> }).markets;
+    expect([...markets.keys()].sort()).toEqual(["G-M", "G-S"]);
+    expect(markets.get("G-M")).toMatchObject({
+      geminiMarketId: "G-M",
       sport: "basketball",
-      eventName: "Lakers vs Hornets",
-      outcomes: [
-        { label: "Lakers", instrumentSymbol: "S-LAL", currentOdds: 0.6 },
-        { label: "Hornets", instrumentSymbol: "S-CHA", currentOdds: 1 },
-      ],
       lockTime: new Date(START),
       status: "open",
-      winningOutcome: null,
-      resolvedAt: null,
-    });
-  });
-
-  it("maps a settled event to resolved with the winning label", async () => {
-    const { forwarder, store } = setup([settledWin]);
-    const pick = match({ geminiEventTicker: "G2-M", gameTicker: "G2-M", instrumentSymbol: "S-BOS", contractLabel: "Celtics" });
-    await forwarder.forward([post("1", [pick])], "bob");
-    expect(store.markets.get("300")).toMatchObject({
-      sport: "NBA",
-      status: "resolved",
-      winningOutcome: "Celtics",
-      resolvedAt: new Date("2026-11-19T05:00:00.000Z"),
-      lockTime: new Date(START),
       outcomes: [
-        { label: "Celtics", instrumentSymbol: "S-BOS", currentOdds: 0 },
-        { label: "Knicks", instrumentSymbol: "S-NYK", currentOdds: 0 },
+        { label: "Lakers", instrumentSymbol: "S-LAL", currentOdds: 0.6, noOdds: null, resolutionSide: null },
+        { label: "Hornets", instrumentSymbol: "S-CHA", currentOdds: 1, noOdds: null, resolutionSide: null },
       ],
     });
+    expect(markets.get("G-S")).toMatchObject({
+      status: "resolved",
+      sport: "NBA",
+      winningOutcome: "Lakers by 2",
+      outcomes: expect.arrayContaining([expect.objectContaining({ instrumentSymbol: "S-2", resolutionSide: "no" })]),
+    });
   });
 
-  it("isolates a failing event: the good post is forwarded, the bad one is not", async () => {
-    const { forwarder, body } = setup([winEvent]);
-    const bad = match({ geminiEventTicker: "GONE", gameTicker: "GONE-M" });
-    const ids = await forwarder.forward([post("1", [bad]), post("2", [match({})])], "bob");
-    expect(ids).toEqual(["2"]);
-    expect(body().posts.map((p: { tweetId: string }) => p.tweetId)).toEqual(["2"]);
+  it("accepts only posts ingest stored (a result with `error` is retried later)", async () => {
+    const { forwarder } = setup([winEvent], { errorFor: ["t2"] });
+    expect(await forwarder.forward([post("t1", [match({})]), post("t2", [match({})])], "bob")).toEqual(["t1"]);
   });
 
-  it("falls through to the next pick when an event can't be loaded", async () => {
-    const { forwarder, body } = setup([winEvent]);
-    const bad = match({ geminiEventTicker: "GONE" });
-    await forwarder.forward([post("1", [bad, match({ predictionIndex: 1 })])], "bob");
-    expect(body().posts[0].pickedOutcome).toBe("Lakers");
+  it("returns [] and never throws on HTTP errors, network errors and unexpected bodies", async () => {
+    for (const reply of [{ status: 500 }, new Error("down"), { body: { nope: true } }] as Reply[]) {
+      const { forwarder } = setup([winEvent], reply);
+      expect(await forwarder.forward([post("t1", [match({})])], "bob")).toEqual([]);
+    }
   });
 
-  it("does not send a post whose market upsert fails", async () => {
-    const { forwarder, store, body } = setup([winEvent, settledWin]);
-    const real = store.upsertMarket.bind(store);
-    store.upsertMarket = async (row) => {
-      if (row.geminiMarketId === "300") throw new Error("db");
-      return real(row);
-    };
-    const s = match({ geminiEventTicker: "G2-M", gameTicker: "G2-M", contractLabel: "Celtics" });
-    const ids = await forwarder.forward([post("1", [s]), post("2", [match({})])], "bob");
-    expect(ids).toEqual(["2"]);
-    expect(body().posts).toHaveLength(1);
-  });
-
-  it("does not forward a pick with no start time", async () => {
-    const noStart: GeminiEvent = { ...winEvent, startTime: undefined };
-    const { forwarder, fetchFn } = setup([noStart]);
-    expect(await forwarder.forward([post("1", [match({ gameStartTime: null })])], "bob")).toEqual([]);
-    expect(fetchFn).not.toHaveBeenCalled();
-  });
-
-  it("returns [] on a non-2xx response without throwing", async () => {
-    const { forwarder } = setup([winEvent], { ok: false });
-    expect(await forwarder.forward([post("1", [match({})])], "bob")).toEqual([]);
-  });
-
-  it("returns [] on a network error", async () => {
-    const { forwarder } = setup([winEvent], new Error("down"));
-    expect(await forwarder.forward([post("1", [match({})])], "bob")).toEqual([]);
-  });
-
-  it("does not post when nothing is forwardable", async () => {
+  it("sends nothing for posts without a forwardable pick", async () => {
     const { forwarder, fetchFn } = setup([winEvent]);
-    expect(await forwarder.forward([post("1", [])], "bob")).toEqual([]);
+    const none = post("t1", [match({ status: "no_market", geminiEventTicker: null })]);
+    const noStart = post("t2", [match({ gameStartTime: null })]);
+    const unknownContract = post("t3", [match({ instrumentSymbol: "S-XYZ" })]);
+    expect(await forwarder.forward([none, noStart, unknownContract, post("t4", [])], "bob")).toEqual([]);
     expect(fetchFn).not.toHaveBeenCalled();
   });
 
-  it("noopForwarder accepts nothing", async () => {
-    expect(await noopForwarder.forward([post("1", [match({})])], "bob")).toEqual([]);
+  it("drops a pick whose event can't be loaded but still sends the post's other picks", async () => {
+    const { forwarder, body } = setup([winEvent]);
+    await forwarder.forward([post("t1", [spreadPick(), match({})])], "bob");
+    expect(body()[0].picks.map((p: { geminiEventTicker: string }) => p.geminiEventTicker)).toEqual([GAME]);
+  });
+
+  it("holds back picks whose market upsert failed", async () => {
+    const { forwarder, store, body } = setup([winEvent, settledWin]);
+    const upsert = store.upsertMarket.bind(store);
+    store.upsertMarket = vi.fn(async (row) => {
+      if (row.geminiMarketId === "G2-M") throw new Error("db");
+      return upsert(row);
+    });
+    const p2 = match({ geminiEventTicker: "G2-M", gameTicker: "G2-M", instrumentSymbol: "S-BOS", contractLabel: "Celtics" });
+    expect(await forwarder.forward([post("t1", [match({}), p2]), post("t2", [p2])], "bob")).toEqual(["t1"]);
+    expect(body()[0].picks).toHaveLength(1);
+  });
+
+  it("batches requests at 50 posts", async () => {
+    const { forwarder, fetchFn, body } = setup([winEvent]);
+    const posts = Array.from({ length: 120 }, (_, i) => post(`t${i}`, [match({})]));
+    expect(await forwarder.forward(posts, "bob")).toHaveLength(120);
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect([body(0).length, body(1).length, body(2).length]).toEqual([50, 50, 20]);
+  });
+});
+
+describe("noopForwarder", () => {
+  it("accepts nothing", async () => {
+    expect(await noopForwarder.forward([post("t1", [match({})])], "bob")).toEqual([]);
   });
 });
