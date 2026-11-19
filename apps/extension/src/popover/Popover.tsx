@@ -114,7 +114,7 @@ function Summary({
           <b>{view.hitRate}</b>
           <span>Hit rate</span>
         </div>
-        <div title="On average, how far their picks beat the market's odds, in percentage points, shrunk for small samples">
+        <div title="Average cents per $1 contract beyond the market price, shrunk for small samples">
           <b>{view.edge}</b>
           <span>Edge</span>
         </div>
@@ -380,7 +380,7 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
 function PickRow({ call, handle }: { call: CallEntry; handle: string }) {
   const row = callRowView(call);
   const when = formatTweetTime(call.tweetedAt);
-  const tone = row.gain === null ? "none" : row.outcome.kind === "won" ? "won" : row.outcome.kind === "lost" ? "lost" : "none";
+  const tone = row.points === null ? "none" : row.outcome.kind === "won" ? "won" : row.outcome.kind === "lost" ? "lost" : "none";
 
   const [flipped, setFlipped] = useState(false);
   const front = useRef<HTMLDivElement>(null);
@@ -407,7 +407,7 @@ function PickRow({ call, handle }: { call: CallEntry; handle: string }) {
               </button>
             </div>
           </div>
-          <span className={`pts ${tone}`} title={row.gain === null ? undefined : "Return on the money put into this pick"}>{row.gain ?? row.outcome.text}</span>
+          <span className={`pts ${tone}`} >{row.points ?? row.outcome.text}</span>
         </div>
 
         <div className="face back" ref={back} inert={!flipped}>

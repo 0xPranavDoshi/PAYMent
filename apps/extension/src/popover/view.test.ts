@@ -1,6 +1,6 @@
 import type { CallEntry, UserProfile } from "@copayme/shared";
 import { describe, expect, it } from "vitest";
-import { callRowView, formatAmount, formatReturn, formatTweetTime, parseAmount, profileView, returnPct, timeAgo } from "./view.js";
+import { callRowView, formatAmount, formatCents, formatTweetTime, parseAmount, profileView, timeAgo } from "./view.js";
 
 const call = (over: Partial<CallEntry> = {}): CallEntry => ({
   callId: "11111111-1111-4111-8111-111111111111",
@@ -18,24 +18,12 @@ const call = (over: Partial<CallEntry> = {}): CallEntry => ({
   ...over,
 });
 
-describe("formatReturn and returnPct", () => {
-  it("writes whole percentages with a real minus sign", () => {
-    expect(formatReturn(61.3)).toBe("+61%");
-    expect(formatReturn(-100)).toBe("−100%");
-    expect(formatReturn(0)).toBe("0%");
-    expect(formatReturn(0.4)).toBe("0%");
-    expect(formatReturn(-0.4)).toBe("0%");
-  });
-
-  it("is the return on the money put in: a win bought at 62¢ returns +61%, a loss −100%", () => {
-    expect(returnPct({ oddsAtCall: 0.62, points: 0.38 })).toBeCloseTo(61.29, 1);
-    expect(returnPct({ oddsAtCall: 0.62, points: -0.62 })).toBeCloseTo(-100);
-  });
-
-  it("is null without a price, a result, or with a zero price", () => {
-    expect(returnPct({ oddsAtCall: null, points: 0.3 })).toBeNull();
-    expect(returnPct({ oddsAtCall: 0.5, points: null })).toBeNull();
-    expect(returnPct({ oddsAtCall: 0, points: 1 })).toBeNull();
+describe("formatCents", () => {
+  it("writes points as signed cents per $1 contract, with a real minus sign", () => {
+    expect(formatCents(0.38)).toBe("+38¢");
+    expect(formatCents(-0.62)).toBe("−62¢");
+    expect(formatCents(0)).toBe("0¢");
+    expect(formatCents(0.004)).toBe("0¢");
   });
 });
 
@@ -46,14 +34,14 @@ describe("callRowView", () => {
       pick: "UConn · YES",
       price: "62¢",
       outcome: { kind: "won", text: "Won" },
-      gain: "+61%",
+      points: "+38¢",
       tweetUrl: "https://x.com/i/status/1001",
     });
   });
 
   it("shows a lost NO pick with negative points", () => {
     const row = callRowView(call({ side: "no", result: "lost", points: -0.4, oddsAtCall: 0.4 }));
-    expect(row).toMatchObject({ pick: "UConn · NO", price: "40¢", gain: "−100%", outcome: { kind: "lost", text: "Lost" } });
+    expect(row).toMatchObject({ pick: "UConn · NO", price: "40¢", points: "−40¢", outcome: { kind: "lost", text: "Lost" } });
   });
 
   it("shows pending, void and rejected picks with no points", () => {
@@ -64,7 +52,7 @@ describe("callRowView", () => {
 
   it("marks an unpriced pick as such and gives it no points, but still shows whether it won", () => {
     const row = callRowView(call({ oddsAtCall: null, oddsSource: "none", points: null }));
-    expect(row).toMatchObject({ price: "unpriced", gain: null, outcome: { kind: "won" } });
+    expect(row).toMatchObject({ price: "unpriced", points: null, outcome: { kind: "won" } });
   });
 
   it("drops the side when it was not recorded, and handles a scored call with no known result", () => {
@@ -109,7 +97,7 @@ describe("profileView", () => {
       record: "29–13",
       hitRate: "69%",
       picks: "42",
-      edge: "+11%",
+      edge: "+11¢",
       delta: { direction: "up", text: "▲ 8 in 14 days" },
       lastPick: "Last pick 3h ago",
       note: null,

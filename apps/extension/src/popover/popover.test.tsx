@@ -90,9 +90,9 @@ describe("the popover", () => {
     expect(text).toContain("29–13");
     expect(text).toContain("69%");
     expect(text).toContain("UConn · YES · 62¢");
-    expect(text).toContain("+61%");
+    expect(text).toContain("+38¢");
     expect(text).toContain("UConn · NO");
-    expect(text).toContain("−100%");
+    expect(text).toContain("−62¢");
     expect(text).toContain("Pending");
 
     expect(card.querySelector(".dot")).toBeNull(); // no markers beside the picks
