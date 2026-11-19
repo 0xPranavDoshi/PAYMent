@@ -12,13 +12,13 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
       <p className="psub">Sign in to keep a watchlist and copy traders.</p>
 
       <div className="card" style={{ marginTop: 24 }}>
-        <button className="btn" disabled style={{ width: "100%", justifyContent: "center" }}>
+        <a className="btn primary" href="/api/auth/x/login" style={{ width: "100%", justifyContent: "center" }}>
           Continue with X
-          <span className="chip" style={{ marginLeft: 6 }}>Coming soon</span>
-        </button>
-        <p className="fine" style={{ marginTop: 10 }}>
-          X login is not available yet. Until it is, use the demo account below.
-        </p>
+        </a>
+        {error === "x" && <p className="fine bad" style={{ marginTop: 10 }}>X sign-in didn&apos;t complete. Try again.</p>}
+        {error === "x_unconfigured" && (
+          <p className="fine" style={{ marginTop: 10 }}>X login isn&apos;t set up on this server yet — use the demo account below.</p>
+        )}
       </div>
 
       <div className="card" style={{ marginTop: 14 }}>
