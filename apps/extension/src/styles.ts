@@ -59,7 +59,47 @@ export const BADGE_CSS = `
   .pill.scanning .num { font: 600 11px/1 var(--font); font-style: italic; color: var(--pill-dim); }
   .pill.scanning .mark { color: var(--pill-dim); animation: spin 1.1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  @media (prefers-reduced-motion: reduce) { .pill { transition: none; } .pill:hover { transform: none; } .pill.scanning .mark { animation: none; } }
+  .pill.scanning { animation: glow 1.6s ease-in-out infinite; }
+  .pill.scanning .clock { font: 700 11px/1 var(--font); font-variant-numeric: tabular-nums; color: var(--ember); }
+  @keyframes glow { 50% { border-color: var(--ember); } }
+  .pill.offer { border-color: var(--ember); }
+  .pill.offer .num { font: 700 11px/1 var(--font); color: var(--ember); }
+  .pill.offer .mark { color: var(--ember); }
+  .pill.empty { border-style: dashed; border-color: var(--chip-line); cursor: pointer; }
+  .pill.empty .num, .pill.empty .mark { font: 600 11px/1 var(--font); color: var(--pill-dim); }
+  .pill.failed { border-color: var(--coral); }
+  .pill.failed .num { font: 700 11px/1 var(--font); color: var(--coral); }
+  .pill.failed .mark { color: var(--coral); }
+  @media (prefers-reduced-motion: reduce) { .pill { transition: none; } .pill:hover { transform: none; } .pill.scanning .mark { animation: none; } .pill.scanning { animation: none; } }
+`;
+
+/** The corner card that shows a scan running, and how it ended. */
+export const SCAN_CSS = `
+  ${TOKENS_CSS}
+  :host { all: initial; }
+  * { box-sizing: border-box; }
+  .scan {
+    width: 320px; padding: 14px 16px 16px; border-radius: 14px; font-family: var(--font); font-size: 13px; line-height: 1.4;
+    background: var(--card-bg); color: var(--ink); border: 1px solid var(--card-line); box-shadow: var(--card-shadow);
+  }
+  .scan.failed { border-color: var(--coral); }
+  .head { display: flex; align-items: center; gap: 8px; }
+  .head b { font-size: 14px; letter-spacing: -.01em; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mark { width: 16px; height: 16px; color: var(--ember); flex: none; }
+  .scan.failed .mark { color: var(--coral); }
+  .mark.spin { animation: spin 1.1s linear infinite; }
+  .clock { font: 700 13px/1 var(--font); font-variant-numeric: tabular-nums; color: var(--ember); }
+  .x { all: unset; cursor: pointer; width: 22px; height: 22px; border-radius: 11px; display: grid; place-items: center; color: var(--ink-3); font-size: 16px; line-height: 1; }
+  .x:hover { background: var(--chip); color: var(--ink); }
+  .x:focus-visible, .again:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  p { margin: 10px 0 0; color: var(--ink-2); }
+  .bar { position: relative; height: 4px; margin-top: 12px; border-radius: 2px; background: var(--chip); overflow: hidden; }
+  .bar i { position: absolute; inset: 0 auto 0 0; width: 38%; border-radius: 2px; background: var(--ember); animation: sweep 1.5s ease-in-out infinite; }
+  .again { all: unset; cursor: pointer; margin-top: 12px; padding: 8px 14px; border-radius: 999px; background: var(--ember); color: var(--ember-ink); font: 700 12px/1 var(--font); }
+  .again:hover { filter: brightness(1.07); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(270%); } }
+  @media (prefers-reduced-motion: reduce) { .mark.spin { animation: none; } .bar i { animation: none; width: 100%; opacity: .5; } }
 `;
 
 export const POPOVER_CSS = `

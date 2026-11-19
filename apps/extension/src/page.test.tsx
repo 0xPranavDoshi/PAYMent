@@ -104,68 +104,156 @@ describe("startBadges", () => {
   });
 
   describe("profile scans", () => {
-    afterEach(() => window.history.pushState({}, "", "/"));
     const fastTimeline = { timelineWaitMs: 60, timelinePollMs: 5, timelineSettleMs: 5 };
+    const setUrl = (path: string) => (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM.setURL(`https://x.com${path}`);
+    afterEach(() => setUrl("/"));
+
+    const header = (handle: string) => `
+      <div data-testid="UserName">
+        <div><span>Dana Whitfield</span></div>
+        <div><span>@${handle}</span></div>
+      </div>`;
     /** A tweet with its timestamp link, as on a profile timeline. */
     const addTweetWithId = (handle: string, id: string) =>
-      timeline().insertAdjacentHTML(
-        "beforeend",
-        tweetHtml(handle).replace("</article>", `<a href="/${handle}/status/${id}"><time>now</time></a></article>`),
-      );
+      timeline().insertAdjacentHTML("beforeend", tweetHtml(handle).replace("</article>", `<a href="/${handle}/status/${id}"><time>now</time></a></article>`));
 
-    it("sends the newest tweet the profile shows, waiting for the timeline to load", async () => {
-      window.history.pushState({}, "", "/espn");
-      const scan = vi.fn(async (): Promise<ScanResult> => ({ status: "skipped" }));
-      stop = startBadges({ lookup: async () => ({}), scan, delayMs: 10, routeCheckMs: 10, ...fastTimeline });
-      addTweet("nba");
-      await new Promise((r) => setTimeout(r, 15));
-      expect(scan).not.toHaveBeenCalled(); // still waiting for @espn's own tweets
-      addTweetWithId("espn", "999999999999999999"); // e.g. an older pinned tweet
-      addTweetWithId("espn", "1990000000000000002");
-      addTweetWithId("nba", "1999999999999999999");
-      await vi.waitFor(() => expect(scan).toHaveBeenCalledWith("espn", "1990000000000000002"));
+    const pill = () => document.querySelector("[data-copayme=badge]")?.shadowRoot?.querySelector<HTMLButtonElement>(".pill") ?? null;
+    const pillText = () => pill()?.textContent ?? null;
+    const card = () => document.querySelector("[data-copayme=scan]")?.shadowRoot?.querySelector<HTMLElement>(".scan") ?? null;
+    const cardText = () => card()?.textContent ?? null;
+    const open = (handle: string) => {
+      setUrl(`/${handle}`);
+      document.body.innerHTML = `<main id="timeline">${header(handle)}</main>`;
+    };
+    const known = async (): Promise<BadgesResponse> => ({ dana: null });
+
+    it("does not scan by itself: opening a profile we know nothing about offers a Scan picks button", async () => {
+      open("dana");
+      const scan = vi.fn(async (): Promise<ScanResult> => ({ status: "done", badge: scored }));
+      stop = startBadges({ lookup: known, scan, delayMs: 10, ...fastTimeline });
+      await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
+      await new Promise((r) => setTimeout(r, 40));
+      expect(scan).not.toHaveBeenCalled();
+      expect(card()).toBeNull(); // nothing running, so no card
     });
 
-    it("scans a handle when its profile is opened, shows Scanning…, then the new score", async () => {
-      window.history.pushState({}, "", "/home");
-      const lookup = vi.fn(async (): Promise<BadgesResponse> => ({ newcomer: null }));
+    it("offers no button when scanning is not available, or on a handle that already has a score", async () => {
+      open("dana");
+      stop = startBadges({ lookup: known, delayMs: 10 });
+      await new Promise((r) => setTimeout(r, 40));
+      expect(pill()).toBeNull();
+      stop();
+      stop = startBadges({ lookup: async () => ({ dana: scored }), scan: vi.fn(), delayMs: 10 });
+      await vi.waitFor(() => expect(pillText()).toBe("SCORE72▲8"));
+    });
+
+    it("never puts the button on tweets, only on the profile header", async () => {
+      setUrl("/dana");
+      document.body.innerHTML = `<main id="timeline">${header("dana")}</main>`;
+      stop = startBadges({ lookup: known, scan: vi.fn(), delayMs: 10, ...fastTimeline });
+      addTweetWithId("dana", "1990000000000000001");
+      addTweetWithId("dana", "1990000000000000002");
+      await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
+      const hosts = document.querySelectorAll("[data-copayme=badge]");
+      const withText = [...hosts].filter((h) => h.shadowRoot?.querySelector(".pill"));
+      expect(withText).toHaveLength(1); // the header's
+    });
+
+    it("scanning shows a running pill with a stopwatch and a card that says what is happening", async () => {
+      open("dana");
       let finish!: (r: ScanResult) => void;
       const scan = vi.fn(() => new Promise<ScanResult>((resolve) => (finish = resolve)));
-      stop = startBadges({ lookup, scan, delayMs: 10, routeCheckMs: 10, ...fastTimeline });
-      addTweet("newcomer");
-      await vi.waitFor(() => expect(lookup).toHaveBeenCalled());
-      expect(scan).not.toHaveBeenCalled(); // /home is not a profile
+      stop = startBadges({ lookup: known, scan, delayMs: 10, ...fastTimeline });
+      await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
 
-      window.history.pushState({}, "", "/NewComer");
-      await vi.waitFor(() => expect(scan).toHaveBeenCalledWith("newcomer", null));
-      await vi.waitFor(() => expect(badgeTexts()).toEqual(["Scanning…"]));
+      pill()!.click();
+      await vi.waitFor(() => expect(pillText()).toMatch(/^Scanning… ?0:0\d$/));
+      expect(cardText()).toContain("Scanning @dana");
+      expect(cardText()).toContain("Reading their recent posts");
+      expect(cardText()).toMatch(/0:0\d/); // the stopwatch
+      expect(card()!.querySelector(".bar")).not.toBeNull(); // the moving bar
+      await vi.waitFor(() => expect(scan).toHaveBeenCalledWith("dana", null)); // after the timeline wait
 
       finish({ status: "done", badge: scored });
-      await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8"]));
+      await vi.waitFor(() => expect(pillText()).toBe("SCORE72▲8"));
+      expect(cardText()).toContain("@dana scanned");
+      expect(cardText()).toContain("Score 72 · 30 settled picks.");
     });
 
-    it("scans each profile once per visit, not on every check", async () => {
-      window.history.pushState({}, "", "/alice");
+    it("sends the newest tweet the profile shows, waiting for the timeline to load", async () => {
+      open("dana");
       const scan = vi.fn(async (): Promise<ScanResult> => ({ status: "skipped" }));
-      stop = startBadges({ lookup: async () => ({}), scan, delayMs: 10, routeCheckMs: 5, ...fastTimeline });
-      await new Promise((r) => setTimeout(r, 120));
-      expect(scan).toHaveBeenCalledTimes(1);
-      window.history.pushState({}, "", "/alice/status/1");
-      window.history.pushState({}, "", "/bob");
-      await vi.waitFor(() => expect(scan).toHaveBeenCalledWith("bob", null));
-      expect(scan).toHaveBeenCalledTimes(2);
+      stop = startBadges({ lookup: known, scan, delayMs: 10, ...fastTimeline });
+      await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
+      pill()!.click();
+      addTweetWithId("dana", "999999999999999999"); // e.g. an older pinned tweet
+      addTweetWithId("dana", "1990000000000000002");
+      addTweetWithId("nba", "1999999999999999999");
+      await vi.waitFor(() => expect(scan).toHaveBeenCalledWith("dana", "1990000000000000002"));
     });
 
-    it("puts the old badge back when a scan doesn't finish", async () => {
-      window.history.pushState({}, "", "/home");
-      const lookup = vi.fn(async (): Promise<BadgesResponse> => ({ alice: scored }));
-      const scan = vi.fn(async (): Promise<ScanResult> => ({ status: "timeout" }));
-      stop = startBadges({ lookup, scan, delayMs: 10, routeCheckMs: 10, ...fastTimeline });
-      addTweet("alice");
-      await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8"]));
-      window.history.pushState({}, "", "/alice");
+    it("says so when no sports picks were found, and keeps saying so on the profile", async () => {
+      open("dana");
+      const scan = vi.fn(async (): Promise<ScanResult> => ({ status: "done", badge: null }));
+      stop = startBadges({ lookup: known, scan, delayMs: 10, ...fastTimeline });
+      await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
+      pill()!.click();
+      await vi.waitFor(() => expect(pillText()).toBe("No picks found"));
+      expect(cardText()).toContain("found no sports picks on markets we track");
+    });
+
+    it("says a scan did not finish and lets the user try again from the card or the pill", async () => {
+      open("dana");
+      const scan = vi.fn<() => Promise<ScanResult>>().mockResolvedValueOnce({ status: "timeout" }).mockResolvedValueOnce({ status: "failed" }).mockResolvedValue({ status: "done", badge: scored });
+      stop = startBadges({ lookup: known, scan, delayMs: 10, ...fastTimeline });
+      await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
+      pill()!.click();
+      await vi.waitFor(() => expect(pillText()).toBe("Scan failed · Retry"));
+      expect(cardText()).toContain("Scan didn't finish");
+
+      pill()!.click(); // retry from the pill
+      await vi.waitFor(() => expect(scan).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(pillText()).toBe("Scan failed · Retry"));
+
+      card()!.querySelector<HTMLButtonElement>(".again")!.click(); // retry from the card
+      await vi.waitFor(() => expect(pillText()).toBe("SCORE72▲8"));
+      expect(scan).toHaveBeenCalledTimes(3);
+    });
+
+    it("tells the user when a scan was asked for a moment ago, and puts the button back", async () => {
+      open("dana");
+      const scan = vi.fn(async (): Promise<ScanResult> => ({ status: "skipped" }));
+      stop = startBadges({ lookup: known, scan, delayMs: 10, ...fastTimeline });
+      await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
+      pill()!.click();
+      await vi.waitFor(() => expect(cardText()).toContain("Scanned a moment ago"));
+      expect(pillText()).toBe("Scan picks");
+    });
+
+    it("scans once per press even if pressed repeatedly while it runs", async () => {
+      open("dana");
+      const scan = vi.fn(() => new Promise<ScanResult>(() => {}));
+      stop = startBadges({ lookup: known, scan, delayMs: 10, ...fastTimeline });
+      await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
+      const button = pill()!;
+      button.click();
+      button.click();
+      button.click();
       await vi.waitFor(() => expect(scan).toHaveBeenCalled());
-      await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8"]));
+      await new Promise((r) => setTimeout(r, 30));
+      expect(scan).toHaveBeenCalledTimes(1);
+    });
+
+    it("can be dismissed, and stops with the page", async () => {
+      open("dana");
+      stop = startBadges({ lookup: known, scan: () => new Promise<ScanResult>(() => {}), delayMs: 10, ...fastTimeline });
+      await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
+      pill()!.click();
+      await vi.waitFor(() => expect(card()).not.toBeNull());
+      card()!.querySelector<HTMLButtonElement>(".x")!.click();
+      await vi.waitFor(() => expect(card()).toBeNull());
+      stop();
+      expect(document.querySelector("[data-copayme=scan]")).toBeNull();
     });
   });
 });
