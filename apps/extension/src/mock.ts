@@ -81,6 +81,7 @@ export function mockProfileData(handle: string): ProfileData {
     return {
       callId: `00000000-0000-4000-8000-${String(h % 1_000_000).padStart(6, "0")}${String(i).padStart(6, "0")}`,
       tweetId: String(1000 + i),
+      tweetText: `Taking ${a} tonight. ${b}'s defense is overrated and nobody is talking about it.`,
       tweetedAt: new Date(Date.UTC(2026, 10, 19 - i, 18, 0, 0)).toISOString(),
       eventName,
       pickLabel: (h >>> i) % 3 === 0 ? b : a,

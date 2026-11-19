@@ -167,6 +167,31 @@ describe.skipIf(!url)("against a real Postgres", () => {
       await expect(sql`update calls set market_id = ${early}`).rejects.toThrow(/not before the market lock/);
     });
 
+    it("lists the latest picks across traders and a trader's score history", async () => {
+      const [u2] = await sql<{ id: string }[]>`insert into users (x_user_id, x_handle) values ('2', 'Sharp') returning id`;
+      const m1 = await market("A");
+      const m2 = await market("B");
+      const p1 = await post("t1", "2026-11-19T10:00:00Z");
+      await call({ postId: p1, marketId: m1, at: "2026-11-19T10:00:00Z" });
+      const [p2] = await sql<{ id: string }[]>`
+        insert into posts (tweet_id, user_id, tweeted_at, tweet_text) values ('t2', ${u2!.id}, '2026-11-19T11:00:00Z', 'later') returning id`;
+      await sql`
+        insert into calls (post_id, user_id, market_id, picked_outcome, instrument_symbol, side, odds_at_call, odds_source, tweeted_at, status)
+        values (${p2!.id}, ${u2!.id}, ${m2}, 'UConn', 'GEMI-UCONN', 'yes', 0.5, 'snapshot', '2026-11-19T11:00:00Z', 'pending')`;
+
+      const store = createPostgresCallsStore(sql);
+      const recent = await store.listRecent(10);
+      expect(recent.map((r) => r.handle)).toEqual(["Sharp", "tipster"]); // newest first, with who made each
+      expect((await store.listRecent(1)).length).toBe(1);
+
+      const hash = "a".repeat(64);
+      await sql`insert into score_snapshots (user_id, score, inputs_hash, computed_at) values
+        (${userId}, 50, ${hash}, '2026-11-10T00:00:00Z'), (${userId}, 61, ${hash}, '2026-11-18T00:00:00Z'), (${userId}, 55, ${hash}, '2026-11-14T00:00:00Z')`;
+      expect((await store.scoreHistory("tipster", 10))!.map((p) => p.score)).toEqual([50, 55, 61]); // oldest first
+      expect((await store.scoreHistory("tipster", 2))!.map((p) => p.score)).toEqual([55, 61]); // the latest two
+      expect(await store.scoreHistory("nobody", 10)).toBeNull();
+    });
+
     it("lets one post hold several picks, but only one pick per user and market", async () => {
       const winner = await market("WINNER");
       const total = await market("TOTAL");
@@ -602,7 +627,7 @@ describe.skipIf(!url)("against a real Postgres", () => {
       const ledger = await (await app.request("/v1/users/ledger/calls")).json();
       expect(ledger.map((c: { eventName: string }) => c.eventName)).toEqual(["NOPRICE", "WAITING", "VOIDED", "LOST", "WON"]); // newest first
       const by = Object.fromEntries(ledger.map((c: { eventName: string }) => [c.eventName, c]));
-      expect(by.WON).toMatchObject({ status: "scored", result: "won", oddsAtCall: 0.6, oddsSource: "snapshot", tweetId: "led0", side: "yes", pickLabel: "UConn" });
+      expect(by.WON).toMatchObject({ status: "scored", result: "won", oddsAtCall: 0.6, oddsSource: "snapshot", tweetId: "led0", tweetText: "pick", side: "yes", pickLabel: "UConn" });
       expect(by.WON.points).toBeCloseTo(0.4);
       expect(by.LOST).toMatchObject({ status: "scored", result: "lost" });
       expect(by.LOST.points).toBeCloseTo(-0.6);

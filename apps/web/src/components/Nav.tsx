@@ -1,41 +1,30 @@
 import Link from "next/link";
+import { signOut } from "@/lib/actions";
+import { getFollowerId } from "@/lib/session";
+import Mark from "./Mark";
+import NavLinks from "./NavLinks";
+import SearchBox from "./SearchBox";
 
-const linkStyle: React.CSSProperties = {
-  fontSize: 14,
-  color: "#bdbdbd",
-};
-
-export default function Nav() {
+export default async function Nav() {
+  const signedIn = (await getFollowerId()) !== null;
   return (
-    <nav
-      style={{
-        borderBottom: "1px solid #262626",
-        background: "#141414",
-      }}
-    >
-      <div
-        className="container"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 24,
-          height: 56,
-        }}
-      >
-        <Link href="/leaderboard" style={{ fontWeight: 700, fontSize: 18 }}>
-          coPAYMe
+    <header className="nav">
+      <div className="container">
+        <Link href="/" className="brand">
+          <span className="logo"><Mark /></span>
+          <span className="brand-name">coPAYMe</span>
         </Link>
-        <div style={{ flex: 1 }} />
-        <Link href="/leaderboard" style={linkStyle}>
-          Leaderboard
-        </Link>
-        <Link href="/watchlist" style={linkStyle}>
-          Watchlist
-        </Link>
-        <Link href="/activity" style={linkStyle}>
-          Activity
-        </Link>
+        <SearchBox />
+        <NavLinks />
+        <div className="spacer" />
+        {signedIn ? (
+          <form action={signOut}>
+            <button className="btn sm" type="submit">Sign out</button>
+          </form>
+        ) : (
+          <Link href="/signin" className="btn sm primary">Sign in</Link>
+        )}
       </div>
-    </nav>
+    </header>
   );
 }

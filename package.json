@@ -9,6 +9,8 @@
     "dev:api": "pnpm --filter @copayme/api dev",
     "dev:scout": "pnpm --filter @copayme/scout dev",
     "dev:trading": "pnpm --filter @copayme/trading dev",
+    "dev:onchain": "pnpm --filter @copayme/onchain dev",
+    "dev:web": "pnpm --filter @copayme/web dev",
     "dev:extension": "pnpm --filter @copayme/extension dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",

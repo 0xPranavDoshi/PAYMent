@@ -1,5 +1,8 @@
+import Page from "@/components/Page";
 import { fetchLeaderboard, type LeaderboardEntry } from "@/lib/api";
 import LeaderboardTable from "@/components/LeaderboardTable";
+
+export const dynamic = "force-dynamic";
 
 export default async function LeaderboardPage() {
   let entries: LeaderboardEntry[] = [];
@@ -7,20 +10,13 @@ export default async function LeaderboardPage() {
   try {
     entries = await fetchLeaderboard(100);
   } catch (e) {
-    error = e instanceof Error ? e.message : "Failed to load leaderboard.";
+    error = e instanceof Error ? e.message : "Failed to load the leaderboard.";
   }
-
   return (
-    <div>
-      <h1 style={{ marginTop: 0 }}>Leaderboard</h1>
-      <p style={{ color: "#9a9a9a", marginTop: -8 }}>
-        Top traders by score.
-      </p>
-      {error ? (
-        <p style={{ color: "#e05a5a" }}>{error}</p>
-      ) : (
-        <LeaderboardTable entries={entries} />
-      )}
-    </div>
+    <Page>
+      <h1 className="ptitle">Leaderboard</h1>
+      <p className="psub">Traders ranked by score, which measures how far their picks beat the market&apos;s odds.</p>
+      {error ? <p className="down" style={{ marginTop: 20 }}>{error}</p> : <LeaderboardTable entries={entries} />}
+    </Page>
   );
 }

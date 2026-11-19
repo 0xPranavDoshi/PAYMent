@@ -4,6 +4,10 @@
  */
 
 export const TWEET_SELECTOR = 'article[data-testid="tweet"]';
+/** The name block at the top of a profile page. Note the spelling: tweets use "User-Name", profiles "UserName". */
+export const PROFILE_SELECTOR = '[data-testid="UserName"]';
+/** Everything that gets a badge. */
+export const BADGE_TARGET_SELECTOR = `${TWEET_SELECTOR}, ${PROFILE_SELECTOR}`;
 const USER_NAME_SELECTOR = '[data-testid="User-Name"]';
 
 /** First path segment of X's own pages, which are not handles. */
@@ -83,6 +87,30 @@ export function newestTweetIdBy(root: ParentNode, handle: string): string | null
     if (id !== null && (newest === null || BigInt(id) > newest)) newest = BigInt(id);
   }
   return newest === null ? null : newest.toString();
+}
+
+/**
+ * The handle of the profile being viewed, from the address (x.com/<handle>) and confirmed against the
+ * header's own text, so a header that belongs to something else never gets the wrong person's badge.
+ */
+export function extractProfileHandle(header: Element, pathname: string): string | null {
+  const handle = profileHandleFromPath(pathname);
+  if (!handle) return null;
+  return (header.textContent ?? "").toLowerCase().includes(`@${handle}`) ? handle : null;
+}
+
+/** What a badge belongs to: the handle, and where on the page it goes. Null if the element is not a target. */
+export function resolveTarget(element: Element, pathname: string): { handle: string; anchor: Element } | null {
+  if (element.matches(TWEET_SELECTOR)) {
+    const handle = extractHandle(element);
+    const anchor = findMountPoint(element);
+    return handle && anchor ? { handle, anchor } : null;
+  }
+  if (element.matches(PROFILE_SELECTOR)) {
+    const handle = extractProfileHandle(element, pathname);
+    return handle ? { handle, anchor: element.firstElementChild ?? element } : null;
+  }
+  return null;
 }
 
 /** Tabs of a profile page (x.com/<handle>/<tab>); any other sub-path, like /status/1, isn't a profile. */
