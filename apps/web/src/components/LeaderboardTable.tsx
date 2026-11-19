@@ -20,7 +20,11 @@ export default function LeaderboardTable({ entries }: { entries: LeaderboardEntr
       {entries.map((e, i) => {
         const change = formatChange(e.change14d);
         return (
-          <Link key={e.handle} href={`/traders/${encodeURIComponent(e.handle)}`} className="lrow">
+          <Link
+            key={e.handle}
+            href={`/traders/${encodeURIComponent(e.handle)}`}
+            className={`lrow${i < 3 ? ` p${i + 1}` : ""}`}
+          >
             <span className="rank">{i + 1}</span>
             <ScoreRing score={e.tier === "new" ? null : e.score} size={44} />
             <span className="who">

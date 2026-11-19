@@ -3,6 +3,7 @@
   --bg: #0b0b0b; --raised: #121212; --chip: #1a1a1a; --line: #232323;
   --ink: #ededed; --ink-2: #a3a3a3; --ink-3: #737373; --line-strong: #353535; --chip-hover: #222222;
   --ember: #ff7a3d; --ember-ink: #1a0d05; --win: #5cd08c; --coral: #ef5b45;
+  --gold: #e8b53d; --silver: #bcc6cf; --bronze: #b08457;
   --ring-s: 72%; --ring-l: 56%;
   --font: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --display: var(--font-serif), "Iowan Old Style", Georgia, serif;
@@ -13,13 +14,14 @@
     --bg: #fafafa; --raised: #ffffff; --chip: #f1f1f1; --line: #e5e5e5;
     --ink: #171717; --ink-2: #525252; --ink-3: #8a8a8a; --line-strong: #d0d0d0; --chip-hover: #e9e9e9;
     --ember: #c8461a; --ember-ink: #fffdf8; --win: #17794a; --coral: #b8321f;
+    --gold: #b07d16; --silver: #9aa4ad; --bronze: #8a6440;
     --ring-s: 68%; --ring-l: 42%;
     color-scheme: light;
   }
 }
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--font); -webkit-font-smoothing: antialiased; }
+html { -webkit-text-size-adjust: 100%; background: var(--bg); }
+body { margin: 0; background: transparent; color: var(--ink); font: 16px/1.5 var(--font); -webkit-font-smoothing: antialiased; }
 a { color: inherit; text-decoration: none; }
 h1, h2, h3 { margin: 0; letter-spacing: -.015em; line-height: 1.2; font-weight: 600; }
 p { margin: 0; }
@@ -360,3 +362,43 @@ a.lp:hover { background: var(--chip); }
 .led tr:first-child td { border-top: 0; }
 .btn.lg { height: 46px; padding: 0 22px; font-size: 15px; }
 .num { font-variant-numeric: tabular-nums; }
+
+
+/* ───────── ambient backdrop (aurora + grid) ───────── */
+.aurora { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.aurora::after {
+  content: ""; position: absolute; inset: -2px;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 54px 54px; opacity: .55;
+  -webkit-mask-image: radial-gradient(ellipse 85% 55% at 50% -4%, #000 8%, transparent 72%);
+  mask-image: radial-gradient(ellipse 85% 55% at 50% -4%, #000 8%, transparent 72%);
+}
+.aurora .blob { position: absolute; border-radius: 50%; filter: blur(72px); opacity: .5; animation: drift 20s ease-in-out infinite alternate; }
+.aurora .b1 { width: 520px; height: 520px; top: -190px; left: -90px; background: radial-gradient(circle, var(--ember), transparent 66%); }
+.aurora .b2 { width: 440px; height: 440px; top: -150px; right: -70px; background: radial-gradient(circle, #6a5cff, transparent 66%); animation-delay: -7s; }
+.aurora .b3 { width: 380px; height: 380px; top: 90px; left: 44%; background: radial-gradient(circle, #12b5b5, transparent 66%); animation-delay: -13s; opacity: .36; }
+@keyframes drift { from { transform: translate(0,0) scale(1); } to { transform: translate(30px, 26px) scale(1.09); } }
+@media (prefers-reduced-motion: reduce) { .aurora .blob { animation: none; } }
+
+/* extra highlights so the backdrop pops */
+.aurora::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(58% 40% at 50% -8%, color-mix(in srgb, var(--ember) 18%, transparent), transparent 70%),
+    radial-gradient(40% 30% at 82% 4%, color-mix(in srgb, #6a5cff 16%, transparent), transparent 72%); }
+.aurora .b4 { width: 300px; height: 300px; top: -70px; left: 58%; filter: blur(66px); opacity: .32;
+  background: radial-gradient(circle, #ff5b9e, transparent 64%); animation: drift 16s ease-in-out infinite alternate; animation-delay: -4s; }
+
+/* top-3 flair: gilded rank + handle, with a matching accent bar and tint */
+.lrow.p1, .lrow.p2, .lrow.p3 { position: relative; }
+.lrow.p1 { box-shadow: inset 3px 0 0 var(--gold);   background: color-mix(in srgb, var(--gold) 7%, transparent); }
+.lrow.p2 { box-shadow: inset 3px 0 0 var(--silver); background: color-mix(in srgb, var(--silver) 6%, transparent); }
+.lrow.p3 { box-shadow: inset 3px 0 0 var(--bronze); background: color-mix(in srgb, var(--bronze) 7%, transparent); }
+.lrow.p1 .rank, .lrow.p1 .who { color: var(--gold); }
+.lrow.p2 .rank, .lrow.p2 .who { color: var(--silver); }
+.lrow.p3 .rank, .lrow.p3 .who { color: var(--bronze); }
+.lrow.p1 .rank, .lrow.p2 .rank, .lrow.p3 .rank { font-weight: 800; }
+.lrow.p1 .who, .lrow.p2 .who, .lrow.p3 .who { font-weight: 800; }
+.lrow.p1 .who small, .lrow.p2 .who small, .lrow.p3 .who small { color: var(--ink-3); }
+a.lrow.p1:hover { background: color-mix(in srgb, var(--gold) 13%, var(--chip)); }
+a.lrow.p2:hover { background: color-mix(in srgb, var(--silver) 12%, var(--chip)); }
+a.lrow.p3:hover { background: color-mix(in srgb, var(--bronze) 13%, var(--chip)); }
