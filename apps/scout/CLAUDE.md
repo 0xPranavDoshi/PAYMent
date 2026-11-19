@@ -79,6 +79,15 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
 - **What counts as forwarded:** a post only when ingest stored it. A result carrying `error` is retried on the next scan. A pick is held back if its event can't be loaded or its market upsert fails.
 - `oddsAtTweet` is always null: Gemini has no contract price history, so ingest prices picks itself.
 
+### Keeping picks settleable and starting scans (Nov 18, after merging PR #33)
+- **Market refresher** (`src/refresh.ts`; runs every `SCOUT_MARKET_REFRESH_S`, default 600 s, when forwarding is on).
+  - What it does: re-fetches the markets behind forwarded picks whose game has started and whose `markets` row isn't settled, and upserts their per-contract `resolutionSide`. Cancelled (invalid) markets become `void`.
+  - *Why:* the trading sync only refreshes the 200 most recent game-winner markets per sport. Spread, total and prop markets (and older games) would otherwise keep an empty result, and Aditya's worker could never settle those picks.
+- **Extension profile-scan hook** (`apps/extension`, built with Aditya's OK).
+  - Opening `x.com/<handle>` marks that handle's badges "Scanning…". The background worker POSTs to the scout, polls every 3 s for up to 90 s, then fetches the fresh badge from the scoring API and writes it to the badge cache.
+  - Handles asked about in the last 10 minutes are skipped.
+  - Config: `WXT_SCOUT_URL` (default `http://localhost:8789`), plus a matching host permission. Because of that permission the background worker isn't subject to CORS, so the scout needs no `SCOUT_ALLOWED_ORIGIN` for the extension.
+
 ## Open questions for the team (block turning forwarding on)
 - ~~**Gemini environment**~~ **resolved on main:** market data reads production (`GEMINI_READ_BASE_URL`), and orders go to the sandbox.
 - **Lock time: decided (Pranav, Nov 18). `markets.lock_time` = the market's `expiryDate`**, written the same way by the scout's upsert and by the trading sync (`apps/trading/src/sync.ts` `lockTimeFor`, changed in this branch).
