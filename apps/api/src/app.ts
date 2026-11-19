@@ -16,11 +16,9 @@ import {
   type UserProfile,
 } from "@copayme/shared";
 import { Hono } from "hono";
-import { z } from "zod";
 import { TtlLru } from "./cache.js";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { toCallEntry, type CallsStore } from "./calls.js";
-import type { ScoreHistoryStore } from "./history.js";
 import { ingestPosts, type IngestStore } from "./ingest.js";
 import type { ScoreRow, ScoreStore } from "./store.js";
 import type { Worker } from "./worker.js";
@@ -41,8 +39,6 @@ export interface AppDeps {
   notifyNewCall?: (callId: string) => Promise<void>;
   /** Where GET /v1/users/:handle/calls reads from. Without it, that route is switched off. */
   calls?: CallsStore;
-  /** Where GET /v1/users/:handle/score-at reads from. Without it, that route is switched off. */
-  history?: ScoreHistoryStore;
   /** The scoring worker, so POST /v1/worker/run can trigger a run on demand. */
   worker?: Pick<Worker, "runNow">;
   now?: () => number;
@@ -81,7 +77,7 @@ function toProfile(row: ScoreRow): UserProfile {
   };
 }
 
-export function createApp({ store, ingest, serviceKey, notifyNewCall, worker, calls, history, now = Date.now }: AppDeps) {
+export function createApp({ store, ingest, serviceKey, notifyNewCall, worker, calls, now = Date.now }: AppDeps) {
   const app = new Hono();
   // Badge per lowercase handle. Unknown handles are cached as null so a busy
   // timeline does not hit the database for the same unknown handle every time.
@@ -139,19 +135,6 @@ export function createApp({ store, ingest, serviceKey, notifyNewCall, worker, ca
     const [row] = await store.findByHandles([parsed.data]);
     if (!row) return c.json({ error: "not found" }, 404);
     return c.json(toProfile(row));
-  });
-
-  // The user's score as of a past moment: how a watchlist shows the trend since you started watching.
-  app.get("/v1/users/:handle/score-at", async (c) => {
-    if (!history) return c.json({ error: "score history is not configured" }, 503);
-    const handle = XHandle.safeParse(c.req.param("handle"));
-    if (!handle.success) return c.json({ error: "invalid handle" }, 400);
-    const at = z.string().datetime({ offset: true }).safeParse(c.req.query("at"));
-    if (!at.success) return c.json({ error: "at must be an ISO date and time, e.g. 2026-11-18T12:00:00Z" }, 400);
-
-    const found = await history.scoreAt(handle.data, new Date(at.data));
-    if (found === undefined) return c.json({ error: "not found" }, 404);
-    return c.json({ score: found?.score ?? null, computedAt: found?.computedAt.toISOString() ?? null });
   });
 
   app.get("/v1/users/:handle/calls", async (c) => {

@@ -1,6 +1,6 @@
 import { browser } from "wxt/browser";
 import { defineBackground } from "wxt/utils/define-background";
-import { fetchBadges, fetchProfileData, fetchScoreAt } from "../src/api.js";
+import { fetchBadges, fetchProfileData } from "../src/api.js";
 import { createBadgeCache, type KeyValueStore } from "../src/badgeCache.js";
 import { createBadgeService } from "../src/badgeService.js";
 import { FOLLOWER_ID, MOCK, SCOUT_URL, TRADING_URL } from "../src/config.js";
@@ -43,7 +43,6 @@ export default defineBackground(() => {
     ? createMockTrading()
     : createTradingService({
         baseUrl: TRADING_URL,
-        scoreAt: (handle, atIso) => fetchScoreAt(handle, atIso),
         getFollowerId: async () => {
           const { session } = (await browser.storage.local.get("session")) as { session?: { userId?: unknown } };
           return validFollowerId(session?.userId) ?? validFollowerId(FOLLOWER_ID);

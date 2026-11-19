@@ -4,10 +4,22 @@ import { createTradingBridge } from "./tradingBridge.js";
 import type { TradingReply, TradingRequest } from "./messages.js";
 
 const FOLLOWER = "11111111-1111-4111-8111-111111111111";
-const watchItem = (handle: string) => ({ traderHandle: handle, watchedAt: "2026-11-19T12:00:00.000Z", nPicks: 0, paperPnlUsdc: null, activePicks: 0 });
+const watchItem = (handle: string) => ({
+  traderHandle: handle,
+  watchedAt: "2026-11-19T12:00:00.000Z",
+  nPicks: 0,
+  activePicks: 0,
+  stakedUsdc: 0,
+  paperPnlUsdc: null,
+  projectedPnlUsdc: null,
+  pnlPct: null,
+  scoreNow: null,
+  scoreAtWatch: null,
+  scoreDelta: null,
+});
 const copyItem = (handle: string, active: boolean, amountUsdc = 10) => ({ traderHandle: handle, amountUsdc, active, createdAt: "2026-11-19T12:00:00.000Z", nTrades: 0, livePnlUsdc: null });
 
-function service(responses: Record<string, unknown>, followerId: string | null = FOLLOWER, scoreAt?: (handle: string, at: string) => Promise<number | null>) {
+function service(responses: Record<string, unknown>, followerId: string | null = FOLLOWER) {
   const fetcher = vi.fn(async (input: URL | RequestInfo, init?: RequestInit) => {
     const url = new URL(String(input));
     const key = `${init?.method ?? "GET"} ${url.pathname}`;
@@ -15,7 +27,7 @@ function service(responses: Record<string, unknown>, followerId: string | null =
     const body = responses[key];
     return body instanceof Response ? body : new Response(JSON.stringify(body), { status: 200 });
   }) as unknown as typeof fetch & ReturnType<typeof vi.fn>;
-  const actions = createTradingService({ baseUrl: "http://trading:8788", getFollowerId: async () => followerId, scoreAt, fetcher });
+  const actions = createTradingService({ baseUrl: "http://trading:8788", getFollowerId: async () => followerId, fetcher });
   return { actions, fetcher };
 }
 
@@ -35,15 +47,28 @@ describe("createTradingService", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it("reads whether this trader is watched or copied, ignoring other traders and handle case", async () => {
+  it("reads whether this trader is watched or copied, with the watch numbers the service computed", async () => {
     const { actions, fetcher } = service({
-      "GET /v1/watches": [watchItem("other"), { ...watchItem("Alice"), nPicks: 9, activePicks: 2, paperPnlUsdc: 0.42 }],
+      "GET /v1/watches": [
+        watchItem("other"),
+        { ...watchItem("Alice"), nPicks: 9, activePicks: 2, stakedUsdc: 9, paperPnlUsdc: 0.42, projectedPnlUsdc: 0.54, pnlPct: 6, scoreNow: 72, scoreAtWatch: 68, scoreDelta: 4 },
+      ],
       "GET /v1/copy-trades": [copyItem("other", true), copyItem("alice", true, 25)],
       "GET /v1/config": { copyTradeMode: "paper" },
-    }, FOLLOWER, async () => 68);
+    });
     expect(await actions.state("ALICE")).toEqual({
       signedIn: true,
-      watch: { since: "2026-11-19T12:00:00.000Z", picks: 9, openPicks: 2, paperPnlUsdc: 0.42, scoreThen: 68 },
+      watch: {
+        since: "2026-11-19T12:00:00.000Z",
+        picks: 9,
+        openPicks: 2,
+        stakedUsdc: 9,
+        projectedPnlUsdc: 0.54,
+        pnlPct: 6,
+        scoreAtWatch: 68,
+        scoreNow: 72,
+        scoreDelta: 4,
+      },
       copy: { active: true, amountUsdc: 25 },
       copyMode: "paper",
     });
@@ -51,18 +76,9 @@ describe("createTradingService", () => {
     expect((watchesCall[1]!.headers as Record<string, string>)["x-follower-id"]).toBe(FOLLOWER);
   });
 
-  it("asks for the trader's score as of when the watch started", async () => {
-    const scoreAt = vi.fn(async (_handle: string, _at: string) => 61);
-    const { actions } = service({ "GET /v1/watches": [watchItem("alice")], "GET /v1/copy-trades": [], "GET /v1/config": { copyTradeMode: "paper" } }, FOLLOWER, scoreAt);
-    await actions.state("alice");
-    expect(scoreAt).toHaveBeenCalledWith("alice", "2026-11-19T12:00:00.000Z");
-  });
-
-  it("still returns the watch when the score history is unavailable, with no score for then", async () => {
-    const { actions } = service({ "GET /v1/watches": [watchItem("alice")], "GET /v1/copy-trades": [], "GET /v1/config": { copyTradeMode: "paper" } }, FOLLOWER, async () => {
-      throw new Error("history down");
-    });
-    expect((await actions.state("alice")).watch).toMatchObject({ scoreThen: null });
+  it("keeps the nulls the service sends for a watch with nothing to measure yet", async () => {
+    const { actions } = service({ "GET /v1/watches": [watchItem("alice")], "GET /v1/copy-trades": [], "GET /v1/config": { copyTradeMode: "paper" } });
+    expect((await actions.state("alice")).watch).toMatchObject({ picks: 0, projectedPnlUsdc: null, pnlPct: null, scoreAtWatch: null, scoreDelta: null });
   });
 
   it("is not watching or copying when the trader is in neither list", async () => {
@@ -108,7 +124,7 @@ describe("createMockTrading", () => {
     await mock.setWatch("alice", true);
     await mock.startCopy("alice", 25);
     const state = await mock.state("alice");
-    expect(state.watch).toMatchObject({ picks: 9, openPicks: 2, paperPnlUsdc: 0.42, scoreThen: 68 });
+    expect(state.watch).toMatchObject({ picks: 9, openPicks: 2, projectedPnlUsdc: 0.54, scoreAtWatch: 68, scoreNow: 72 });
     expect(state.copy).toEqual({ active: true, amountUsdc: 25 });
     await mock.stopCopy("alice");
     await mock.setWatch("alice", false);

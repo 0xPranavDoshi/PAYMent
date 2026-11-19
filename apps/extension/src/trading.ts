@@ -4,7 +4,7 @@ import { z } from "zod";
 /** How the trading service runs copy trades: "paper" simulates, "live" places real orders. */
 export type CopyMode = "paper" | "live";
 
-/** What watching a trader has shown since the user started. */
+/** What watching a trader has shown since the user started, as the trading service reports it. */
 export interface WatchInfo {
   /** When the user started watching (ISO). */
   since: string;
@@ -12,10 +12,16 @@ export interface WatchInfo {
   picks: number;
   /** Of those, how many have not settled yet. */
   openPicks: number;
-  /** Paper P&L in dollars across the settled $1 bets, or null before any has settled. */
-  paperPnlUsdc: number | null;
-  /** The trader's score when the user started watching, or null if they had none yet. */
-  scoreThen: number | null;
+  /** Total staked across those bets ($1 each). */
+  stakedUsdc: number;
+  /** Settled results plus the live value of picks still open, or null when there is nothing to measure yet. */
+  projectedPnlUsdc: number | null;
+  /** The projected P&L as a percentage of what was staked. */
+  pnlPct: number | null;
+  /** The trader's score when the user started watching, now, and the change; null where unknown. */
+  scoreAtWatch: number | null;
+  scoreNow: number | null;
+  scoreDelta: number | null;
 }
 
 /** What the popover needs to know about the signed-in user's relationship to one trader. */
@@ -55,11 +61,9 @@ export function validFollowerId(value: unknown): string | null {
 export function createTradingService(opts: {
   baseUrl: string;
   getFollowerId: () => Promise<string | null>;
-  /** The trader's score as of a past moment, for the trend since the user started watching. */
-  scoreAt?: (handle: string, atIso: string) => Promise<number | null>;
   fetcher?: typeof fetch;
 }): TradingActions {
-  const { baseUrl, getFollowerId, scoreAt, fetcher = fetch } = opts;
+  const { baseUrl, getFollowerId, fetcher = fetch } = opts;
 
   async function call(path: string, init: RequestInit = {}): Promise<Response> {
     const followerId = await getFollowerId();
@@ -97,11 +101,20 @@ export function createTradingService(opts: {
       ]);
       const watch = watches.find((w) => handleOf(w.traderHandle) === handleOf(handle));
       const copy = copies.find((c) => handleOf(c.traderHandle) === handleOf(handle));
-      const scoreThen = watch && scoreAt ? await scoreAt(handle, watch.watchedAt).catch(() => null) : null;
       return {
         signedIn: true,
         watch: watch
-          ? { since: watch.watchedAt, picks: watch.nPicks, openPicks: watch.activePicks, paperPnlUsdc: watch.paperPnlUsdc, scoreThen }
+          ? {
+              since: watch.watchedAt,
+              picks: watch.nPicks,
+              openPicks: watch.activePicks,
+              stakedUsdc: watch.stakedUsdc,
+              projectedPnlUsdc: watch.projectedPnlUsdc,
+              pnlPct: watch.pnlPct,
+              scoreAtWatch: watch.scoreAtWatch,
+              scoreNow: watch.scoreNow,
+              scoreDelta: watch.scoreDelta,
+            }
           : null,
         copy: copy ? { active: copy.active, amountUsdc: copy.amountUsdc } : null,
         copyMode: mode,
@@ -134,7 +147,7 @@ export function createMockTrading(): TradingActions {
     state: async (h) => ({
       signedIn: true,
       watch: watching.has(h)
-        ? { since: watching.get(h)!, picks: 9, openPicks: 2, paperPnlUsdc: 0.42, scoreThen: 68 }
+        ? { since: watching.get(h)!, picks: 9, openPicks: 2, stakedUsdc: 9, projectedPnlUsdc: 0.54, pnlPct: 6, scoreAtWatch: 68, scoreNow: 72, scoreDelta: 4 }
         : null,
       copy: copies.get(h) ?? null,
       copyMode: "paper",

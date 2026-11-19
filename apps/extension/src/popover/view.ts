@@ -131,31 +131,32 @@ export interface WatchView {
   since: string;
   /** The trader's score when watching started and now, with the change between them. */
   score: { then: string; now: string; delta: { direction: "up" | "down"; text: string } | null };
-  /** Paper P&L on the $1 bets that have settled. */
+  /** Projected P&L on the $1 paper bets: settled results plus the live value of open picks. */
   pnl: { text: string; tone: "up" | "down" | "none" };
   picks: string;
 }
 
 /**
- * What a watch has shown since it started. The P&L percentage is the return on the settled $1 paper
- * bets (each watch bet is $1), so +$0.42 over 7 settled bets is +6.0%.
+ * What a watch has shown since it started, from the numbers the trading service computes. The score
+ * now falls back to the one on the popover if the service has none.
  */
-export function watchView(watch: WatchInfo, scoreNow: number | null): WatchView {
+export function watchView(watch: WatchInfo, scoreNowFallback: number | null): WatchView {
+  const now = watch.scoreNow ?? scoreNowFallback;
+  const diff = watch.scoreDelta ?? (watch.scoreAtWatch !== null && now !== null ? now - watch.scoreAtWatch : null);
+  const pnl = watch.projectedPnlUsdc;
   const settled = Math.max(0, watch.picks - watch.openPicks);
-  const diff = watch.scoreThen !== null && scoreNow !== null ? scoreNow - watch.scoreThen : null;
-  const pnl = watch.paperPnlUsdc;
   return {
     since: new Date(watch.since).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
     score: {
-      then: watch.scoreThen === null ? "—" : String(watch.scoreThen),
-      now: scoreNow === null ? "—" : String(scoreNow),
+      then: watch.scoreAtWatch === null ? "—" : String(watch.scoreAtWatch),
+      now: now === null ? "—" : String(now),
       delta: diff === null || diff === 0 ? null : { direction: diff > 0 ? "up" : "down", text: `${diff > 0 ? "+" : "−"}${Math.abs(diff)}` },
     },
     pnl:
       pnl === null
-        ? { text: "No settled picks yet", tone: "none" }
+        ? { text: watch.picks === 0 ? "No picks yet" : "Not priced yet", tone: "none" }
         : {
-            text: settled > 0 ? `${formatUsd(pnl)} · ${formatPct((pnl / settled) * 100)}` : formatUsd(pnl),
+            text: watch.pnlPct === null ? formatUsd(pnl) : `${formatUsd(pnl)} · ${formatPct(watch.pnlPct)}`,
             tone: pnl > 0 ? "up" : pnl < 0 ? "down" : "none",
           },
     picks: `${settled} settled · ${watch.openPicks} open`,

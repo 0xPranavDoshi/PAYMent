@@ -283,7 +283,7 @@ function TradeActions({ handle, trading, score }: { handle: string; trading?: Tr
               </dd>
             </div>
             <div>
-              <dt>Paper P&L</dt>
+              <dt title="Settled results plus the live value of picks still open, on $1 paper bets">Projected P&L</dt>
               <dd className={view.pnl.tone}>{view.pnl.text}</dd>
             </div>
             <div>

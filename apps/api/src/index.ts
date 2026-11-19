@@ -2,7 +2,6 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./app.js";
 import { connect } from "./db/client.js";
 import { createPostgresCallsStore } from "./calls.postgres.js";
-import { createPostgresHistoryStore } from "./history.postgres.js";
 import { createPostgresIngestStore } from "./ingest.postgres.js";
 import { createTradingNotifier } from "./notify.js";
 import { createPostgresStore } from "./store.postgres.js";
@@ -36,7 +35,6 @@ const worker = createWorker({
 const app = createApp({
   worker,
   calls: createPostgresCallsStore(sql),
-  history: createPostgresHistoryStore(sql),
   store: createPostgresStore(sql),
   ingest: createPostgresIngestStore(sql),
   serviceKey,

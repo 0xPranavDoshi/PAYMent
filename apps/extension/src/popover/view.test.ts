@@ -1,5 +1,6 @@
 import type { CallEntry, UserProfile } from "@copayme/shared";
 import { describe, expect, it } from "vitest";
+import type { WatchInfo } from "../trading.js";
 import { callRowView, formatCents, formatPct, formatTweetTime, formatUsd, formatAmount, parseAmount, profileView, timeAgo, watchView } from "./view.js";
 
 const call = (over: Partial<CallEntry> = {}): CallEntry => ({
@@ -168,35 +169,54 @@ describe("formatUsd and formatPct", () => {
 });
 
 describe("watchView", () => {
-  const watch = { since: "2026-11-17T12:00:00.000Z", picks: 9, openPicks: 2, paperPnlUsdc: 0.42, scoreThen: 68 };
+  const watch: WatchInfo = {
+    since: "2026-11-17T12:00:00.000Z",
+    picks: 9,
+    openPicks: 2,
+    stakedUsdc: 9,
+    projectedPnlUsdc: 0.54,
+    pnlPct: 6,
+    scoreAtWatch: 68,
+    scoreNow: 72,
+    scoreDelta: 4,
+  };
 
-  it("shows the score then and now, the P&L on settled $1 bets, and the pick counts", () => {
+  it("shows the score then and now, the projected P&L the service computed, and the pick counts", () => {
     expect(watchView(watch, 72)).toMatchObject({
       score: { then: "68", now: "72", delta: { direction: "up", text: "+4" } },
-      pnl: { text: "+$0.42 · +6.0%", tone: "up" }, // $0.42 over 7 settled $1 bets
+      pnl: { text: "+$0.54 · +6.0%", tone: "up" },
       picks: "7 settled · 2 open",
     });
   });
 
   it("shows a falling score and a losing P&L the other way", () => {
-    expect(watchView({ ...watch, paperPnlUsdc: -2.1, scoreThen: 80 }, 72)).toMatchObject({
+    expect(watchView({ ...watch, projectedPnlUsdc: -2.1, pnlPct: -23.33, scoreAtWatch: 80, scoreNow: 72, scoreDelta: -8 }, 72)).toMatchObject({
       score: { delta: { direction: "down", text: "−8" } },
-      pnl: { text: "−$2.10 · −30.0%", tone: "down" },
+      pnl: { text: "−$2.10 · −23.3%", tone: "down" },
     });
+  });
+
+  it("uses the popover's score when the service has none, and works the change out itself when it sends none", () => {
+    expect(watchView({ ...watch, scoreNow: null, scoreDelta: null }, 75).score).toEqual({ then: "68", now: "75", delta: { direction: "up", text: "+7" } });
   });
 
   it("has no change to show when the score is unchanged, or either end is unknown", () => {
-    expect(watchView(watch, 68).score.delta).toBeNull();
-    expect(watchView({ ...watch, scoreThen: null }, 72).score).toEqual({ then: "—", now: "72", delta: null });
-    expect(watchView(watch, null).score).toEqual({ then: "68", now: "—", delta: null });
+    expect(watchView({ ...watch, scoreDelta: 0 }, 72).score.delta).toBeNull();
+    expect(watchView({ ...watch, scoreAtWatch: null, scoreDelta: null }, 72).score).toEqual({ then: "—", now: "72", delta: null });
+    expect(watchView({ ...watch, scoreNow: null, scoreDelta: null }, null).score).toEqual({ then: "68", now: "—", delta: null });
   });
 
-  it("says so before any bet has settled, and does not divide by zero", () => {
-    expect(watchView({ ...watch, picks: 2, openPicks: 2, paperPnlUsdc: null }, 72)).toMatchObject({
-      pnl: { text: "No settled picks yet", tone: "none" },
-      picks: "0 settled · 2 open",
+  it("says what is missing before there is anything to measure", () => {
+    expect(watchView({ ...watch, picks: 0, openPicks: 0, stakedUsdc: 0, projectedPnlUsdc: null, pnlPct: null }, 72).pnl).toEqual({ text: "No picks yet", tone: "none" });
+    expect(watchView({ ...watch, picks: 3, openPicks: 3, projectedPnlUsdc: null, pnlPct: null }, 72)).toMatchObject({
+      pnl: { text: "Not priced yet", tone: "none" },
+      picks: "0 settled · 3 open",
     });
-    expect(watchView({ ...watch, picks: 2, openPicks: 2, paperPnlUsdc: 0 }, 72).pnl).toEqual({ text: "$0.00", tone: "none" });
+  });
+
+  it("shows dollars alone when there is no percentage, and a flat result as zero", () => {
+    expect(watchView({ ...watch, pnlPct: null }, 72).pnl).toEqual({ text: "+$0.54", tone: "up" });
+    expect(watchView({ ...watch, projectedPnlUsdc: 0, pnlPct: 0 }, 72).pnl).toEqual({ text: "$0.00 · 0.0%", tone: "none" });
   });
 });
 

@@ -368,7 +368,7 @@ describe("the popover", () => {
     const card = () => popoverHosts()[0]!.shadowRoot!;
     const toast = () => card().querySelector(".toast")?.textContent ?? null;
     const byText = (text: string) => [...card().querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === text);
-    const SAMPLE_WATCH: WatchInfo = { since: "2026-11-17T12:00:00.000Z", picks: 9, openPicks: 2, paperPnlUsdc: 0.42, scoreThen: 68 };
+    const SAMPLE_WATCH: WatchInfo = { since: "2026-11-17T12:00:00.000Z", picks: 9, openPicks: 2, stakedUsdc: 9, projectedPnlUsdc: 0.54, pnlPct: 6, scoreAtWatch: 68, scoreNow: 72, scoreDelta: 4 };
 
     function fakeTrading(initial: Partial<TradingState> = {}, over: Partial<TradingActions> = {}) {
       let state: TradingState = { signedIn: true, watch: null, copy: null, copyMode: "paper", ...initial };
@@ -425,18 +425,18 @@ describe("the popover", () => {
 
         const status = card().querySelector('[aria-label="Watching"]')!.textContent!;
         expect(status).toContain("since Nov 17");
-        await vi.waitFor(() => expect(card().querySelector('[aria-label="Watching"] .srows')!.textContent).toContain("68 → 72")); // then → now (72 is alice's score)
+        await vi.waitFor(() => expect(card().querySelector('[aria-label="Watching"] .srows')!.textContent).toContain("68 → 72")); // then → now (72 is the trader's score now)
         expect(card().querySelector('[aria-label="Watching"] dd em.up')!.textContent).toBe("+4");
-        expect(status).toContain("+$0.42 · +6.0%"); // $0.42 over the 7 settled $1 bets
+        expect(status).toContain("+$0.54 · +6.0%"); // as the trading service computed it
         expect(status).toContain("7 settled · 2 open");
       });
 
       it("shows what it can when there is not much to show yet", async () => {
-        await openCard(fakeTrading({ watch: { since: "2026-11-18T00:00:00.000Z", picks: 0, openPicks: 0, paperPnlUsdc: null, scoreThen: null } }));
+        await openCard(fakeTrading({ watch: { since: "2026-11-18T00:00:00.000Z", picks: 0, openPicks: 0, stakedUsdc: 0, projectedPnlUsdc: null, pnlPct: null, scoreAtWatch: null, scoreNow: null, scoreDelta: null } }));
         await vi.waitFor(() => expect(card().querySelector('[aria-label="Watching"]')).not.toBeNull());
         const status = card().querySelector('[aria-label="Watching"]')!.textContent!;
         expect(status).toContain("— → 72"); // they had no score when watching started
-        expect(status).toContain("No settled picks yet");
+        expect(status).toContain("No picks yet");
         expect(status).toContain("0 settled · 0 open");
       });
 

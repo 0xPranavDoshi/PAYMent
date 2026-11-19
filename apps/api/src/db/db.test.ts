@@ -12,7 +12,6 @@ import { join } from "node:path";
 import { MIGRATIONS_DIR, isLocalDatabase, migrate, migrationStatus, resetLocalDatabase } from "./migrate.js";
 import { DEMO_USERS, seedDemoData } from "./seed.js";
 import { createPostgresCallsStore } from "../calls.postgres.js";
-import { createPostgresHistoryStore } from "../history.postgres.js";
 import { createPostgresStore } from "../store.postgres.js";
 
 // Runs only against a local database: TEST_DATABASE_URL=postgres://postgres@localhost:5432/copayme_test
@@ -86,16 +85,6 @@ describe.skipIf(!url)("against a real Postgres", () => {
     const order = (await (await app.request("/v1/leaderboard")).json()).map((e: { handle: string }) => e.handle);
     expect(order.slice(1, 4)).toEqual(["zeta_tie", "alpha_tie", "demo_steady"]);
     await sql`delete from users where x_user_id in ('demo-t1','demo-t2')`;
-  });
-
-  it("gives a user's score as of a past moment, from the latest snapshot at or before it", async () => {
-    const app = createApp({ store: createPostgresStore(sql), history: createPostgresHistoryStore(sql) });
-    const at = async (handle: string, when: string) => (await app.request(`/v1/users/${handle}/score-at?at=${when}`)).json();
-    // demo_sharp has a snapshot 20 days before the seed time (score 66) and one at the seed time (score 82)
-    expect(await at("demo_sharp", "2026-11-10T00:00:00Z")).toMatchObject({ score: 66 });
-    expect(await at("DEMO_Sharp", "2026-11-20T00:00:00Z")).toMatchObject({ score: 82 });
-    expect(await at("demo_sharp", "2026-10-01T00:00:00Z")).toEqual({ score: null, computedAt: null }); // before any snapshot
-    expect((await app.request("/v1/users/nobody/score-at?at=2026-11-10T00:00:00Z")).status).toBe(404);
   });
 
   it("can be re-seeded without duplicating users", async () => {
