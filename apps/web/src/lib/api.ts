@@ -1,9 +1,11 @@
-import type { UserProfile, TailResponse } from "@copayme/shared";
+import type { UserProfile, TailResponse, WatchItem, CopyTradeConfig } from "@copayme/shared";
+
+export type { WatchItem, CopyTradeConfig };
 
 const API = process.env.API_URL ?? "http://localhost:8787";
 const TRADING = process.env.TRADING_URL ?? "http://localhost:8788";
 
-// ── Local types (not yet in @copayme/shared) ─────────────────────────────────
+// ── Local types ───────────────────────────────────────────────────────────────
 
 /** One row of GET {API}/v1/leaderboard. */
 export interface LeaderboardEntry {
@@ -13,23 +15,6 @@ export interface LeaderboardEntry {
   nResolved: number;
   hitRate: number | null;
   tier: "new" | "scored";
-}
-
-/** One watched trader on the trading service. */
-export interface WatchItem {
-  traderHandle: string;
-  nPicks: number;
-  activePicks: number;
-  paperPnlUsdc: number | null;
-}
-
-/** A follower's copy-trade configuration. */
-export interface CopyTradeConfig {
-  id: string;
-  traderHandle: string;
-  mode: "paper" | "live";
-  amountUsdc: number;
-  active: boolean;
 }
 
 // ── Fetch helpers ────────────────────────────────────────────────────────────
