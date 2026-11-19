@@ -365,8 +365,61 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
     if (!followerId || !/^[0-9a-f-]{36}$/.test(followerId)) {
       return c.json({ error: "x-follower-id header with a valid UUID is required" }, 400);
     }
-    const watches = await store.listWatches(followerId);
-    return c.json(watches.map((w) => WatchItem.parse(w)));
+
+    const bases = await store.listWatches(followerId);
+    const marks = await store.listOpenWatchMarks(followerId);
+
+    // Mark each distinct market once (live), then sum unrealized PnL per trader.
+    const tickers = [...new Set(marks.map((m) => m.ticker))];
+    const events = new Map<string, Awaited<ReturnType<GeminiClient["getEvent"]>> | null>();
+    await Promise.all(
+      tickers.map(async (ticker) => {
+        try {
+          events.set(ticker, await gemini.getEvent(ticker));
+        } catch {
+          events.set(ticker, null);
+        }
+      }),
+    );
+
+    const unrealizedByTrader = new Map<string, number>();
+    for (const m of marks) {
+      const event = events.get(m.ticker) ?? null;
+      const live = event
+        ? sidePriceFromEvent(event, { instrumentSymbol: m.instrumentSymbol, label: m.pickedOutcome }, m.side)
+        : null;
+      const markPrice = live ?? m.storedMarkPrice;
+      if (markPrice === null) continue;
+      const pnl = paperPnlUsdc({ amountUsdc: m.amountUsdc, entryOdds: m.entryOdds, exitPrice: markPrice });
+      const key = m.traderHandle.toLowerCase();
+      unrealizedByTrader.set(key, (unrealizedByTrader.get(key) ?? 0) + pnl);
+    }
+
+    const items = bases.map((b) => {
+      const key = b.traderHandle.toLowerCase();
+      const hasOpen = unrealizedByTrader.has(key);
+      const unrealized = unrealizedByTrader.get(key) ?? 0;
+      const projectedPnlUsdc =
+        b.realizedPnlUsdc !== null || hasOpen ? round2((b.realizedPnlUsdc ?? 0) + unrealized) : null;
+      const pnlPct =
+        projectedPnlUsdc !== null && b.stakedUsdc > 0 ? round2((projectedPnlUsdc / b.stakedUsdc) * 100) : null;
+      const scoreDelta =
+        b.scoreNow !== null && b.scoreAtWatch !== null ? b.scoreNow - b.scoreAtWatch : null;
+      return WatchItem.parse({
+        traderHandle: b.traderHandle,
+        watchedAt: b.watchedAt.toISOString(),
+        nPicks: b.nPicks,
+        activePicks: b.activePicks,
+        stakedUsdc: b.stakedUsdc,
+        paperPnlUsdc: b.realizedPnlUsdc,
+        projectedPnlUsdc,
+        pnlPct,
+        scoreNow: b.scoreNow,
+        scoreAtWatch: b.scoreAtWatch,
+        scoreDelta,
+      });
+    });
+    return c.json(items);
   });
 
   // ── Copy trades ─────────────────────────────────────────────────────────────
@@ -614,6 +667,8 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
 
   return app;
 }
+
+const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 function toTailResponse(
   tail: {

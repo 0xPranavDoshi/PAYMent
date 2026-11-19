@@ -69,8 +69,19 @@ export const WatchItem = z.object({
   traderHandle: z.string(),
   watchedAt: z.string().datetime(),
   nPicks: z.number().int().nonnegative(),
-  paperPnlUsdc: z.number().nullable(),
   activePicks: z.number().int().nonnegative(),
+  /** Total USDC staked across this trader's watched picks ($1 each). */
+  stakedUsdc: z.number().nonnegative(),
+  /** Realized PnL from settled picks (kept for existing clients). */
+  paperPnlUsdc: z.number().nullable(),
+  /** Realized + live mark-to-market of still-open picks: "what could have been" so far. */
+  projectedPnlUsdc: z.number().nullable(),
+  /** projectedPnlUsdc / stakedUsdc * 100. */
+  pnlPct: z.number().nullable(),
+  /** The trader's score now and when you started watching, and the change since. */
+  scoreNow: z.number().int().nullable(),
+  scoreAtWatch: z.number().int().nullable(),
+  scoreDelta: z.number().int().nullable(),
 });
 export type WatchItem = z.infer<typeof WatchItem>;
 

@@ -1,4 +1,4 @@
-import type { OutcomeInfo, MarketStatus, WatchItem, CopyTradeConfig } from "@copayme/shared";
+import type { OutcomeInfo, MarketStatus, CopyTradeConfig } from "@copayme/shared";
 
 export interface CallRow {
   id: string;
@@ -38,6 +38,30 @@ export interface TailRow {
   settledAt: Date | null;
   source: "manual" | "watch" | "copy";
   createdAt: Date;
+}
+
+/** Per-watched-trader aggregate that the database can compute directly (no live prices). */
+export interface WatchBase {
+  traderHandle: string;
+  watchedAt: Date;
+  nPicks: number;
+  activePicks: number;
+  stakedUsdc: number;
+  realizedPnlUsdc: number | null;
+  scoreNow: number | null;
+  scoreAtWatch: number | null;
+}
+
+/** One still-open watch tail with the context needed to mark it to market. */
+export interface WatchOpenMark {
+  traderHandle: string;
+  amountUsdc: number;
+  entryOdds: number;
+  side: "yes" | "no" | null;
+  instrumentSymbol: string | null;
+  pickedOutcome: string | null;
+  ticker: string;
+  storedMarkPrice: number | null;
 }
 
 export interface TradingStore {
@@ -98,7 +122,9 @@ export interface TradingStore {
 
   addWatch(followerId: string, traderHandle: string): Promise<void>;
   removeWatch(followerId: string, traderHandle: string): Promise<void>;
-  listWatches(followerId: string): Promise<WatchItem[]>;
+  listWatches(followerId: string): Promise<WatchBase[]>;
+  /** Open watch tails for a follower, with per-tail marking context. */
+  listOpenWatchMarks(followerId: string): Promise<WatchOpenMark[]>;
 
   upsertCopyTrade(followerId: string, traderHandle: string, amountUsdc: number): Promise<CopyTradeConfig>;
   updateCopyTrade(followerId: string, traderHandle: string, patch: { amountUsdc?: number; active?: boolean }): Promise<CopyTradeConfig | null>;
