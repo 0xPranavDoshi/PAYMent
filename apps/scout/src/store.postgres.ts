@@ -2,6 +2,9 @@ import type { PickMatch, ScoutStatus, Sentiment } from "@copayme/shared";
 import type postgres from "postgres";
 import { PIPELINE_VERSION, STALE_LOCK_MS, isPending, type ScoutPostRow, type ScoutStore } from "./store.js";
 
+/** Posts per multi-row upsert statement (well under Postgres' 65535 bind-parameter limit). */
+const UPSERT_CHUNK = 200;
+
 interface HandleDb {
   x_handle: string;
   x_user_id: string | null;
@@ -100,15 +103,26 @@ export function createPostgresStore(sql: postgres.Sql): ScoutStore {
       return new Set(rows.map((r) => r.tweet_id));
     },
     async upsertPosts(rows) {
-      for (const p of rows) {
+      // One multi-row statement per chunk instead of one round trip per post (71 posts took ~6 s
+      // against the Supabase pooler). Duplicate ids within a call would make one statement update
+      // the same row twice, which Postgres rejects, so the last row per id wins.
+      const unique = [...new Map(rows.map((p) => [p.tweetId, p])).values()];
+      for (let i = 0; i < unique.length; i += UPSERT_CHUNK) {
+        const values = unique.slice(i, i + UPSERT_CHUNK).map((p) => ({
+          tweet_id: p.tweetId,
+          x_handle: p.handle,
+          x_user_id: p.xUserId,
+          tweeted_at: p.tweetedAt,
+          tweet_text: p.text,
+          is_reply: p.isReply,
+          quoted_text: p.quotedText,
+          sentiment: p.sentiment === null ? null : sql.json(p.sentiment),
+          matches: p.matches === null ? null : sql.json(p.matches),
+          pipeline_version: p.pipelineVersion,
+          forwarded_at: p.forwardedAt,
+        }));
         await sql`
-          insert into scout_posts
-            (tweet_id, x_handle, x_user_id, tweeted_at, tweet_text, is_reply, quoted_text,
-             sentiment, matches, pipeline_version, forwarded_at)
-          values
-            (${p.tweetId}, ${p.handle}, ${p.xUserId}, ${p.tweetedAt}, ${p.text}, ${p.isReply},
-             ${p.quotedText}, ${p.sentiment === null ? null : sql.json(p.sentiment)},
-             ${p.matches === null ? null : sql.json(p.matches)}, ${p.pipelineVersion}, ${p.forwardedAt})
+          insert into scout_posts ${sql(values as never)}
           on conflict (tweet_id) do update set
             x_handle = excluded.x_handle, x_user_id = excluded.x_user_id,
             tweeted_at = excluded.tweeted_at, tweet_text = excluded.tweet_text,

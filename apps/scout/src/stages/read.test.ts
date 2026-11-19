@@ -38,7 +38,7 @@ describe("readPosts", () => {
   });
 
   it("keeps at most READ_CONCURRENCY batches in flight", async () => {
-    expect(READ_CONCURRENCY).toBe(8);
+    expect(READ_CONCURRENCY).toBe(12);
     let inFlight = 0;
     let peak = 0;
     const grok = {
@@ -50,9 +50,9 @@ describe("readPosts", () => {
         return { results: [...user.matchAll(/id\d+/g)].map((m) => verdict(m[0])) };
       }),
     } as unknown as Grok;
-    const out = await readPosts(posts(60), grok, "m");
-    expect(peak).toBe(8);
-    expect(grok.json).toHaveBeenCalledTimes(12);
+    const out = await readPosts(posts(90), grok, "m");
+    expect(peak).toBe(12);
+    expect(grok.json).toHaveBeenCalledTimes(18);
     expect([...out.values()].every((s) => s !== null)).toBe(true);
   });
 
@@ -66,19 +66,21 @@ describe("readPosts", () => {
     }
   });
 
-  it("maps a failed batch to null while other batches succeed", async () => {
+  it("maps a failed batch to null while other batches succeed, and logs the failure", async () => {
     const ok = echoGrok();
     const grok = {
       json: vi.fn(async (a: { user: string }) => {
-        if (/"id5"/.test(a.user)) throw new GrokOutputError("bad");
+        if (/"id5"/.test(a.user)) throw new GrokOutputError("Grok returned HTTP 429");
         return ok.json(a as never);
       }),
     } as unknown as Grok;
-    const out = await readPosts(posts(12), grok, "m");
+    const logs: string[] = [];
+    const out = await readPosts(posts(12), grok, "m", (m) => logs.push(m));
     expect(out.get("id0")).not.toBeNull();
     expect(out.get("id5")).toBeNull();
     expect(out.get("id9")).toBeNull();
     expect(out.get("id10")).not.toBeNull();
+    expect(logs).toEqual(["[scout] Grok batch of 5 posts failed, will retry next scan: Grok returned HTTP 429"]);
   });
 
   it("anchors 'not happened yet' to each post's createdAt in the system prompt sent to Grok", async () => {

@@ -102,7 +102,7 @@ export async function runScan(handle: string, deps: ScanDeps): Promise<void> {
 
     const toRead = [...rows.values()].filter((r) => r.sentiment === null);
     if (toRead.length > 0) {
-      const read = await readPosts(toRead.map(toRaw), grok, model);
+      const read = await readPosts(toRead.map(toRaw), grok, model, log);
       for (const r of toRead) r.sentiment = read.get(r.tweetId) ?? null;
     }
     const tRead = performance.now();

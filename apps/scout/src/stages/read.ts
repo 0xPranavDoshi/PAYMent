@@ -6,7 +6,7 @@ import type { RawPost } from "../posts/source.js";
 /** Small batches: posts like ActionNetwork write-ups are long, and accuracy drops as batches grow. */
 export const READ_BATCH_SIZE = 5;
 /** Batches read at the same time (keeps a 100-post scan well inside the 90 s poll window). */
-export const READ_CONCURRENCY = 8;
+export const READ_CONCURRENCY = 12;
 
 const BatchOutput = z.object({
   results: z.array(
@@ -54,6 +54,7 @@ export async function readPosts(
   posts: RawPost[],
   grok: Grok,
   model: string,
+  log: (msg: string) => void = () => {},
 ): Promise<Map<string, Sentiment | null>> {
   const out = new Map<string, Sentiment | null>();
   const batches: RawPost[][] = [];
@@ -74,6 +75,8 @@ export async function readPosts(
       }
     } catch (e) {
       if (!(e instanceof GrokOutputError)) throw e;
+      // Includes the HTTP status (e.g. 429 when xAI rate-limits us); these posts are re-read next scan.
+      log(`[scout] Grok batch of ${batch.length} posts failed, will retry next scan: ${e.message}`);
     }
   }
 

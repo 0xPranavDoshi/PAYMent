@@ -97,6 +97,17 @@ export function describeStore(make: () => ScoutStore): void {
       expect(rows[0]).toMatchObject({ text: "b", sentiment: sentiment(false, 0.9) });
     });
 
+    it("upsertPosts saves a large batch in one call, last row winning for a repeated id", async () => {
+      const many = Array.from({ length: 450 }, (_, i) =>
+        post({ tweetId: String(i), tweetedAt: new Date(T0.getTime() - i * MIN), text: `t${i}` }),
+      );
+      await store.upsertPosts([...many, post({ tweetId: "7", text: "replaced" })]);
+      const rows = await store.listPosts("alice");
+      expect(rows).toHaveLength(450);
+      expect(rows.find((r) => r.tweetId === "7")?.text).toBe("replaced");
+      expect(rows.find((r) => r.tweetId === "449")?.text).toBe("t449");
+    });
+
     it("lists newest first and round-trips fields", async () => {
       const older = post({ tweetId: "1", tweetedAt: new Date("2026-11-10T00:00:00Z") });
       const newer = post({
