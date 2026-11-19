@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { TailRequest, TailResponse, MarketSummary } from "@copayme/shared";
+import { TailRequest, TailResponse, MarketSummary, WatchItem, CopyTradeConfig } from "@copayme/shared";
 import { z } from "zod";
 import type { TradingStore } from "./store.js";
 import type { GeminiClient } from "./gemini.js";
@@ -137,6 +137,7 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
         geminiOrderId: null,
         status: "open",
         pnlUsdc: null,
+        source: "manual",
       });
       return c.json(toTailResponse(tail), 201);
     }
@@ -183,6 +184,7 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
       geminiOrderId,
       status: tailStatus,
       pnlUsdc: null,
+      source: "manual",
     });
     return c.json(toTailResponse(tail), 201);
   });
@@ -224,6 +226,216 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
     if (!idParsed.success) return c.json({ error: "invalid userId" }, 400);
     const tails = await store.listUserTails(idParsed.data);
     return c.json(tails.map(toTailResponse));
+  });
+
+  // ── Watches ─────────────────────────────────────────────────────────────────
+
+  app.post("/v1/watches", async (c) => {
+    const followerId = c.req.header("x-follower-id");
+    if (!followerId || !/^[0-9a-f-]{36}$/.test(followerId)) {
+      return c.json({ error: "x-follower-id header with a valid UUID is required" }, 400);
+    }
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "invalid JSON body" }, 400);
+    }
+    const parsed = z.object({ traderHandle: z.string().min(1) }).safeParse(body);
+    if (!parsed.success) {
+      return c.json({ error: "validation failed", issues: parsed.error.issues }, 400);
+    }
+    await store.addWatch(followerId, parsed.data.traderHandle);
+    return c.json({}, 201);
+  });
+
+  app.delete("/v1/watches/:traderHandle", async (c) => {
+    const followerId = c.req.header("x-follower-id");
+    if (!followerId || !/^[0-9a-f-]{36}$/.test(followerId)) {
+      return c.json({ error: "x-follower-id header with a valid UUID is required" }, 400);
+    }
+    await store.removeWatch(followerId, c.req.param("traderHandle"));
+    return c.body(null, 204);
+  });
+
+  app.get("/v1/watches", async (c) => {
+    const followerId = c.req.header("x-follower-id");
+    if (!followerId || !/^[0-9a-f-]{36}$/.test(followerId)) {
+      return c.json({ error: "x-follower-id header with a valid UUID is required" }, 400);
+    }
+    const watches = await store.listWatches(followerId);
+    return c.json(watches.map((w) => WatchItem.parse(w)));
+  });
+
+  // ── Copy trades ─────────────────────────────────────────────────────────────
+
+  app.post("/v1/copy-trades", async (c) => {
+    const followerId = c.req.header("x-follower-id");
+    if (!followerId || !/^[0-9a-f-]{36}$/.test(followerId)) {
+      return c.json({ error: "x-follower-id header with a valid UUID is required" }, 400);
+    }
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "invalid JSON body" }, 400);
+    }
+    const parsed = z
+      .object({ traderHandle: z.string().min(1), amountUsdc: z.number().positive() })
+      .safeParse(body);
+    if (!parsed.success) {
+      return c.json({ error: "validation failed", issues: parsed.error.issues }, 400);
+    }
+    const config = await store.upsertCopyTrade(
+      followerId,
+      parsed.data.traderHandle,
+      parsed.data.amountUsdc,
+    );
+    return c.json(CopyTradeConfig.parse(config), 201);
+  });
+
+  app.patch("/v1/copy-trades/:traderHandle", async (c) => {
+    const followerId = c.req.header("x-follower-id");
+    if (!followerId || !/^[0-9a-f-]{36}$/.test(followerId)) {
+      return c.json({ error: "x-follower-id header with a valid UUID is required" }, 400);
+    }
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "invalid JSON body" }, 400);
+    }
+    const parsed = z
+      .object({ amountUsdc: z.number().positive().optional(), active: z.boolean().optional() })
+      .refine((p) => p.amountUsdc !== undefined || p.active !== undefined, {
+        message: "at least one of amountUsdc or active is required",
+      })
+      .safeParse(body);
+    if (!parsed.success) {
+      return c.json({ error: "validation failed", issues: parsed.error.issues }, 400);
+    }
+    const config = await store.updateCopyTrade(
+      followerId,
+      c.req.param("traderHandle"),
+      parsed.data,
+    );
+    if (!config) return c.json({ error: "copy trade not found" }, 404);
+    return c.json(CopyTradeConfig.parse(config));
+  });
+
+  app.get("/v1/copy-trades", async (c) => {
+    const followerId = c.req.header("x-follower-id");
+    if (!followerId || !/^[0-9a-f-]{36}$/.test(followerId)) {
+      return c.json({ error: "x-follower-id header with a valid UUID is required" }, 400);
+    }
+    const configs = await store.listCopyTrades(followerId);
+    return c.json(configs.map((cfg) => CopyTradeConfig.parse(cfg)));
+  });
+
+  // ── Notify (service-only) ────────────────────────────────────────────────────
+
+  /**
+   * Called by the ingest worker when a new call is recorded. Auto-places $1
+   * paper tails for watchers and configurable live orders for copy-traders.
+   */
+  app.post("/v1/calls/notify", requireServiceKey(serviceKey), async (c) => {
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "invalid JSON body" }, 400);
+    }
+    const parsed = z.object({ callId: z.string().uuid() }).safeParse(body);
+    if (!parsed.success) {
+      return c.json({ error: "validation failed", issues: parsed.error.issues }, 400);
+    }
+
+    const call = await store.getCall(parsed.data.callId);
+    if (!call) return c.json({ error: "call not found" }, 404);
+
+    const market = await store.getMarketById(call.marketId);
+    if (!market) return c.json({ error: "market not found" }, 404);
+    if (market.status !== "open") {
+      return c.json({ error: `market is ${market.status}, trading is closed` }, 409);
+    }
+    if (new Date() >= market.lockTime) {
+      return c.json({ error: "pick window has closed" }, 409);
+    }
+
+    const outcome = market.outcomes.find(
+      (o) => o.label === call.pickedOutcome || o.instrumentSymbol === call.pickedOutcome,
+    );
+    if (!outcome) {
+      return c.json({ error: "picked outcome not found in market" }, 422);
+    }
+
+    const entryOdds =
+      call.side === "no" && outcome.noOdds !== null ? outcome.noOdds : outcome.currentOdds;
+
+    const errors: string[] = [];
+
+    // Watchers: $1 paper tails (paper only needs odds, so side may be null)
+    const watchers = await store.getActiveWatchers(call.userXHandle);
+    const watchResults = await Promise.allSettled(
+      watchers.map((followerId) =>
+        store.createTail({
+          followerId,
+          callId: call.id,
+          mode: "paper",
+          amountUsdc: 1,
+          entryOdds,
+          geminiOrderId: null,
+          status: "open",
+          pnlUsdc: null,
+          source: "watch",
+        }),
+      ),
+    );
+    let watchTails = 0;
+    for (const r of watchResults) {
+      if (r.status === "fulfilled") watchTails += 1;
+      else errors.push(`watch: ${String(r.reason)}`);
+    }
+
+    // Copy traders: live orders (needs a side)
+    let copyTails = 0;
+    const copyTraders = await store.getActiveCopyTraders(call.userXHandle);
+    if (call.side) {
+      const side = call.side;
+      const copyResults = await Promise.allSettled(
+        copyTraders.map(async ({ followerId, amountUsdc }) => {
+          const quantity = Math.floor(amountUsdc / entryOdds);
+          if (quantity < 1) {
+            throw new Error("amount too small to buy one contract at current odds");
+          }
+          const order = await gemini.placeOrder({
+            symbol: outcome.instrumentSymbol,
+            side: "buy",
+            outcome: side,
+            quantity: String(quantity),
+            price: entryOdds.toFixed(4),
+          });
+          const status = parseFloat(order.filledQuantity) > 0 ? "filled" : "open";
+          await store.createTail({
+            followerId,
+            callId: call.id,
+            mode: "live",
+            amountUsdc,
+            entryOdds,
+            geminiOrderId: String(order.orderId),
+            status,
+            pnlUsdc: null,
+            source: "copy",
+          });
+        }),
+      );
+      for (const r of copyResults) {
+        if (r.status === "fulfilled") copyTails += 1;
+        else errors.push(`copy: ${String(r.reason)}`);
+      }
+    }
+
+    return c.json({ watchTails, copyTails, errors });
   });
 
   return app;
