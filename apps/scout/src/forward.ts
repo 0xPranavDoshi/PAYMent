@@ -12,6 +12,11 @@ export interface Forwarder {
 /** Forwarding disabled: nothing is accepted, so nothing is marked forwarded. */
 export const noopForwarder: Forwarder = { forward: async () => [] };
 
+/** Asking the scoring API to run its worker after forwarding: tries while it answers 409 (busy), and the wait between. */
+const WORKER_RUN_ATTEMPTS = 4;
+const WORKER_BUSY_WAIT_MS = 2_000;
+const WORKER_RUN_TIMEOUT_MS = 30_000;
+
 const clamp01 = (n: number): number => (Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0);
 const priceOrNull = (v: unknown): number | null => {
   const n = Number(v);
@@ -129,10 +134,12 @@ export function createForwarder(opts: {
   /** Prices picks Gemini has no trade history for, from the Kalshi market Gemini mirrors. */
   kalshi?: KalshiClient;
   fetch?: typeof fetch;
+  sleep?: (ms: number) => Promise<void>;
   log?: (msg: string) => void;
 }): Forwarder {
   const doFetch = opts.fetch ?? fetch;
   const log = opts.log ?? (() => {});
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
 
   /** Upserts each market once per call; false when the upsert failed (its picks are held back). */
   const upserted = new Map<string, boolean>();
@@ -208,7 +215,42 @@ export function createForwarder(opts: {
       for (let i = 0; i < entries.length; i += MAX_POSTS_PER_REQUEST) {
         accepted.push(...(await send(entries.slice(i, i + MAX_POSTS_PER_REQUEST))));
       }
+      // Score the new picks now rather than on the worker's next timer, so the badge the extension
+      // fetches when the scan ends already has the score (it would otherwise cache "no data" for 30 min).
+      if (accepted.length > 0) await runScoring();
       return accepted;
     },
   };
+
+  /**
+   * Asks the scoring API to run its worker now (POST /v1/worker/run). A 409 means a run is already in
+   * progress that may have started before our picks arrived, so wait and ask again. Never throws:
+   * if this fails, the picks are still scored on the worker's normal schedule.
+   */
+  async function runScoring(): Promise<void> {
+    for (let attempt = 0; attempt < WORKER_RUN_ATTEMPTS; attempt++) {
+      try {
+        const res = await doFetch(`${opts.url}/v1/worker/run`, {
+          method: "POST",
+          headers: { "x-service-key": opts.serviceKey },
+          signal: AbortSignal.timeout(WORKER_RUN_TIMEOUT_MS),
+        });
+        if (res.status === 409) {
+          await sleep(WORKER_BUSY_WAIT_MS);
+          continue;
+        }
+        if (!res.ok) {
+          log(`[scout] scoring run returned HTTP ${res.status}; picks will be scored on the worker's schedule`);
+          return;
+        }
+        const summary = (await res.json().catch(() => null)) as { settled?: number; usersUpdated?: number } | null;
+        log(`[scout] scoring run: settled ${summary?.settled ?? "?"}, users updated ${summary?.usersUpdated ?? "?"}`);
+        return;
+      } catch (err) {
+        log(`[scout] scoring run failed (${(err as Error).name}); picks will be scored on the worker's schedule`);
+        return;
+      }
+    }
+    log("[scout] scoring worker stayed busy; picks will be scored on its next run");
+  }
 }

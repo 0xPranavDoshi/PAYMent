@@ -128,6 +128,13 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
   - Losses priced via Kalshi: Nets −2.5, Ohio −10.5, Spurs −9.5.
   - 3 still pending on future games.
 
+### Scoring right after forwarding (Nov 18)
+- **Problem:** ingest stores new picks as pending, and only the scoring worker turns them into a score, on its own timer (every 5 min by default). The extension fetches the badge the moment a scan ends, so for a brand-new profile it got "no data" and cached that for **30 minutes** (`NEGATIVE_TTL_MS`). The score existed a few minutes later, but the badge stayed empty.
+- **Fix:** after a forward that ingest accepted, the forwarder calls `POST /v1/worker/run` (same `x-service-key`) and waits for it, before the scan finishes. So the badge fetch at the end of the scan sees the score.
+  - A 409 (run already in progress) is retried up to 4 times, 2 s apart.
+  - Any failure is logged and ignored, so scoring falls back to the worker's schedule.
+  - Nothing changes in the API or the extension.
+
 ## Open questions for the team (block turning forwarding on)
 - ~~**Gemini environment**~~ **resolved on main:** market data reads production (`GEMINI_READ_BASE_URL`), and orders go to the sandbox.
 - **Lock time: decided (Pranav, Nov 18). `markets.lock_time` = the market's `expiryDate`**, written the same way by the scout's upsert and by the trading sync (`apps/trading/src/sync.ts` `lockTimeFor`, changed in this branch).
