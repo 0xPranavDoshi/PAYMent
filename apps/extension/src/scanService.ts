@@ -2,9 +2,13 @@ import { ScoutResponse, type Badge } from "@copayme/shared";
 
 /** The scout serves a scan from cache for 10 minutes, so asking again sooner is pointless. */
 export const RESCAN_AFTER_MS = 10 * 60_000;
-/** How often to check a running scan, and for how long, before giving up for now. */
+/**
+ * How often to check a running scan, and for how long, before giving up for now. A first scan of a busy
+ * account reads about 100 posts with the model and prices each pick, which took 116 s for @pickswise, so
+ * the window has to be several minutes.
+ */
 export const POLL_EVERY_MS = 3_000;
-export const POLL_FOR_MS = 90_000;
+export const POLL_FOR_MS = 5 * 60_000;
 
 export type ScanOutcome =
   /** The scan finished; `badge` is the handle's fresh badge (null: still no score). */
@@ -68,7 +72,14 @@ export function createScanService(opts: {
       const last = lastAsked.get(handle);
       if (last !== undefined && now() - last < RESCAN_AFTER_MS) return Promise.resolve({ status: "skipped" });
       lastAsked.set(handle, now());
-      const job = run(handle, newestTweetId).finally(() => inFlight.delete(handle));
+      const job = run(handle, newestTweetId)
+        .then((outcome) => {
+          // A scan that timed out or failed may still finish (or can be retried), so reopening the
+          // profile must be allowed to ask again instead of being skipped for 10 minutes.
+          if (outcome.status === "timeout" || outcome.status === "failed") lastAsked.delete(handle);
+          return outcome;
+        })
+        .finally(() => inFlight.delete(handle));
       inFlight.set(handle, job);
       return job;
     },

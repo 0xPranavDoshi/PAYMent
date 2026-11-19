@@ -64,6 +64,21 @@ describe("createScanService", () => {
     expect(refreshBadge).not.toHaveBeenCalled();
   });
 
+  it("allows asking again right after a timeout or a failure, instead of skipping for 10 minutes", async () => {
+    const { service } = setup(scout(["running"]));
+    expect((await service.scan("alice")).status).toBe("timeout");
+    // the scan may well have finished in the meantime: the next open must check, not be skipped
+    expect((await service.scan("alice")).status).toBe("timeout");
+
+    const failing = setup(scout(["idle"], 500));
+    expect((await failing.service.scan("alice")).status).toBe("failed");
+    expect((await failing.service.scan("alice")).status).toBe("failed");
+  });
+
+  it("waits several minutes for a slow first scan", () => {
+    expect(POLL_FOR_MS).toBeGreaterThanOrEqual(4 * 60_000);
+  });
+
   it("reports a failed scan and HTTP errors as failed", async () => {
     expect((await setup(scout(["running", "failed"])).service.scan("alice")).status).toBe("failed");
     expect((await setup(scout(["idle"], 429)).service.scan("alice")).status).toBe("failed");
