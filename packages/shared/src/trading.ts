@@ -26,20 +26,6 @@ export const TailResponse = z.object({
 });
 export type TailResponse = z.infer<typeof TailResponse>;
 
-// ── Post ingest (from Pranav's Grok pipeline) ────────────────────────────────
-
-export const NewPost = z.object({
-  tweetId: z.string(),
-  xUserId: z.string(),
-  xHandle: z.string(),
-  tweetedAt: z.string().datetime(),
-  tweetText: z.string(),
-  sentiment: z.unknown(),
-  geminiMarketId: z.string().nullable(),
-  pickedOutcome: z.string().nullable(),
-});
-export type NewPost = z.infer<typeof NewPost>;
-
 // ── Market ───────────────────────────────────────────────────────────────────
 
 export const MarketStatus = z.enum(["open", "locked", "resolved", "void"]);

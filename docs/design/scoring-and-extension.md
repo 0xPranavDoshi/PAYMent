@@ -121,12 +121,12 @@ The badge shows the score with its change over the last 14 days, for example **7
 A call is scored only when we know the price of its pick at the moment the user tweeted. `odds_at_call` is the price of the picked side (one minus the YES price for a NO pick). It comes from one of three places:
 
 - **History.** The pick arrives with `oddsAtTweet` from Gemini's price candles. Gemini has no reliable price history (the candles came back empty for a game that settled the day before), so this is mostly null. `odds_source = history`.
-- **Snapshot.** The post is ingested within 600 s of `tweeted_at`, so the live price in `markets.outcomes` is close to the price at tweet time. `odds_source = snapshot`, with `ingest_lag_s` recorded.
+- **Snapshot.** The market is open and its row was last synced within 600 s of `tweeted_at` (before or after), so the stored price in `markets.outcomes` is close to the price at tweet time. `odds_source = snapshot`. `ingest_lag_s` records how long after the tweet the pick was ingested; it does not decide the price.
 - **Unpriced.** Everything else. That includes every pick the scout backfills from old tweets, because a scan always runs after the tweet. The call is stored with `odds_source = none`. It shows in the ledger and counts toward the hit rate, but not toward the score.
 
 Scoring unpriced picks against a flat 0.5 would reward favourites: a user who picks 0.82 favourites and wins 80% of them would score 95, against 45 with the true prices. That is why unpriced picks are left out of the score.
 
-The live price is only as fresh as the last market sync, so the sync must run on a schedule (see open questions) or ingest must read the price from Gemini directly.
+The price is only as fresh as the last market sync, so the sync must run on a schedule (see open questions). Without one, most picks end up unpriced.
 
 ### Scoring API
 
@@ -138,7 +138,7 @@ A Hono app on Node, versioned under `/v1`. Read routes are public and cached. Wr
 | `GET /v1/users/:handle` | Profile, score breakdown, latest snapshot hash | Extension popover |
 | `GET /v1/users/:handle/calls?cursor=` | Paged call ledger, newest first | Extension popover |
 | `GET /v1/calls/by-tweet/:tweetId` | The calls parsed from that tweet and their markets, if any exist | Extension tail card |
-| `POST /v1/posts` (service key, single or batch) | `201` with the post id and the outcome per pick: `created`, or `skipped` with a reason (no market, after lock, duplicate pick) | Pranav's scout service |
+| `POST /v1/posts` (header `x-service-key`; one post or up to 50) | `201` with `{ results }`, one per post: the post id and an outcome per pick. `created` or `updated`, or `skipped` with a reason: `no_market`, `unknown_contract`, `market_void`, `after_lock` or `duplicate_pick`. A post that fails to store comes back with an `error` and can be re-sent. Re-sending a post is safe | Pranav's scout service |
 | `GET /v1/users/:handle/snapshot` | Latest `score_snapshots` row | Mugdha's on-chain minter |
 
 ### Scoring worker
@@ -249,7 +249,7 @@ gantt
 
 The extension runs longest because it needs the live API before its popover and tail card can be finished.
 
-**Status on Nov 18.** Done: the scoring library, the three-table migration, `GET /v1/badges` and `GET /v1/users/:handle` with seed data, the trading service (Yash) and the scout design (Pranav). Not started: `POST /v1/posts`, the worker, and the whole extension. With two days left the extension is the critical path. If time runs short, cut in this order: toolbar popup, popover call ledger, profile-scan hook.
+**Status on Nov 18.** Done: the scoring library, all migrations (applied to Supabase), `GET /v1/badges`, `GET /v1/users/:handle` and `POST /v1/posts`, the first extension version with badges, the trading service (Yash) and the scout design (Pranav). Not done: the worker, the popover and tail card, and the scout service itself. With two days left the extension is the critical path. If time runs short, cut in this order: toolbar popup, popover call ledger, profile-scan hook.
 
 Done means:
 
@@ -265,10 +265,10 @@ The biggest risk to the demo is having too few resolved sports calls to show rea
 
 | Risk | Effect | Mitigation |
 | --- | --- | --- |
-| Few resolved calls before Nov 20 | Every badge reads New | Backfill fills the ledger and hit rate but cannot produce scores, because old tweets have no price at tweet time. Scores need picks ingested within 600 s of the tweet (pre-warm demo handles on a short schedule) or seeded demo data labelled as such |
+| Few resolved calls before Nov 20 | Every badge reads New | Backfill fills the ledger and hit rate but cannot produce scores, because old tweets have no price at tweet time. Scores need picks whose market was synced within 600 s of the tweet (run the sync on a short schedule and pre-warm demo handles) or seeded demo data labelled as such |
 | Copy-trader manipulation: a high-score user tweets a pick, followers move a thin market, and the user sells into it | Followers buy at a worse price | Score at the price when the user tweeted; tail card shows how far the odds moved since the call; cap tail amount per call |
 | Hedging or deleting losers | Inflated scores | First pick per market is the only one that counts; deleted tweets still scored |
-| No Gemini price history | Backfilled picks have no price at tweet time | Unpriced picks (`odds_source = none`) count toward the hit rate but not the score; calls ingested more than 600 s after the tweet are unpriced |
+| No Gemini price history | Backfilled picks have no price at tweet time | Unpriced picks (`odds_source = none`) count toward the hit rate but not the score; picks with no market sync within 600 s of the tweet are unpriced |
 | Users delete losing tweets before the first scan | Backfilled history is curated by its owner | Say so in the README; capture picks live for handles we expect to be looked up |
 | Market odds go stale between syncs | Scores, the slippage check and live order prices use old odds | Run the sync every 5 minutes, or have ingest read the live price from Gemini |
 | Follower id is a plain header and live orders use one shared Gemini key | Anyone can place tails as anyone, all live trades hit the team's account | Sandbox only for the demo; replace the header with Mugdha's X login before anything real |
