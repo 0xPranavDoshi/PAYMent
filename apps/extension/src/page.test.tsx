@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import type { BadgesResponse } from "@copayme/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { startBadges } from "./page.js";
+import { startBadges, type ScanResult } from "./page.js";
 
 const scored = { score: 72, change14d: 8, tier: "scored" as const, nResolved: 30, hitRate: 0.6 };
 
@@ -101,5 +101,51 @@ describe("startBadges", () => {
 
     await vi.waitFor(() => expect(badgeTexts()).toEqual(["New"]));
     expect(lookup).toHaveBeenCalledWith(["rookie"]);
+  });
+
+  describe("profile scans", () => {
+    afterEach(() => window.history.pushState({}, "", "/"));
+
+    it("scans a handle when its profile is opened, shows Scanning…, then the new score", async () => {
+      window.history.pushState({}, "", "/home");
+      const lookup = vi.fn(async (): Promise<BadgesResponse> => ({ newcomer: null }));
+      let finish!: (r: ScanResult) => void;
+      const scan = vi.fn(() => new Promise<ScanResult>((resolve) => (finish = resolve)));
+      stop = startBadges({ lookup, scan, delayMs: 10, routeCheckMs: 10 });
+      addTweet("newcomer");
+      await vi.waitFor(() => expect(lookup).toHaveBeenCalled());
+      expect(scan).not.toHaveBeenCalled(); // /home is not a profile
+
+      window.history.pushState({}, "", "/NewComer");
+      await vi.waitFor(() => expect(scan).toHaveBeenCalledWith("newcomer"));
+      await vi.waitFor(() => expect(badgeTexts()).toEqual(["Scanning…"]));
+
+      finish({ status: "done", badge: scored });
+      await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8"]));
+    });
+
+    it("scans each profile once per visit, not on every check", async () => {
+      window.history.pushState({}, "", "/alice");
+      const scan = vi.fn(async (): Promise<ScanResult> => ({ status: "skipped" }));
+      stop = startBadges({ lookup: async () => ({}), scan, delayMs: 10, routeCheckMs: 5 });
+      await new Promise((r) => setTimeout(r, 40));
+      expect(scan).toHaveBeenCalledTimes(1);
+      window.history.pushState({}, "", "/alice/status/1");
+      window.history.pushState({}, "", "/bob");
+      await vi.waitFor(() => expect(scan).toHaveBeenCalledWith("bob"));
+      expect(scan).toHaveBeenCalledTimes(2);
+    });
+
+    it("puts the old badge back when a scan doesn't finish", async () => {
+      window.history.pushState({}, "", "/home");
+      const lookup = vi.fn(async (): Promise<BadgesResponse> => ({ alice: scored }));
+      const scan = vi.fn(async (): Promise<ScanResult> => ({ status: "timeout" }));
+      stop = startBadges({ lookup, scan, delayMs: 10, routeCheckMs: 10 });
+      addTweet("alice");
+      await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8"]));
+      window.history.pushState({}, "", "/alice");
+      await vi.waitFor(() => expect(scan).toHaveBeenCalled());
+      await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8"]));
+    });
   });
 });

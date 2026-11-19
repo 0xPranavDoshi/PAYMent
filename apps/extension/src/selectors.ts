@@ -18,6 +18,12 @@ const RESERVED_PATHS = new Set([
   "compose",
   "intent",
   "hashtag",
+  "login",
+  "logout",
+  "signup",
+  "tos",
+  "privacy",
+  "jobs",
 ]);
 
 /** A link to a profile: exactly one path segment, like /elonmusk (not /elonmusk/status/1). */
@@ -50,4 +56,21 @@ export function findMountPoint(article: Element): Element | null {
   const userName = article.querySelector(USER_NAME_SELECTOR);
   if (!userName) return null;
   return userName.firstElementChild ?? userName;
+}
+
+/** Tabs of a profile page (x.com/<handle>/<tab>); any other sub-path, like /status/1, isn't a profile. */
+const PROFILE_TABS = new Set(["with_replies", "media", "likes", "highlights", "articles", "superfollows"]);
+const PROFILE_PATH = /^\/([A-Za-z0-9_]{1,15})(?:\/([a-z_]+))?\/?$/;
+
+/**
+ * The handle whose profile page this path is (lowercase, no @), or null: x.com/elonmusk and its tabs
+ * count; X's own pages (/home, /explore, ...) and sub-pages like /elonmusk/status/1 don't.
+ */
+export function profileHandleFromPath(pathname: string): string | null {
+  const match = PROFILE_PATH.exec(pathname);
+  const handle = match?.[1];
+  if (!handle || RESERVED_PATHS.has(handle.toLowerCase())) return null;
+  const tab = match?.[2];
+  if (tab && !PROFILE_TABS.has(tab)) return null;
+  return handle.toLowerCase();
 }

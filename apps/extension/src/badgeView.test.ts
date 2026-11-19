@@ -9,6 +9,15 @@ describe("badgeView", () => {
     expect(badgeView(null)).toBeNull();
   });
 
+  it("shows Scanning… while the handle's posts are being read", () => {
+    expect(badgeView("scanning")).toEqual({
+      kind: "scanning",
+      text: "Scanning…",
+      arrow: null,
+      title: "Reading this account's recent picks…",
+    });
+  });
+
   it("shows the score with an up arrow", () => {
     expect(badgeView(scored)).toMatchObject({
       kind: "scored",

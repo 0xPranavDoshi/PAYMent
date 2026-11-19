@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { WEB_URL } from "../src/config.js";
-import type { BadgesReply, BadgesRequest, ProfileReply, ProfileRequest } from "../src/messages.js";
+import type { BadgesReply, BadgesRequest, ProfileReply, ProfileRequest, ScanReply, ScanRequest } from "../src/messages.js";
 import { startBadges } from "../src/page.js";
 
 export default defineContentScript({
@@ -20,6 +20,13 @@ export default defineContentScript({
         const reply: ProfileReply = await browser.runtime.sendMessage(request);
         if (!reply.ok) throw new Error(reply.error);
         return { profile: reply.profile, calls: reply.calls };
+      },
+      // Opening a profile asks the scout to read that handle's recent picks.
+      scan: async (handle) => {
+        const request: ScanRequest = { type: "scan", handle };
+        const reply: ScanReply = await browser.runtime.sendMessage(request);
+        if (!reply.ok) throw new Error(reply.error);
+        return reply.status === "done" ? { status: "done", badge: reply.badge } : { status: reply.status };
       },
     });
   },

@@ -3,9 +3,10 @@ import { defineBackground } from "wxt/utils/define-background";
 import { fetchBadges, fetchProfileData } from "../src/api.js";
 import { createBadgeCache, type KeyValueStore } from "../src/badgeCache.js";
 import { createBadgeService } from "../src/badgeService.js";
-import { MOCK } from "../src/config.js";
-import type { BadgesReply, ExtensionRequest, ProfileReply } from "../src/messages.js";
+import { MOCK, SCOUT_URL } from "../src/config.js";
+import type { BadgesReply, ExtensionRequest, ProfileReply, ScanReply } from "../src/messages.js";
 import { createProfileService } from "../src/profileService.js";
+import { createScanService } from "../src/scanService.js";
 
 export default defineBackground(() => {
   const storage: KeyValueStore = {
@@ -24,6 +25,16 @@ export default defineBackground(() => {
 
   const badges = createBadgeService({ cache, fetchBadges });
   const profiles = createProfileService({ fetchProfileData });
+  // After a scan, fetch the handle's badge straight from the API (the cached one predates the scan)
+  // and write it back so every tab sees the new score.
+  const scans = createScanService({
+    scoutUrl: SCOUT_URL,
+    refreshBadge: async (handle) => {
+      const badge = (await fetchBadges([handle]))[handle] ?? null;
+      await cache.write({ [handle]: badge });
+      return badge;
+    },
+  });
 
   browser.runtime.onMessage.addListener((message: ExtensionRequest, _sender, sendResponse) => {
     if (message?.type === "badges") {
@@ -40,6 +51,21 @@ export default defineBackground(() => {
         .get(message.handle)
         .then((data): ProfileReply => ({ ok: true, ...data }))
         .catch((err: unknown): ProfileReply => ({ ok: false, error: String(err) }))
+        .then(sendResponse);
+      return true;
+    }
+
+    if (message?.type === "scan") {
+      if (MOCK) {
+        sendResponse({ ok: true, status: "skipped" } satisfies ScanReply);
+        return;
+      }
+      scans
+        .scan(message.handle)
+        .then((outcome): ScanReply =>
+          outcome.status === "done" ? { ok: true, status: "done", badge: outcome.badge } : { ok: true, status: outcome.status },
+        )
+        .catch((err: unknown): ScanReply => ({ ok: false, error: String(err) }))
         .then(sendResponse);
       return true;
     }
