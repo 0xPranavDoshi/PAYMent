@@ -193,7 +193,10 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
       return false;
     }
     if (!state?.signedIn) {
-      setNotice({ kind: "info", text: "Sign in with X to trade. Coming soon." });
+      // One login for site + extension: sign in on the coPAYMe site, and the session
+      // bridge (entrypoints/webAuth.content.ts) hands it to the extension.
+      try { window.open(`${webUrl.replace(/\/$/, "")}/signin`, "_blank", "noopener"); } catch { /* blocked */ }
+      setNotice({ kind: "info", text: "Sign in with X on coPAYMe, then come back here." });
       return false;
     }
     return true;
