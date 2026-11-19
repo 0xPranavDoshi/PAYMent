@@ -88,6 +88,23 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
   - Handles asked about in the last 10 minutes are skipped.
   - Config: `WXT_SCOUT_URL` (default `http://localhost:8789`), plus a matching host permission. Because of that permission the background worker isn't subject to CORS, so the scout needs no `SCOUT_ALLOWED_ORIGIN` for the extension.
 
+### End-to-end forwarding test (Nov 18, Supabase, Pranav's OK)
+- **Setup:** Aditya's API ran locally against Supabase with a throwaway service key and `TRADING_URL` blank (no watch or copy-trade notifications) and its worker paused. The scout ran with forwarding on.
+- **Run 1:** 14 posts → 14 calls and 14 markets, with correct markets and sides. **Every call was unpriced** (`odds_source: none`): ingest only snapshots a price if the market was synced within 10 minutes of the tweet. The worker marked the 10 finished picks "scored", but with no points, so the score stayed 50 "New" with 0 resolved picks.
+- **Fix: the scout prices picks at tweet time from Gemini candles** (`getYesPriceAt`). That's the close of the last 5-minute candle at or before the tweet (hourly as a fallback), or none if older than 6 hours, and `1 − YES` for NO picks. Sent as `oddsAtTweet`, so ingest records `odds_source: history`. Candles reach about 2 days back. My earlier "no price history" conclusion came from a single stale market.
+- **Run 2:** I deleted only that test user's calls, posts and score, then re-forwarded. **Score 28, tier "scored", 5 resolved, 1 win:**
+
+  | Pick | Price | Points |
+  |---|---|---|
+  | Edmonton | 0.47 | +0.53 |
+  | Toronto | 0.39 | −0.39 |
+  | Florida −15.5 | 0.46 | −0.46 |
+  | Charlotte | 0.27 | −0.27 |
+  | Chargers–Ravens under 39.5 | 0.50 | −0.50 |
+
+  "UConn +3.5" is priced at 0.49 and still pending.
+- **Still unpriced: 8 of 14** (contracts Gemini has no trades for: some spreads and props, Nets −2.5). These are excluded by Aditya's scoring, including a winning "Tennessee +3.5". Whether to count unpriced picks at an even 0.50 is a **team decision about scoring policy**.
+
 ## Open questions for the team (block turning forwarding on)
 - ~~**Gemini environment**~~ **resolved on main:** market data reads production (`GEMINI_READ_BASE_URL`), and orders go to the sandbox.
 - **Lock time: decided (Pranav, Nov 18). `markets.lock_time` = the market's `expiryDate`**, written the same way by the scout's upsert and by the trading sync (`apps/trading/src/sync.ts` `lockTimeFor`, changed in this branch).
