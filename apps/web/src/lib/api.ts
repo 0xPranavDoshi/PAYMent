@@ -1,4 +1,4 @@
-import type { UserProfile, TailResponse, WatchItem, CopyTradeConfig } from "@copayme/shared";
+import type { UserProfile, TailResponse, WatchItem, CopyTradeConfig, CallEntry } from "@copayme/shared";
 
 export type { WatchItem, CopyTradeConfig };
 
@@ -42,6 +42,16 @@ export async function fetchTraderProfile(
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`fetchTraderProfile failed: ${res.status}`);
   return (await res.json()) as UserProfile;
+}
+
+/** A trader's picks, newest first (GET /v1/users/:handle/calls). */
+export async function fetchTraderCalls(handle: string, limit = 50): Promise<CallEntry[]> {
+  const res = await fetch(`${API}/v1/users/${encodeURIComponent(handle)}/calls?limit=${limit}`, {
+    cache: "no-store",
+  });
+  if (res.status === 404) return [];
+  if (!res.ok) throw new Error(`fetchTraderCalls failed: ${res.status}`);
+  return (await res.json()) as CallEntry[];
 }
 
 // ── Trading service (watches / copy-trades / tails) ──────────────────────────
