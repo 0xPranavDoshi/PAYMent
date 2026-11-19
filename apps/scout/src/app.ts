@@ -5,14 +5,27 @@ import type { ScoutHandleRow, ScoutStore } from "./store.js";
 
 export interface AppDeps {
   store: ScoutStore;
-  /** Called after the lock is taken. Fire and forget. */
-  startScan: (handle: string) => void;
+  /**
+   * Called after the lock is taken. Fire and forget. `fetchNew: false`: nothing new was posted, so
+   * skip X and only finish pending posts.
+   */
+  startScan: (handle: string, opts: { fetchNew: boolean }) => void;
   now?: () => Date;
   dailyNewHandles?: number;
   allowedOrigin?: string;
 }
 
+/** A scan this recent is served from cache when the caller says there are newer tweets... */
 const FRESH_MS = 10 * 60_000;
+/** ...and this recent when the caller can't say (no `newest`), since every fetch from X costs. */
+const FRESH_UNHINTED_MS = 60 * 60_000;
+const TWEET_ID = /^\d{1,25}$/;
+
+/** True when `newest` (the newest tweet the caller saw) is not newer than the newest one we have. */
+export function nothingNewSince(newest: string | undefined, stored: string | null): boolean {
+  if (!newest || !TWEET_ID.test(newest) || !stored || !TWEET_ID.test(stored)) return false;
+  return BigInt(newest) <= BigInt(stored);
+}
 
 export function createApp(deps: AppDeps): Hono {
   const { store, startScan } = deps;
@@ -55,9 +68,25 @@ export function createApp(deps: AppDeps): Hono {
     const handle = parsed.data;
     const t = now();
 
+    // ?newest=<tweet id>: the newest tweet by this account the extension saw on its profile.
+    const newest = c.req.query("newest")?.trim();
+    const hinted = newest !== undefined && TWEET_ID.test(newest);
+
     const row = await store.getHandle(handle);
-    if (row && row.status !== "running" && row.scannedAt && t.getTime() - row.scannedAt.getTime() < FRESH_MS) {
-      return c.json(await buildResponse(handle, row), 200);
+    if (row && row.status !== "running") {
+      // Nothing posted since our last fetch: X (Apify) isn't asked. Only posts still pending (game not
+      // listed yet, a failed read) are worked on, which costs nothing from X.
+      if (hinted && nothingNewSince(newest, row.newestTweetId)) {
+        if ((await store.pendingPosts(handle)).length > 0 && (await store.tryLock(handle, t))) {
+          startScan(handle, { fetchNew: false });
+          return c.json(await buildResponse(handle, { status: "running", scannedAt: row.scannedAt }), 202);
+        }
+        return c.json(await buildResponse(handle, row), 200);
+      }
+      const freshFor = hinted ? FRESH_MS : FRESH_UNHINTED_MS;
+      if (row.scannedAt && t.getTime() - row.scannedAt.getTime() < freshFor) {
+        return c.json(await buildResponse(handle, row), 200);
+      }
     }
 
     if (!row) {
@@ -68,7 +97,7 @@ export function createApp(deps: AppDeps): Hono {
     }
 
     if (await store.tryLock(handle, t)) {
-      startScan(handle);
+      startScan(handle, { fetchNew: true });
       return c.json(await buildResponse(handle, { status: "running", scannedAt: row?.scannedAt ?? null }), 202);
     }
     return c.json(await buildResponse(handle, await store.getHandle(handle)), 202);

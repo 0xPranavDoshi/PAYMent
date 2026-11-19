@@ -32,16 +32,21 @@ export function createScanService(opts: {
   /** One scan per handle at a time, shared by every tab that asks. */
   const inFlight = new Map<string, Promise<ScanOutcome>>();
 
-  const url = (handle: string) => new URL(`/v1/scout/${encodeURIComponent(handle)}`, opts.scoutUrl);
+  const url = (handle: string, newestTweetId: string | null = null) => {
+    const u = new URL(`/v1/scout/${encodeURIComponent(handle)}`, opts.scoutUrl);
+    // The scout skips fetching from X (which costs) when it already has this tweet.
+    if (newestTweetId) u.searchParams.set("newest", newestTweetId);
+    return u;
+  };
 
   async function read(res: Response): Promise<ScoutResponse> {
     if (!res.ok) throw new Error(`scout returned ${res.status}`);
     return ScoutResponse.parse(await res.json());
   }
 
-  async function run(handle: string): Promise<ScanOutcome> {
+  async function run(handle: string, newestTweetId: string | null): Promise<ScanOutcome> {
     try {
-      let state = await read(await fetcher(url(handle), { method: "POST" }));
+      let state = await read(await fetcher(url(handle, newestTweetId), { method: "POST" }));
       const deadline = now() + POLL_FOR_MS;
       while (state.status === "running") {
         if (now() >= deadline) return { status: "timeout" };
@@ -56,13 +61,14 @@ export function createScanService(opts: {
   }
 
   return {
-    scan(handle: string): Promise<ScanOutcome> {
+    /** `newestTweetId`: the newest tweet by the handle shown on its profile, or null if none showed. */
+    scan(handle: string, newestTweetId: string | null = null): Promise<ScanOutcome> {
       const pending = inFlight.get(handle);
       if (pending) return pending;
       const last = lastAsked.get(handle);
       if (last !== undefined && now() - last < RESCAN_AFTER_MS) return Promise.resolve({ status: "skipped" });
       lastAsked.set(handle, now());
-      const job = run(handle).finally(() => inFlight.delete(handle));
+      const job = run(handle, newestTweetId).finally(() => inFlight.delete(handle));
       inFlight.set(handle, job);
       return job;
     },

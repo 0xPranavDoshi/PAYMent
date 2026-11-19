@@ -56,6 +56,16 @@ export function describeStore(make: () => ScoutStore): void {
       expect(await store.tryLock("alice", done)).toBe(true);
     });
 
+    it("finishScan with fetched: false keeps scannedAt (the last fetch from X)", async () => {
+      await store.tryLock("alice", T0);
+      await store.finishScan("alice", { newestTweetId: "99", xUserId: "u1", now: T0 });
+      await store.tryLock("alice", new Date(T0.getTime() + MIN));
+      await store.finishScan("alice", { newestTweetId: null, xUserId: null, now: new Date(T0.getTime() + 2 * MIN), fetched: false });
+      const row = await store.getHandle("alice");
+      expect(row).toMatchObject({ status: "idle", newestTweetId: "99", lockedAt: null });
+      expect(row?.scannedAt).toEqual(T0);
+    });
+
     it("can be locked again after failScan, which records the error", async () => {
       await store.tryLock("alice", T0);
       await store.failScan("alice", "boom");

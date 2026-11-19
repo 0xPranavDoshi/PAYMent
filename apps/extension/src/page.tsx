@@ -5,7 +5,7 @@ import { createPopoverManager } from "./popover/manager.js";
 import { Badge, BADGE_CSS } from "./Badge.js";
 import { createBadgeStore } from "./badgeStore.js";
 import { createBatcher } from "./batcher.js";
-import { TWEET_SELECTOR, extractHandle, findMountPoint, profileHandleFromPath } from "./selectors.js";
+import { TWEET_SELECTOR, extractHandle, findMountPoint, newestTweetIdBy, profileHandleFromPath } from "./selectors.js";
 
 export interface StartOptions {
   /** Fetches badges for these handles (in the extension, via the background worker). */
@@ -21,9 +21,16 @@ export interface StartOptions {
    * Scans a handle's posts (in the extension, via the background worker and the scout). Called when
    * the user opens a profile page. Without it, profiles are never scanned.
    */
-  scan?: (handle: string) => Promise<ScanResult>;
+  scan?: (handle: string, newestTweetId: string | null) => Promise<ScanResult>;
   /** How often to check whether the user navigated to a profile (X changes pages without loading). */
   routeCheckMs?: number;
+  /**
+   * How long to wait for the profile's own tweets to show before scanning without the newest tweet id,
+   * how often to look, and how long to let the first screenful render once one shows.
+   */
+  timelineWaitMs?: number;
+  timelinePollMs?: number;
+  timelineSettleMs?: number;
 }
 
 /** What a scan reports back to the page. */
@@ -38,6 +45,9 @@ export function startBadges({
   delayMs = 150,
   scan,
   routeCheckMs = 1000,
+  timelineWaitMs = 4000,
+  timelinePollMs = 250,
+  timelineSettleMs = 500,
 }: StartOptions): () => void {
   const store = createBadgeStore();
   const requested = new Set<string>();
@@ -108,13 +118,34 @@ export function startBadges({
 
   // Opening a profile scans that handle's posts, so a score can appear for people we haven't seen.
   let lastProfile: string | null = null;
+  let stopped = false;
+  const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+  /**
+   * The newest tweet by `handle` on its profile, once the timeline has loaded, or null if none showed
+   * in time. The scout skips fetching from X (which costs) when it already has that tweet.
+   */
+  async function newestOnTimeline(handle: string): Promise<string | null> {
+    const deadline = Date.now() + timelineWaitMs;
+    while (!stopped && Date.now() < deadline) {
+      if (newestTweetIdBy(doc, handle) !== null) {
+        await sleep(timelineSettleMs);
+        return newestTweetIdBy(doc, handle);
+      }
+      await sleep(timelinePollMs);
+    }
+    return null;
+  }
+
   async function scanProfile(handle: string) {
     if (!scan) return;
+    const newest = await newestOnTimeline(handle);
+    if (stopped) return;
     const before = store.get(handle);
     store.set(handle, "scanning");
     let result: ScanResult;
     try {
-      result = await scan(handle);
+      result = await scan(handle, newest);
     } catch (err) {
       console.warn("[coPAYMe] profile scan failed", err);
       result = { status: "failed" };
@@ -132,6 +163,7 @@ export function startBadges({
   if (scan) checkRoute();
 
   return () => {
+    stopped = true;
     observer.disconnect();
     if (routeTimer) clearInterval(routeTimer);
     popover?.close();

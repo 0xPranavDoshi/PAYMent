@@ -58,6 +58,33 @@ export function findMountPoint(article: Element): Element | null {
   return userName.firstElementChild ?? userName;
 }
 
+/** A tweet's own permalink: /<handle>/status/<id> (optionally followed by /photo/1, /analytics, ...). */
+const STATUS_HREF = /^\/[A-Za-z0-9_]{1,15}\/status\/(\d{1,25})(?:[/?#]|$)/;
+
+/**
+ * The tweet's id, from the link around its timestamp, or null. The first timestamp in the article is
+ * the tweet's own; a quoted tweet's comes after it.
+ */
+export function extractTweetId(article: Element): string | null {
+  const link = article.querySelector("a[href] time")?.closest("a");
+  return STATUS_HREF.exec(link?.getAttribute("href") ?? "")?.[1] ?? null;
+}
+
+/**
+ * The newest tweet id by `handle` among the tweets on the page, or null when none shows. Tweet ids
+ * grow over time, so the largest is the newest: a pinned (older) tweet doesn't change it, and
+ * retweets don't count (their author is the original poster, not `handle`).
+ */
+export function newestTweetIdBy(root: ParentNode, handle: string): string | null {
+  let newest: bigint | null = null;
+  for (const article of root.querySelectorAll(TWEET_SELECTOR)) {
+    if (extractHandle(article) !== handle) continue;
+    const id = extractTweetId(article);
+    if (id !== null && (newest === null || BigInt(id) > newest)) newest = BigInt(id);
+  }
+  return newest === null ? null : newest.toString();
+}
+
 /** Tabs of a profile page (x.com/<handle>/<tab>); any other sub-path, like /status/1, isn't a profile. */
 const PROFILE_TABS = new Set(["with_replies", "media", "likes", "highlights", "articles", "superfollows"]);
 const PROFILE_PATH = /^\/([A-Za-z0-9_]{1,15})(?:\/([a-z_]+))?\/?$/;

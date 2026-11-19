@@ -1,6 +1,69 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from "vitest";
-import { TWEET_SELECTOR, extractHandle, findMountPoint, profileHandleFromPath } from "./selectors.js";
+import {
+  TWEET_SELECTOR,
+  extractHandle,
+  extractTweetId,
+  findMountPoint,
+  newestTweetIdBy,
+  profileHandleFromPath,
+} from "./selectors.js";
+
+/** A tweet as X renders it: author block, then the timestamp linking to the tweet's own page. */
+const tweetWithId = (author: string, id: string, extra = "") => `
+  <article data-testid="tweet">
+    ${extra}
+    <div data-testid="User-Name">
+      <div><a href="/${author}"><span>${author}</span></a></div>
+      <div><a href="/${author}"><span>@${author}</span></a><a href="/${author}/status/${id}"><time datetime="2026-11-18T12:00:00.000Z">Nov 18</time></a></div>
+    </div>
+  </article>`;
+
+describe("extractTweetId", () => {
+  const article = (html: string) => {
+    document.body.innerHTML = html;
+    return document.querySelector(TWEET_SELECTOR)!;
+  };
+
+  it("reads the id from the link around the tweet's own timestamp", () => {
+    expect(extractTweetId(article(tweetWithId("espn", "1990000000000000001")))).toBe("1990000000000000001");
+  });
+
+  it("takes the outer tweet's id, not a quoted tweet's", () => {
+    const quoted = tweetWithId("espn", "1990000000000000005").replace(
+      "</article>",
+      '<div role="link"><a href="/nba/status/1980000000000000000"><time>Nov 1</time></a></div></article>',
+    );
+    expect(extractTweetId(article(quoted))).toBe("1990000000000000005");
+  });
+
+  it("is null without a status link", () => {
+    expect(extractTweetId(article('<article data-testid="tweet"><time>now</time></article>'))).toBeNull();
+    expect(extractTweetId(article('<article data-testid="tweet"><a href="/espn"><time>now</time></a></article>'))).toBeNull();
+  });
+});
+
+describe("newestTweetIdBy", () => {
+  it("is the largest id by that handle: a pinned older tweet first doesn't matter, nor do ids of different length", () => {
+    document.body.innerHTML =
+      tweetWithId("espn", "999999999999999999", '<div data-testid="socialContext">Pinned</div>') +
+      tweetWithId("ESPN", "1990000000000000002") +
+      tweetWithId("espn", "1990000000000000001");
+    expect(newestTweetIdBy(document, "espn")).toBe("1990000000000000002");
+  });
+
+  it("ignores retweets and other people's tweets", () => {
+    document.body.innerHTML =
+      tweetWithId("nba", "1999999999999999999", '<div data-testid="socialContext">ESPN reposted</div>') +
+      tweetWithId("espn", "1990000000000000001");
+    expect(newestTweetIdBy(document, "espn")).toBe("1990000000000000001");
+  });
+
+  it("is null when none of the handle's tweets are on the page", () => {
+    document.body.innerHTML = tweetWithId("nba", "1990000000000000001");
+    expect(newestTweetIdBy(document, "espn")).toBeNull();
+  });
+});
 
 describe("profileHandleFromPath", () => {
   it("returns the handle for a profile page and its tabs, lowercased", () => {
