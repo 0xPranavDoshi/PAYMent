@@ -21,6 +21,8 @@ export interface GeminiEvent {
   status: string;
   template?: string | undefined;
   startTime?: string | undefined;
+  /** When the market stops trading (~1-2 days after the game). Used as markets.lock_time. */
+  expiryDate?: string | null | undefined;
   subcategory?: { name: string } | undefined;
   participants?: { name: string; abbreviation: string; side: string }[] | undefined;
   contracts: GeminiContract[];
@@ -40,6 +42,7 @@ export const GeminiEvent: z.ZodType<GeminiEvent> = z.lazy(() =>
       status: z.string(),
       template: z.string().optional(),
       startTime: z.string().optional(),
+      expiryDate: z.string().nullable().optional(),
       subcategory: z.object({ name: z.string() }).passthrough().optional(),
       participants: z
         .array(z.object({ name: z.string(), abbreviation: z.string(), side: z.string() }).passthrough())

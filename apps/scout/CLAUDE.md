@@ -81,7 +81,11 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
 
 ## Open questions for the team (block turning forwarding on)
 - ~~**Gemini environment**~~ **resolved on main:** market data reads production (`GEMINI_READ_BASE_URL`), and orders go to the sandbox.
-- **Lock time (still open, Yash's sync):** the sync sets `lock_time = expiryDate` (about 2 days after the game), and ingest rejects picks `after_lock` using that value. Picks tweeted mid-game would count. The scout writes `startTime`, but the sync can overwrite it. It should be `startTime`.
+- **Lock time: decided (Pranav, Nov 18). `markets.lock_time` = the market's `expiryDate`**, written the same way by the scout's upsert and by the trading sync (`apps/trading/src/sync.ts` `lockTimeFor`, changed in this branch).
+  - *Context:* main's sync had switched to `effectiveDate`, believing it was the game start. Live data shows `effectiveDate` equals `createdAt`, the time the market was listed, about 2–3 days before the game. For example, UConn–Arizona was listed Nov 17 00:05, tips off Nov 19 02:00, and expires Nov 21 02:00. Locking on it would have rejected nearly every real pick as `after_lock`.
+  - *Trade-off accepted:* with `expiryDate`, picks tweeted during or shortly after a game also pass ingest's lock check. Locking on `startTime` would stop that.
+  - *Mitigation:* the scout's own matcher still treats tweets within 6 h after the game starts as "tweet during game", so it never turns them into picks.
+  - Market rows already written by the old sync keep their `effectiveDate` lock until the sync runs again.
 - ~~**Multiple picks per post, and a side field**~~ **resolved:** Aditya's ingest accepts `picks[]` with `side`.
 
 ## Test results

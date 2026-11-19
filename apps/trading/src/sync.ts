@@ -20,8 +20,10 @@ function geminiStatusToLocal(
 }
 
 function lockTimeFor(event: GeminiEvent): Date {
-  // effectiveDate is game start — no picks accepted after tip-off
-  if (event.effectiveDate) return new Date(event.effectiveDate);
+  // Team decision (Nov 18 2026): lock at the market's expiry, the same value the scout writes.
+  // effectiveDate is NOT game start: it equals createdAt (when the market was listed, ~2-3 days
+  // before the game), so locking on it rejected nearly every real pick as after_lock.
+  // Note: with expiryDate, picks tweeted during or shortly after a game pass ingest's lock check.
   if (event.expiryDate) return new Date(event.expiryDate);
   if (event.resolvedAt) return new Date(event.resolvedAt);
   const d = new Date();

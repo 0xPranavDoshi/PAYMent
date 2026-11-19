@@ -193,6 +193,13 @@ describe("createForwarder", () => {
     });
   });
 
+  it("uses the market's expiryDate as lock_time when Gemini gives one (matches the trading sync)", async () => {
+    const expiring = { ...winEvent, expiryDate: "2026-11-21T02:00:00.000Z" };
+    const { forwarder, store } = setup([expiring]);
+    await forwarder.forward([post("t1", [match({})])], "bob");
+    expect(store.markets.get("G-M")?.lockTime).toEqual(new Date("2026-11-21T02:00:00.000Z"));
+  });
+
   it("accepts only posts ingest stored (a result with `error` is retried later)", async () => {
     const { forwarder } = setup([winEvent], { errorFor: ["t2"] });
     expect(await forwarder.forward([post("t1", [match({})]), post("t2", [match({})])], "bob")).toEqual(["t1"]);

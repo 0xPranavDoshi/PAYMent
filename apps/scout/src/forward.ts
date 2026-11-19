@@ -18,11 +18,12 @@ const priceOrNull = (v: unknown): number | null => {
 };
 
 /**
- * The `markets` row for a matched event, keyed by its ticker (what ingest looks up). Null when there
- * is no known game start time, so no lock time to store.
+ * The `markets` row for a matched event, keyed by its ticker (what ingest looks up).
+ * lock_time is the market's expiryDate, the same value Yash's sync writes (team decision, Nov 18
+ * 2026), falling back to the game start. Null when neither is known.
  */
 export function toMarketRow(sub: GeminiEvent, gameStartTime: string | null): MarketRow | null {
-  const start = gameStartTime ?? sub.startTime;
+  const start = sub.expiryDate ?? gameStartTime ?? sub.startTime;
   if (!start) return null;
   const winner = sub.contracts.find((c) => c.resolutionSide === "yes");
   return {
