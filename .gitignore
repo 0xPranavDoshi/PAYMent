@@ -17,3 +17,4 @@ recovery_file_*.dat
 
 # Claude Code local state & agent worktrees
 .claude/
+apps/web/AGENTS.md
