@@ -67,7 +67,7 @@ export const POPOVER_CSS = `
   :host { all: initial; }
   * { box-sizing: border-box; }
   .card {
-    width: 344px; max-height: min(82vh, 700px); overflow-y: auto; overflow-x: hidden; border-radius: 16px;
+    width: 344px; max-height: min(82vh, 700px, var(--avail, 700px)); overflow-y: auto; overflow-x: hidden; border-radius: 16px;
     font: 13px/1.4 var(--font); color: var(--ink); background: var(--card-bg);
     border: 1px solid var(--card-line); box-shadow: var(--card-shadow); scrollbar-width: thin;
   }
