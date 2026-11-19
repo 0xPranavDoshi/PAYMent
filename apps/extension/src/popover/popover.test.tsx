@@ -20,6 +20,7 @@ const profile = (handle: string, over: Partial<UserProfile> = {}): UserProfile =
 const call = (n: number, over: Partial<CallEntry> = {}): CallEntry => ({
   callId: `00000000-0000-4000-8000-00000000000${n}`,
   tweetId: `100${n}`,
+  tweetText: `Tweet number ${n}`,
   tweetedAt: "2026-11-19T12:03:00.000Z",
   eventName: `Game ${n}`,
   pickLabel: "UConn",

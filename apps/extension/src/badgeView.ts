@@ -1,10 +1,10 @@
 import { changeArrow, type Badge, type ChangeArrow } from "@copayme/shared";
 
-/** undefined = not fetched yet, null = we have no data on this handle. */
-export type BadgeState = Badge | null | undefined;
+/** undefined = not fetched yet, null = we have no data on this handle, "scanning" = reading their posts now. */
+export type BadgeState = Badge | null | undefined | "scanning";
 
 export interface BadgeView {
-  kind: "new" | "scored";
+  kind: "new" | "scored" | "scanning";
   /** "New" or the score. */
   text: string;
   arrow: ChangeArrow | null;
@@ -19,6 +19,9 @@ function plural(n: number, word: string): string {
 /** What to draw for a handle, or null to draw nothing (still loading, or unknown). */
 export function badgeView(state: BadgeState): BadgeView | null {
   if (!state) return null;
+  if (state === "scanning") {
+    return { kind: "scanning", text: "Scanning…", arrow: null, title: "Reading this account's recent picks…" };
+  }
 
   if (state.tier === "new") {
     return {

@@ -1,4 +1,4 @@
-import type { Sentiment } from "@copayme/shared";
+import type { PickMatch, Sentiment } from "@copayme/shared";
 import { beforeEach, describe, expect, it } from "vitest";
 import { PIPELINE_VERSION, type ScoutPostRow, type ScoutStore } from "../src/store.js";
 
@@ -151,6 +151,52 @@ export function describeStore(make: () => ScoutStore): void {
       expect((await store.unforwardedPosts("alice")).map((r) => r.tweetId)).toEqual(["2"]);
       expect((await store.listPosts("alice")).find((r) => r.tweetId === "1")?.forwardedAt).toEqual(T0);
       await store.markForwarded([], T0);
+    });
+  });
+
+  describe("marketsToRefresh", () => {
+    const HOUR = 60 * MIN;
+    const started = new Date(T0.getTime() - 3 * HOUR).toISOString();
+    const later = new Date(T0.getTime() + 3 * HOUR).toISOString();
+    const pick = (ticker: string, gameStartTime: string, status: "matched" | "no_market" = "matched"): PickMatch => ({
+      predictionIndex: 0,
+      status,
+      reason: null,
+      geminiEventTicker: ticker,
+      gameTicker: ticker,
+      instrumentSymbol: `${ticker}-X`,
+      contractLabel: "X",
+      side: "yes",
+      gameStartTime,
+      marketStatus: "open",
+      resolutionSide: null,
+    });
+    const market = (ticker: string, status: "open" | "resolved" | "void") => ({
+      geminiMarketId: ticker,
+      sport: "basketball",
+      eventName: ticker,
+      outcomes: [],
+      lockTime: T0,
+      status,
+      winningOutcome: null,
+      resolvedAt: null,
+    });
+
+    it("lists each started, unsettled market behind a forwarded pick once", async () => {
+      await store.upsertPosts([
+        post({ tweetId: "1", matches: [pick("MKT-OPEN", started)], forwardedAt: T0 }),
+        post({ tweetId: "2", matches: [pick("MKT-OPEN", started), pick("MKT-NOROW", started)], forwardedAt: T0 }),
+        post({ tweetId: "3", matches: [pick("MKT-FUTURE", later)], forwardedAt: T0 }),
+        post({ tweetId: "4", matches: [pick("MKT-UNSENT", started)], forwardedAt: null }),
+        post({ tweetId: "5", matches: [pick("MKT-DONE", started), pick("MKT-VOID", started)], forwardedAt: T0 }),
+        post({ tweetId: "6", matches: [pick("MKT-NOMATCH", started, "no_market")], forwardedAt: T0 }),
+      ]);
+      for (const m of [market("MKT-OPEN", "open"), market("MKT-DONE", "resolved"), market("MKT-VOID", "void")]) {
+        await store.upsertMarket(m);
+      }
+      const got = (await store.marketsToRefresh(T0, 100)).map((m) => m.geminiEventTicker).sort();
+      expect(got).toEqual(["MKT-NOROW", "MKT-OPEN"]);
+      expect(await store.marketsToRefresh(T0, 1)).toHaveLength(1);
     });
   });
 }

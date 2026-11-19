@@ -43,9 +43,15 @@ export interface MarketRow {
   eventName: string;
   outcomes: OutcomeInfo[];
   lockTime: Date;
-  status: "open" | "resolved";
+  status: "open" | "resolved" | "void";
   winningOutcome: string | null;
   resolvedAt: Date | null;
+}
+
+/** A market behind a forwarded pick that still needs its result written to `markets`. */
+export interface MarketToRefresh {
+  geminiEventTicker: string;
+  gameStartTime: string;
 }
 
 export interface ScoutStore {
@@ -67,6 +73,12 @@ export interface ScoutStore {
   unforwardedPosts(handle: string): Promise<ScoutPostRow[]>;
   markForwarded(ids: string[], at: Date): Promise<void>;
   upsertMarket(row: MarketRow): Promise<void>;
+  /**
+   * Distinct event tickers of forwarded, matched picks whose game has started (gameStartTime <= now)
+   * and whose `markets` row isn't settled yet (missing, open or locked). The trading sync only keeps
+   * recent game-winner markets current, so these would otherwise never get a result.
+   */
+  marketsToRefresh(now: Date, limit: number): Promise<MarketToRefresh[]>;
 }
 
 export function isPending(row: Pick<ScoutPostRow, "sentiment" | "matches" | "pipelineVersion">): boolean {
@@ -155,6 +167,20 @@ export function createMemoryStore(): ScoutStore & { markets: Map<string, MarketR
     },
     async upsertMarket(row) {
       markets.set(row.geminiMarketId, { ...row });
+    },
+    async marketsToRefresh(now, limit) {
+      const out = new Map<string, MarketToRefresh>();
+      for (const p of posts.values()) {
+        if (p.forwardedAt === null) continue;
+        for (const m of p.matches ?? []) {
+          if (m.status !== "matched" || !m.geminiEventTicker || !m.gameStartTime) continue;
+          if (Date.parse(m.gameStartTime) > now.getTime()) continue;
+          const status = markets.get(m.geminiEventTicker)?.status;
+          if (status === "resolved" || status === "void") continue;
+          out.set(m.geminiEventTicker, { geminiEventTicker: m.geminiEventTicker, gameStartTime: m.gameStartTime });
+        }
+      }
+      return [...out.values()].slice(0, limit);
     },
   };
 }

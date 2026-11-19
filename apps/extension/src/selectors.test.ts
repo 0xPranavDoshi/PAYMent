@@ -1,6 +1,31 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from "vitest";
-import { TWEET_SELECTOR, extractHandle, extractProfileHandle, findMountPoint, resolveTarget } from "./selectors.js";
+import {
+  TWEET_SELECTOR,
+  extractHandle,
+  extractProfileHandle,
+  findMountPoint,
+  profileHandleFromPath,
+  resolveTarget,
+} from "./selectors.js";
+
+describe("profileHandleFromPath", () => {
+  it("returns the handle for a profile page and its tabs, lowercased", () => {
+    expect(profileHandleFromPath("/ActionNetworkHQ")).toBe("actionnetworkhq");
+    expect(profileHandleFromPath("/espn/")).toBe("espn");
+    expect(profileHandleFromPath("/espn/with_replies")).toBe("espn");
+    expect(profileHandleFromPath("/espn/media")).toBe("espn");
+  });
+
+  it("ignores X's own pages and non-profile sub-pages", () => {
+    for (const path of ["/", "/home", "/explore", "/notifications", "/messages", "/search", "/i/flow/login", "/login", "/tos", "/settings/account"]) {
+      expect(profileHandleFromPath(path)).toBeNull();
+    }
+    expect(profileHandleFromPath("/espn/status/123")).toBeNull();
+    expect(profileHandleFromPath("/espn/followers")).toBeNull();
+    expect(profileHandleFromPath("/this_handle_is_way_too_long")).toBeNull();
+  });
+});
 
 /** Trimmed copy of how x.com marks up a tweet header. */
 function tweet(inner: string): Element {

@@ -56,6 +56,10 @@ export const BADGE_CSS = `
     border-style: dashed;
     background: linear-gradient(var(--pill-bg), var(--pill-bg)) padding-box, linear-gradient(135deg, var(--rim-b), var(--rim-c)) border-box;
   }
+  .pill.scanning { border-style: dashed; cursor: progress; }
+  .pill.scanning .num { font: 600 11px/1 var(--font); font-style: italic; color: var(--pill-dim); }
+  .pill.scanning .mark { color: var(--pill-dim); animation: spin 1.1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .pill.new .mark { color: var(--pill-dim); }
   .pill.new .num { font: 700 10px/1 var(--font); letter-spacing: .12em; color: var(--pill-dim); }
   @media (prefers-reduced-motion: reduce) { .pill { transition: none; } .pill:hover { transform: none; } }

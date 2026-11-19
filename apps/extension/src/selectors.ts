@@ -22,6 +22,12 @@ const RESERVED_PATHS = new Set([
   "compose",
   "intent",
   "hashtag",
+  "login",
+  "logout",
+  "signup",
+  "tos",
+  "privacy",
+  "jobs",
 ]);
 
 /** A link to a profile: exactly one path segment, like /elonmusk (not /elonmusk/status/1). */
@@ -61,11 +67,9 @@ export function findMountPoint(article: Element): Element | null {
  * header's own text, so a header that belongs to something else never gets the wrong person's badge.
  */
 export function extractProfileHandle(header: Element, pathname: string): string | null {
-  const match = /^\/([A-Za-z0-9_]{1,15})\/?$/.exec(pathname);
-  const handle = match?.[1];
-  if (!handle || RESERVED_PATHS.has(handle.toLowerCase())) return null;
-  const text = (header.textContent ?? "").toLowerCase();
-  return text.includes(`@${handle.toLowerCase()}`) ? handle.toLowerCase() : null;
+  const handle = profileHandleFromPath(pathname);
+  if (!handle) return null;
+  return (header.textContent ?? "").toLowerCase().includes(`@${handle}`) ? handle : null;
 }
 
 /** What a badge belongs to: the handle, and where on the page it goes. Null if the element is not a target. */
@@ -80,4 +84,21 @@ export function resolveTarget(element: Element, pathname: string): { handle: str
     return handle ? { handle, anchor: element.firstElementChild ?? element } : null;
   }
   return null;
+}
+
+/** Tabs of a profile page (x.com/<handle>/<tab>); any other sub-path, like /status/1, isn't a profile. */
+const PROFILE_TABS = new Set(["with_replies", "media", "likes", "highlights", "articles", "superfollows"]);
+const PROFILE_PATH = /^\/([A-Za-z0-9_]{1,15})(?:\/([a-z_]+))?\/?$/;
+
+/**
+ * The handle whose profile page this path is (lowercase, no @), or null: x.com/elonmusk and its tabs
+ * count; X's own pages (/home, /explore, ...) and sub-pages like /elonmusk/status/1 don't.
+ */
+export function profileHandleFromPath(pathname: string): string | null {
+  const match = PROFILE_PATH.exec(pathname);
+  const handle = match?.[1];
+  if (!handle || RESERVED_PATHS.has(handle.toLowerCase())) return null;
+  const tab = match?.[2];
+  if (tab && !PROFILE_TABS.has(tab)) return null;
+  return handle.toLowerCase();
 }

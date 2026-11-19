@@ -5,6 +5,7 @@ import { callRowView, formatPoints, profileView, timeAgo } from "./view.js";
 const call = (over: Partial<CallEntry> = {}): CallEntry => ({
   callId: "11111111-1111-4111-8111-111111111111",
   tweetId: "1001",
+  tweetText: "Taking UConn tonight.",
   tweetedAt: "2026-11-19T12:03:00.000Z",
   eventName: "UConn vs Arizona",
   pickLabel: "UConn",

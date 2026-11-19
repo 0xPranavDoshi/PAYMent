@@ -5,6 +5,7 @@ import { z } from "zod";
 export interface LedgerRow {
   id: string;
   tweetId: string;
+  tweetText: string;
   tweetedAt: Date;
   eventName: string;
   pickedOutcome: string;
@@ -42,6 +43,7 @@ export function toCallEntry(row: LedgerRow): CallEntry {
   return {
     callId: row.id,
     tweetId: row.tweetId,
+    tweetText: row.tweetText,
     tweetedAt: row.tweetedAt.toISOString(),
     eventName: row.eventName,
     pickLabel: row.pickedOutcome,
