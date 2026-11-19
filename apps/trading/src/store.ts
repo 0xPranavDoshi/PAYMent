@@ -65,6 +65,24 @@ export interface TradingStore {
   ): Promise<void>;
   getTail(tailId: string): Promise<TailRow | null>;
   listUserTails(userId: string): Promise<TailRow[]>;
+  /**
+   * A user's tails joined to the call and market details needed to mark open paper tails to
+   * market: the bought side, the picked contract's symbol/label, the market's Gemini ticker,
+   * and the last synced price for that side (used when a live fetch fails). Newest first.
+   */
+  listUserTailsForPnl(
+    userId: string,
+    source?: TailRow["source"],
+  ): Promise<
+    Array<{
+      tail: TailRow;
+      side: "yes" | "no" | null;
+      instrumentSymbol: string | null;
+      pickedOutcome: string | null;
+      ticker: string;
+      storedMarkPrice: number | null;
+    }>
+  >;
   /** Open paper tails on calls belonging to this market, with the call's side and picked outcome. */
   listOpenPaperTailsByMarket(marketId: string): Promise<Array<{
     tailId: string;

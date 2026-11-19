@@ -228,6 +228,48 @@ export function createPostgresStore(sql: postgres.Sql): TradingStore {
       return rows.map(toTail);
     },
 
+    async listUserTailsForPnl(userId, source) {
+      const rows = await sql<
+        (DbTail & {
+          side: string | null;
+          instrument_symbol: string | null;
+          picked_outcome: string | null;
+          gemini_market_id: string;
+          outcomes: OutcomeInfo[];
+        })[]
+      >`
+        select t.*, c.side, c.instrument_symbol, c.picked_outcome,
+               m.gemini_market_id, m.outcomes
+        from tails t
+        join calls c   on c.id = t.call_id
+        join markets m on m.id = c.market_id
+        where t.follower_id = ${userId}
+          ${source ? sql`and t.source = ${source}` : sql``}
+        order by t.created_at desc
+      `;
+      return rows.map((r) => {
+        const side = (r.side as "yes" | "no") ?? null;
+        const outcome = (r.outcomes ?? []).find(
+          (o) =>
+            (r.instrument_symbol != null && o.instrumentSymbol === r.instrument_symbol) ||
+            (r.picked_outcome != null && o.label === r.picked_outcome),
+        );
+        const storedMarkPrice = outcome
+          ? side === "no" && outcome.noOdds != null
+            ? outcome.noOdds
+            : outcome.currentOdds
+          : null;
+        return {
+          tail: toTail(r),
+          side,
+          instrumentSymbol: r.instrument_symbol,
+          pickedOutcome: r.picked_outcome,
+          ticker: r.gemini_market_id,
+          storedMarkPrice,
+        };
+      });
+    },
+
     async listOpenPaperTailsByMarket(marketId) {
       const rows = await sql<
         { id: string; amount_usdc: string; entry_odds: number; side: string | null; picked_outcome: string }[]

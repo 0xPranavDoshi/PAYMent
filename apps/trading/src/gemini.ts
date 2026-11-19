@@ -181,6 +181,27 @@ export function contractToOutcome(contract: GeminiContract): OutcomeInfo {
   };
 }
 
+/**
+ * The current buy price of a side for the contract matched by instrument symbol or label,
+ * as a [0,1] number, or null when the contract or a usable price isn't present. Pure: used
+ * to mark open paper tails against a freshly fetched event.
+ */
+export function sidePriceFromEvent(
+  event: GeminiEvent,
+  match: { instrumentSymbol?: string | null; label?: string | null },
+  side: "yes" | "no" | null,
+): number | null {
+  const contract = event.contracts?.find(
+    (x) =>
+      (match.instrumentSymbol != null && x.instrumentSymbol === match.instrumentSymbol) ||
+      (match.label != null && x.label === match.label),
+  );
+  if (!contract) return null;
+  const raw = side === "no" ? contract.prices?.buy?.no : contract.prices?.buy?.yes;
+  const p = parseFloat(raw ?? "");
+  return Number.isFinite(p) && p > 0 && p <= 1 ? p : null;
+}
+
 /** Decimal places implied by an increment, e.g. 0.01 -> 2, 1 -> 0. */
 export function decimalPlaces(increment: number): number {
   const str = String(increment);

@@ -143,8 +143,11 @@ export default function WatchlistPage() {
               <th style={{ textAlign: "left", padding: "8px 12px", borderBottom: "1px solid #333", color: "#9a9a9a", fontSize: 13 }}>
                 Active
               </th>
-              <th style={{ textAlign: "left", padding: "8px 12px", borderBottom: "1px solid #333", color: "#9a9a9a", fontSize: 13 }}>
-                Paper PnL
+              <th
+                style={{ textAlign: "left", padding: "8px 12px", borderBottom: "1px solid #333", color: "#9a9a9a", fontSize: 13 }}
+                title="What a $1 paper bet on each of their picks would have made"
+              >
+                Watch PnL
               </th>
               <th style={{ borderBottom: "1px solid #333" }} />
             </tr>
