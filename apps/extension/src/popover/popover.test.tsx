@@ -446,7 +446,7 @@ describe("the popover", () => {
       await openCard(trading);
       await loaded();
       click(watchBtn());
-      await vi.waitFor(() => expect(toast()).toBe("Sign in with X to trade. Coming soon."));
+      await vi.waitFor(() => expect(toast()).toBe("Sign in with X on coPAYMe, then come back here."));
       click(copyBtn());
       expect(trading.setWatch).not.toHaveBeenCalled();
       expect(card().querySelector(".panel")).toBeNull(); // no confirmation to start copying
