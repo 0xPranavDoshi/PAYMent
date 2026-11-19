@@ -195,3 +195,53 @@ describe("badges on profile pages", () => {
     expect(lookup).not.toHaveBeenCalled();
   });
 });
+
+describe("when the extension is reloaded under an open page", () => {
+  let stop: () => void;
+  afterEach(() => stop?.());
+
+  it("retires quietly: removes its badges, stops asking, and does not log an error per tweet", async () => {
+    document.body.innerHTML = '<main id="timeline"></main>';
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const lookup = vi.fn(async (): Promise<BadgesResponse> => {
+      throw new Error("Extension context invalidated.");
+    });
+    stop = startBadges({ lookup, delayMs: 10 });
+    document.getElementById("timeline")!.insertAdjacentHTML("beforeend", tweetHtml("alice"));
+    await vi.waitFor(() => expect(lookup).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(document.querySelectorAll("[data-copayme=badge]")).toHaveLength(0)); // its badge is gone
+
+    document.getElementById("timeline")!.insertAdjacentHTML("beforeend", tweetHtml("bob")); // a new tweet scrolls in
+    await new Promise((r) => setTimeout(r, 60));
+    expect(document.querySelectorAll("[data-copayme=badge]")).toHaveLength(0); // nothing is mounted any more
+    expect(lookup).toHaveBeenCalledTimes(1); // and it has stopped asking
+    expect(warn).not.toHaveBeenCalled(); // and stopped logging
+    warn.mockRestore();
+  });
+
+  it("still treats an ordinary failure as retryable, so a flaky API does not switch badges off", async () => {
+    document.body.innerHTML = '<main id="timeline"></main>';
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const lookup = vi
+      .fn<(handles: string[]) => Promise<BadgesResponse>>()
+      .mockRejectedValueOnce(new Error("badges request failed: 500"))
+      .mockResolvedValue({ alice: scored });
+    stop = startBadges({ lookup, delayMs: 10 });
+    document.getElementById("timeline")!.insertAdjacentHTML("beforeend", tweetHtml("alice"));
+    await vi.waitFor(() => expect(lookup).toHaveBeenCalledTimes(1));
+    document.getElementById("timeline")!.insertAdjacentHTML("beforeend", tweetHtml("alice"));
+    await vi.waitFor(() => expect(badgeTexts()).toContain("SCORE72▲8"));
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it("can be stopped more than once, and removes the badges it added", async () => {
+    document.body.innerHTML = '<main id="timeline"></main>';
+    stop = startBadges({ lookup: async () => ({ alice: scored }), delayMs: 10 });
+    document.getElementById("timeline")!.insertAdjacentHTML("beforeend", tweetHtml("alice"));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8"]));
+    stop();
+    stop();
+    expect(document.querySelectorAll("[data-copayme=badge]")).toHaveLength(0);
+  });
+});

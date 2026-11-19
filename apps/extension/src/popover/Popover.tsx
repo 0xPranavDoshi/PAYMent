@@ -1,13 +1,14 @@
 import type { CallEntry, UserProfile } from "@copayme/shared";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Gauge, Mark } from "../brand.js";
+import { REFRESH_MESSAGE, isContextInvalidated } from "../context.js";
 import { ArrowUpRightIcon, CheckIcon, CopyIcon, PaperIcon } from "../icons.js";
 import { SIGNED_OUT, type TradingActions, type TradingState } from "../trading.js";
 import { callRowView, formatTweetTime, profileView } from "./view.js";
 
 export type PopoverState =
   | { status: "loading" }
-  | { status: "error" }
+  | { status: "error"; /** The extension was reloaded under this page, so retrying cannot help. */ stale?: boolean }
   | { status: "ready"; profile: UserProfile | null; calls: CallEntry[] };
 
 export function Popover(props: {
@@ -44,11 +45,20 @@ export function Popover(props: {
         </div>
       )}
 
-      {state.status === "error" && (
+      {state.status === "error" && !state.stale && (
         <div className="state">
           <div>Couldn't load this profile.</div>
           <button type="button" className="btn retry" style={{ marginTop: 10 }} onClick={onRetry}>
             Retry
+          </button>
+        </div>
+      )}
+
+      {state.status === "error" && state.stale && (
+        <div className="state">
+          <div>{REFRESH_MESSAGE}</div>
+          <button type="button" className="btn refresh" style={{ marginTop: 10 }} onClick={() => window.location.reload()}>
+            Refresh page
           </button>
         </div>
       )}
@@ -171,7 +181,10 @@ function TradeActions({ handle, trading }: { handle: string; trading?: TradingAc
       await action();
       after();
     } catch (err) {
-      setNotice({ kind: "error", text: err instanceof Error ? err.message : "Something went wrong." });
+      setNotice({
+        kind: "error",
+        text: isContextInvalidated(err) ? REFRESH_MESSAGE : err instanceof Error ? err.message : "Something went wrong.",
+      });
     } finally {
       working.current = false;
       setBusy(null);

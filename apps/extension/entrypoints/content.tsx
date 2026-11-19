@@ -7,8 +7,8 @@ import { createTradingBridge } from "../src/tradingBridge.js";
 
 export default defineContentScript({
   matches: ["https://x.com/*"],
-  main() {
-    startBadges({
+  main(ctx) {
+    const stop = startBadges({
       webUrl: WEB_URL,
       trading: createTradingBridge(async (request: TradingRequest): Promise<TradingReply> => browser.runtime.sendMessage(request)),
       lookup: async (handles) => {
@@ -31,5 +31,8 @@ export default defineContentScript({
         return reply.status === "done" ? { status: "done", badge: reply.badge } : { status: reply.status };
       },
     });
+    // When the extension is reloaded or updated, this copy of the script is orphaned: take its badges
+    // off the page instead of leaving them behind to fail on every tweet.
+    ctx.onInvalidated(stop);
   },
 });
