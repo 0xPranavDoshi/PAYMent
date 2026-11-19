@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import game from "../../test/fixtures/gemini-game.json" with { type: "json" };
 import search from "../../test/fixtures/gemini-search.json" with { type: "json" };
-import { createGeminiClient, GeminiError } from "./client.js";
+import { createGeminiClient, GeminiError, PRICE_MAX_AGE_MS } from "./client.js";
 import { GeminiEvent } from "./types.js";
 
 const json = (body: unknown, status = 200) =>
@@ -151,6 +151,48 @@ describe("getEvent", () => {
     expect((await client.getEvent("X-1")).events?.length).toBeGreaterThan(0);
     await client.getEvent("X-1");
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  describe("getYesPriceAt (candles)", () => {
+    const T = Date.parse("2026-11-17T21:03:00Z");
+    const MIN = 60_000;
+    // [startMs, open, high, low, close, volume]
+    const candle = (startMs: number, close: number) => [startMs, close, close, close, close, 10];
+    const byInterval = (five: unknown, hour: unknown) =>
+      vi.fn(async (url: string) => (url.endsWith("/5m") ? json(five) : json(hour)));
+
+    it("returns the close of the last 5-minute candle starting at or before the tweet", async () => {
+      const fetchMock = byInterval([candle(T - 10 * MIN, 0.35), candle(T - 3 * MIN, 0.39), candle(T + 2 * MIN, 0.5)], []);
+      const client = createGeminiClient({ fetch: asFetch(fetchMock) });
+      expect(await client.getYesPriceAt("GEMI-X-TOR", new Date(T))).toBe(0.39);
+      expect(fetchMock.mock.calls[0]![0]).toBe("https://api.gemini.com/v2/candles/GEMI-X-TOR/5m");
+    });
+
+    it("falls back to hourly candles when there are no 5-minute ones", async () => {
+      const fetchMock = byInterval({ result: "error", reason: "NoDataFound" }, [candle(T - 40 * MIN, 0.47)]);
+      expect(await createGeminiClient({ fetch: asFetch(fetchMock) }).getYesPriceAt("S", new Date(T))).toBe(0.47);
+    });
+
+    it("returns null when the nearest candle is too old, or the tweet predates all candles", async () => {
+      const stale = byInterval([candle(T - PRICE_MAX_AGE_MS - MIN, 0.4)], []);
+      expect(await createGeminiClient({ fetch: asFetch(stale) }).getYesPriceAt("S", new Date(T))).toBeNull();
+      const later = byInterval([candle(T + MIN, 0.4)], [candle(T + 60 * MIN, 0.4)]);
+      expect(await createGeminiClient({ fetch: asFetch(later) }).getYesPriceAt("S", new Date(T))).toBeNull();
+    });
+
+    it("treats no data and network errors as no price, and caches candles per contract", async () => {
+      const none = byInterval({ result: "error", reason: "NoDataFound" }, { result: "error", reason: "NoDataFound" });
+      expect(await createGeminiClient({ fetch: asFetch(none) }).getYesPriceAt("S", new Date(T))).toBeNull();
+      const down = vi.fn(async () => {
+        throw new TypeError("fetch failed");
+      });
+      expect(await createGeminiClient({ fetch: asFetch(down) }).getYesPriceAt("S", new Date(T))).toBeNull();
+      const fetchMock = byInterval([candle(T - MIN, 0.4)], []);
+      const client = createGeminiClient({ fetch: asFetch(fetchMock) });
+      await client.getYesPriceAt("S", new Date(T));
+      await client.getYesPriceAt("S", new Date(T - MIN));
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("throws GeminiError on 404", async () => {

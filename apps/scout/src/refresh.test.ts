@@ -59,6 +59,7 @@ const gemini = (events: Record<string, GeminiEvent>): GeminiClient => ({
     if (!e) throw new Error(`no event ${t}`);
     return e;
   }),
+  getYesPriceAt: vi.fn(async () => null),
 });
 
 describe("refreshMarkets", () => {

@@ -48,10 +48,21 @@ export function toMarketRow(sub: GeminiEvent, gameStartTime: string | null): Mar
   };
 }
 
-function toPick(m: PickMatch, sub: GeminiEvent): Pick | null {
+/**
+ * The pick for ingest, priced at the tweet's time from Gemini's candles. Without that price ingest
+ * stores the pick but can't score it (points = won - price), so backfilled picks would never count.
+ */
+async function toPick(m: PickMatch, sub: GeminiEvent, tweetedAt: Date, gemini: GeminiClient): Promise<Pick | null> {
   if (!m.instrumentSymbol || !m.side || !m.gameStartTime) return null;
   const contract = sub.contracts.find((c) => c.instrumentSymbol === m.instrumentSymbol);
   if (!contract) return null;
+  let oddsAtTweet: number | null = null;
+  try {
+    const yes = await gemini.getYesPriceAt(m.instrumentSymbol, tweetedAt);
+    if (yes !== null) oddsAtTweet = Math.round((m.side === "yes" ? yes : 1 - yes) * 10000) / 10000;
+  } catch {
+    // No price is fine: ingest stores the pick unpriced.
+  }
   return {
     geminiEventTicker: sub.ticker,
     instrumentSymbol: m.instrumentSymbol,
@@ -59,8 +70,7 @@ function toPick(m: PickMatch, sub: GeminiEvent): Pick | null {
     gameStartTime: m.gameStartTime,
     resolutionSide: contract.resolutionSide ?? null,
     resolvedAt: contract.resolvedAt ?? null,
-    // Gemini has no reliable contract price history; ingest prices the pick itself.
-    oddsAtTweet: null,
+    oddsAtTweet,
   };
 }
 
@@ -125,7 +135,7 @@ export function createForwarder(opts: {
           if (m.status !== "matched" || !m.geminiEventTicker) continue;
           try {
             const sub = await opts.gemini.getEvent(m.geminiEventTicker);
-            const pick = toPick(m, sub);
+            const pick = await toPick(m, sub, post.tweetedAt, opts.gemini);
             const market = toMarketRow(sub, m.gameStartTime);
             if (pick && market && (await ensureMarket(market))) picks.push(pick);
           } catch (err) {
