@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { fetchLeaderboard, fetchTraderCalls, fetchTraderProfile, type LeaderboardEntry } from "@/lib/api";
-import { formatCents, formatChange, formatPct } from "@/lib/format";
+import { fetchLeaderboard, fetchRecentCalls, fetchScoreHistory, fetchTraderCalls, fetchTraderProfile, type LeaderboardEntry } from "@/lib/api";
+import { formatCents, formatChange, formatPct, scoreHue, shortDate } from "@/lib/format";
+import ExtensionPromo from "@/components/ExtensionPromo";
+import ScoreChart from "@/components/ScoreChart";
 import Page from "@/components/Page";
 import ScoreRing from "@/components/ScoreRing";
 import TraderGrid from "@/components/TraderGrid";
@@ -21,7 +23,11 @@ export default async function Home() {
   const at = found.findIndex((f) => f.length > 0);
   const lead = at >= 0 ? candidates[at]! : (scored[0] ?? board[0] ?? null);
   const calls = at >= 0 ? found[at]! : [];
-  const profile = lead ? await fetchTraderProfile(lead.handle).catch(() => null) : null;
+  const [profile, history, recent] = await Promise.all([
+    lead ? fetchTraderProfile(lead.handle).catch(() => null) : null,
+    lead ? fetchScoreHistory(lead.handle).catch(() => []) : [],
+    fetchRecentCalls(4).catch(() => []),
+  ]);
   const movers = [...scored].filter((e) => formatChange(e.change14d)).sort((a, b) => Math.abs(b.change14d ?? 0) - Math.abs(a.change14d ?? 0)).slice(0, 5);
 
   return (
@@ -49,6 +55,9 @@ export default async function Home() {
                     </div>
                   </div>
                 </div>
+                {history.length >= 2 && (
+                  <ScoreChart compact color={`hsl(${scoreHue(profile.score)} 70% 55%)`} points={history.map((p) => ({ label: shortDate(p.computedAt), score: p.score }))} />
+                )}
                 {calls.length > 0 && (
                   <div className="f-picks">
                     {calls.map((c) => {
@@ -68,6 +77,7 @@ export default async function Home() {
               </Link>
             )}
 
+            <div className="side-col">
             <aside className="side">
               <h2>Biggest movers <small>14 days</small></h2>
               {movers.length === 0 ? (
@@ -87,12 +97,33 @@ export default async function Home() {
               )}
               <Link href="/leaderboard" className="btn sm" style={{ marginTop: 12, width: "100%" }}>Full leaderboard</Link>
             </aside>
+
+            {recent.length > 0 && (
+              <aside className="latest">
+                <h2>Latest picks</h2>
+                {recent.map((c) => {
+                  const tone = c.points === null ? "muted" : c.result === "won" ? "w" : c.result === "lost" ? "l" : "muted";
+                  return (
+                    <Link key={c.callId} href={`/traders/${encodeURIComponent(c.handle)}`} className="lp">
+                      <div>
+                        <div className="e">{c.eventName}</div>
+                        <div className="who2">@{c.handle}{c.oddsAtCall !== null ? ` · ${Math.round(c.oddsAtCall * 100)}¢` : ""}</div>
+                      </div>
+                      <span className={`r ${tone}`}>{c.points === null ? "Pending" : formatCents(c.points)}</span>
+                    </Link>
+                  );
+                })}
+              </aside>
+            )}
+            </div>
           </section>
 
           <section style={{ marginTop: 44 }}>
             <h2 className="sect">Traders</h2>
             <TraderGrid entries={board} />
           </section>
+
+          <ExtensionPromo />
         </>
       )}
     </Page>

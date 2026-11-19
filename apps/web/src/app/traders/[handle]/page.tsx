@@ -1,9 +1,10 @@
 import Page from "@/components/Page";
 import Link from "next/link";
-import { fetchCopyMode, fetchCopyTrades, fetchTraderCalls, fetchTraderProfile, fetchWatches } from "@/lib/api";
+import { fetchCopyMode, fetchCopyTrades, fetchScoreHistory, fetchTraderCalls, fetchTraderProfile, fetchWatches } from "@/lib/api";
+import ScoreChart from "@/components/ScoreChart";
 import { getFollowerId } from "@/lib/session";
 import { CopyButton, WatchButton } from "@/components/TradeButtons";
-import { formatCents, formatChange, formatPct, formatTweetTime, timeAgo } from "@/lib/format";
+import { formatCents, formatChange, formatPct, formatTweetTime, scoreHue, shortDate, timeAgo } from "@/lib/format";
 import ScoreRing from "@/components/ScoreRing";
 import PickRow from "@/components/PickRow";
 
@@ -28,7 +29,7 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
       </Page>
     );
   }
-  const calls = await fetchTraderCalls(profile.handle).catch(() => []);
+  const [calls, history] = await Promise.all([fetchTraderCalls(profile.handle).catch(() => []), fetchScoreHistory(profile.handle).catch(() => [])]);
 
   const followerId = await getFollowerId();
   const key = profile.handle.toLowerCase();
@@ -85,6 +86,15 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
           <span>Edge</span>
         </div>
       </div>
+
+      {history.length >= 2 && (
+        <section className="section">
+          <h2>Score over time</h2>
+          <div className="card" style={{ marginTop: 14 }}>
+            <ScoreChart color={`hsl(${scoreHue(profile.score)} 70% 55%)`} points={history.map((p) => ({ label: shortDate(p.computedAt), score: p.score }))} />
+          </div>
+        </section>
+      )}
 
       <section className="section">
         <h2>Picks</h2>

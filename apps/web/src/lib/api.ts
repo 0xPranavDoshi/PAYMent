@@ -1,4 +1,4 @@
-import type { UserProfile, TailResponse, WatchItem, CopyTradeConfig, CallEntry } from "@copayme/shared";
+import type { UserProfile, TailResponse, WatchItem, CopyTradeConfig, CallEntry, RecentCall, ScorePoint } from "@copayme/shared";
 
 export type { WatchItem, CopyTradeConfig };
 
@@ -38,6 +38,21 @@ export async function fetchTraderProfile(
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`fetchTraderProfile failed: ${res.status}`);
   return (await res.json()) as UserProfile;
+}
+
+/** The latest picks across all traders (GET /v1/calls/recent). */
+export async function fetchRecentCalls(limit = 6): Promise<RecentCall[]> {
+  const res = await fetch(`${API}/v1/calls/recent?limit=${limit}`, { next: { revalidate: 20 } });
+  if (!res.ok) throw new Error(`fetchRecentCalls failed: ${res.status}`);
+  return (await res.json()) as RecentCall[];
+}
+
+/** A trader's score snapshots, oldest first (GET /v1/users/:handle/score-history). */
+export async function fetchScoreHistory(handle: string): Promise<ScorePoint[]> {
+  const res = await fetch(`${API}/v1/users/${encodeURIComponent(handle)}/score-history`, { next: { revalidate: 20 } });
+  if (res.status === 404) return [];
+  if (!res.ok) throw new Error(`fetchScoreHistory failed: ${res.status}`);
+  return (await res.json()) as ScorePoint[];
 }
 
 /** A trader's picks, newest first (GET /v1/users/:handle/calls). */
