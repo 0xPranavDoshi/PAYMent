@@ -14,14 +14,14 @@ const market: MarketRow = {
   sport: "basketball",
   eventName: "UConn vs Arizona",
   outcomes: [
-    { label: "UConn", instrumentSymbol: "GEMI-UCONN", currentOdds: 0.62, noOdds: 0.4, resolutionSide: null },
+    { label: "UConn", instrumentSymbol: "GEMI-UCONN", currentOdds: 0.62, noOdds: 0.4, resolutionSide: null, priceIncrement: 0.01, quantityIncrement: 0.01, quantityMinimum: 0.01 },
   ],
   lockTime: new Date("2026-11-20T02:00:00Z"),
   status: "open",
   winningOutcome: null,
 };
 
-function setup(over: { call?: Partial<CallRow>; market?: Partial<MarketRow>; orderFails?: boolean; updateFails?: boolean } = {}) {
+function setup(over: { call?: Partial<CallRow>; market?: Partial<MarketRow>; orderFails?: boolean; updateFails?: boolean; copyTradeMode?: "paper" | "live" } = {}) {
   const call: CallRow = {
     id: CALL_ID,
     userId: "u1",
@@ -63,10 +63,13 @@ function setup(over: { call?: Partial<CallRow>; market?: Partial<MarketRow>; ord
       return { orderId: 42, filledQuantity: "16" };
     }),
   };
+  // These tests exercise the live order path, so default to "live"; the paper-mode
+  // suite below opts into "paper" (which is the production default).
   const app = createApp({
     store: store as unknown as TradingStore,
     gemini: gemini as unknown as GeminiClient,
     serviceKey: KEY,
+    copyTradeMode: over.copyTradeMode ?? "live",
   });
   const notify = (key: string | null = KEY) =>
     app.request("/v1/calls/notify", {
@@ -172,9 +175,10 @@ describe("POST /v1/calls/notify", () => {
       expect(gemini.placeOrder).toHaveBeenCalledTimes(1); // the failed attempt only
     });
 
-    it("cancels without ordering when the amount is too small for one contract", async () => {
+    it("cancels without ordering when the amount is below the minimum quantity", async () => {
       const { notify, gemini, tails, store } = setup();
-      store.getActiveCopyTraders.mockResolvedValue([{ followerId: "copier-1", amountUsdc: 0.1 }]);
+      // 0.004 / 0.62 ≈ 0.006 contracts, below the 0.01 quantity minimum.
+      store.getActiveCopyTraders.mockResolvedValue([{ followerId: "copier-1", amountUsdc: 0.004 }]);
       const body = await (await notify()).json();
       expect(body.errors[0]).toContain("too small");
       expect(gemini.placeOrder).not.toHaveBeenCalled();
@@ -189,6 +193,33 @@ describe("POST /v1/calls/notify", () => {
       const again = await (await notify()).json();
       expect(gemini.placeOrder).toHaveBeenCalledTimes(1); // still not ordered twice
       expect(again.copyTails).toBe(0);
+    });
+  });
+
+  describe("copy trades in paper mode (the default)", () => {
+    it("simulates at the follower's size without placing a live order", async () => {
+      const { notify, gemini, tails } = setup({ copyTradeMode: "paper" });
+      const body = await (await notify()).json();
+      expect(body).toMatchObject({ watchTails: 2, copyTails: 1, errors: [] });
+      expect(gemini.placeOrder).not.toHaveBeenCalled();
+      const copyTail = tails.find((t) => t.source === "copy");
+      expect(copyTail).toMatchObject({ mode: "paper", amountUsdc: 10, status: "open" });
+    });
+
+    it("copies a pick that has no side (paper does not need one)", async () => {
+      const { notify, gemini, tails } = setup({ copyTradeMode: "paper", call: { side: null } });
+      const body = await (await notify()).json();
+      expect(body).toMatchObject({ copyTails: 1, errors: [] });
+      expect(gemini.placeOrder).not.toHaveBeenCalled();
+      expect(tails.find((t) => t.source === "copy")).toMatchObject({ mode: "paper" });
+    });
+
+    it("is idempotent: a second notification adds no new copy tail", async () => {
+      const { notify, tails } = setup({ copyTradeMode: "paper" });
+      await notify();
+      const second = await (await notify()).json();
+      expect(second).toMatchObject({ watchTails: 0, copyTails: 0, alreadyNotified: 3 });
+      expect(tails.filter((t) => t.source === "copy")).toHaveLength(1);
     });
   });
 });

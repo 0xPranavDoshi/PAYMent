@@ -1,4 +1,5 @@
 import { createRoot, type Root } from "react-dom/client";
+import { isContextInvalidated } from "../context.js";
 import type { ProfileData } from "../messages.js";
 import { POPOVER_CSS } from "../styles.js";
 import type { Theme, ThemeStore } from "../theme.js";
@@ -92,8 +93,8 @@ export function createPopoverManager(opts: {
         (data) => {
           if (mine === token && current?.host === host) render({ status: "ready", ...data });
         },
-        () => {
-          if (mine === token && current?.host === host) render({ status: "error" });
+        (err: unknown) => {
+          if (mine === token && current?.host === host) render({ status: "error", stale: isContextInvalidated(err) });
         },
       );
     }

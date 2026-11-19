@@ -7,3 +7,6 @@ dist/
 !.env.example
 .DS_Store
 *.log
+
+# Claude Code local state & agent worktrees
+.claude/

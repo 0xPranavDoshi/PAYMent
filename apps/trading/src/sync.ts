@@ -1,6 +1,7 @@
 import type { GeminiClient, GeminiEvent } from "./gemini.js";
 import { contractToOutcome } from "./gemini.js";
 import type { TradingStore } from "./store.js";
+import { settlePaperTailsForMarket } from "./settle.js";
 
 const SPORTS = [
   "american_football",
@@ -59,7 +60,7 @@ export async function syncMarkets(
 
       for (const event of events) {
         try {
-          await store.upsertMarket({
+          const row = await store.upsertMarket({
             geminiMarketId: event.ticker,
             sport: event.sportsMarket?.sport ?? sport,
             eventName: event.title,
@@ -69,6 +70,15 @@ export async function syncMarkets(
             winningOutcome: winningOutcomeFor(event),
           });
           upserted++;
+          // Settle paper tails as soon as the market resolves/voids. One market's failure
+          // here must not abort the rest of the sync.
+          if (row.status === "resolved" || row.status === "void") {
+            try {
+              await settlePaperTailsForMarket(store, row);
+            } catch (err) {
+              errors.push(`settlePaperTailsForMarket(${event.ticker}): ${String(err)}`);
+            }
+          }
         } catch (err) {
           errors.push(`upsertMarket(${event.ticker}): ${String(err)}`);
         }

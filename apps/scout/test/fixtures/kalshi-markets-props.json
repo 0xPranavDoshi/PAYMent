@@ -1,0 +1,105 @@
+{
+ "markets": [
+  {
+   "ticker": "KXNBAPTS-26NOV18MILMIA-MIABADEBAYO13-10",
+   "event_ticker": "KXNBAPTS-26NOV18MILMIA",
+   "yes_sub_title": "Bam Adebayo: 10+",
+   "floor_strike": 9.5,
+   "strike_type": "greater",
+   "result": "yes",
+   "status": "finalized",
+   "settlement_ts": "2026-11-19T00:57:30.017209Z"
+  },
+  {
+   "ticker": "KXNBAPTS-26NOV18MILMIA-MIABADEBAYO13-15",
+   "event_ticker": "KXNBAPTS-26NOV18MILMIA",
+   "yes_sub_title": "Bam Adebayo: 15+",
+   "floor_strike": 14.5,
+   "strike_type": "greater",
+   "result": "yes",
+   "status": "finalized",
+   "settlement_ts": "2026-11-19T01:03:35.016425Z"
+  },
+  {
+   "ticker": "KXNBAPTS-26NOV18MILMIA-MIABADEBAYO13-20",
+   "event_ticker": "KXNBAPTS-26NOV18MILMIA",
+   "yes_sub_title": "Bam Adebayo: 20+",
+   "floor_strike": 19.5,
+   "strike_type": "greater",
+   "result": "",
+   "status": "active",
+   "settlement_ts": null
+  },
+  {
+   "ticker": "KXNBAPTS-26NOV18MILMIA-MIABADEBAYO13-25",
+   "event_ticker": "KXNBAPTS-26NOV18MILMIA",
+   "yes_sub_title": "Bam Adebayo: 25+",
+   "floor_strike": 24.5,
+   "strike_type": "greater",
+   "result": "",
+   "status": "active",
+   "settlement_ts": null
+  },
+  {
+   "ticker": "KXNBAPTS-26NOV18MILMIA-MILTHERRO11-30",
+   "event_ticker": "KXNBAPTS-26NOV18MILMIA",
+   "yes_sub_title": "Tyler Herro: 30+",
+   "floor_strike": 29.5,
+   "strike_type": "greater",
+   "result": "",
+   "status": "active",
+   "settlement_ts": null
+  },
+  {
+   "ticker": "KXNBAPTS-26NOV18MILMIA-MIABADEBAYO13-30",
+   "event_ticker": "KXNBAPTS-26NOV18MILMIA",
+   "yes_sub_title": "Bam Adebayo: 30+",
+   "floor_strike": 29.5,
+   "strike_type": "greater",
+   "result": "",
+   "status": "active",
+   "settlement_ts": null
+  },
+  {
+   "ticker": "KXNBAPTS-26NOV18MILMIA-MIABADEBAYO13-35",
+   "event_ticker": "KXNBAPTS-26NOV18MILMIA",
+   "yes_sub_title": "Bam Adebayo: 35+",
+   "floor_strike": 34.5,
+   "strike_type": "greater",
+   "result": "",
+   "status": "active",
+   "settlement_ts": null
+  },
+  {
+   "ticker": "KXNBAPTS-26NOV18MILMIA-MILTHERRO11-15",
+   "event_ticker": "KXNBAPTS-26NOV18MILMIA",
+   "yes_sub_title": "Tyler Herro: 15+",
+   "floor_strike": 14.5,
+   "strike_type": "greater",
+   "result": "",
+   "status": "active",
+   "settlement_ts": null
+  },
+  {
+   "ticker": "KXNBAPTS-26NOV18MILMIA-MILTHERRO11-25",
+   "event_ticker": "KXNBAPTS-26NOV18MILMIA",
+   "yes_sub_title": "Tyler Herro: 25+",
+   "floor_strike": 24.5,
+   "strike_type": "greater",
+   "result": "",
+   "status": "active",
+   "settlement_ts": null
+  },
+  {
+   "ticker": "KXNBAPTS-26NOV18MILMIA-MILTHERRO11-20",
+   "event_ticker": "KXNBAPTS-26NOV18MILMIA",
+   "yes_sub_title": "Tyler Herro: 20+",
+   "floor_strike": 19.5,
+   "strike_type": "greater",
+   "result": "",
+   "status": "active",
+   "settlement_ts": null
+  }
+ ],
+ "cursor": ""
+}

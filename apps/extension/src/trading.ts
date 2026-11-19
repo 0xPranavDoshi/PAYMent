@@ -5,7 +5,7 @@ import { z } from "zod";
 export interface TradingState {
   /** False when no user is configured, so trading buttons explain that instead of failing. */
   signedIn: boolean;
-  /** Following this trader with $1 paper bets. */
+  /** Watching this trader: a $1 paper bet on each of their new picks. */
   watching: boolean;
   /** Mirroring this trader with real orders, and for how much per pick. */
   copy: { active: boolean; amountUsdc: number } | null;

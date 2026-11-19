@@ -7,19 +7,30 @@ import {
   CopyTradeConfig,
   MAX_COPY_PICK_AGE_S,
   isFreshForCopy,
+  paperPnlUsdc,
 } from "@copayme/shared";
 import { z } from "zod";
 import type { TradingStore } from "./store.js";
 import type { GeminiClient } from "./gemini.js";
+import { snapDown, formatToIncrement } from "./gemini.js";
 import { syncMarkets } from "./sync.js";
 
 /** Max allowed price movement between quotedOdds and live price before rejecting. */
 const MAX_SLIPPAGE = 0.05;
 
+export type CopyTradeMode = "paper" | "live";
+
 export interface AppDeps {
   store: TradingStore;
   gemini: GeminiClient;
   serviceKey: string;
+  /**
+   * How copy trades are executed when a pick arrives. "paper" simulates at the
+   * follower's configured size (the only option that works where the order venue
+   * has no market, e.g. the Gemini sandbox has no sports). "live" places a real
+   * order. Defaults to "paper".
+   */
+  copyTradeMode?: CopyTradeMode;
 }
 
 /** Middleware that guards service-only routes with a static key header. */
@@ -35,7 +46,7 @@ function requireServiceKey(key: string) {
   };
 }
 
-export function createApp({ store, gemini, serviceKey }: AppDeps) {
+export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }: AppDeps) {
   const app = new Hono();
 
   // ── Health ────────────────────────────────────────────────────────────────
@@ -155,30 +166,36 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
       return c.json({ error: "call is missing side (yes/no), cannot place live order" }, 422);
     }
 
-    // quantity = floor(amountUsdc / price) so we never overspend
-    const quantity = Math.floor(req.amountUsdc / entryOdds);
-    if (quantity < 1) {
+    // Size the order to the instrument's quantity increment so we never overspend
+    // and never send a quantity Gemini would reject.
+    const qtyIncrement = outcome.quantityIncrement ?? 0.01;
+    const qtyMinimum = outcome.quantityMinimum ?? qtyIncrement;
+    const priceIncrement = outcome.priceIncrement ?? 0.01;
+    const quantity = snapDown(req.amountUsdc / entryOdds, qtyIncrement);
+    if (quantity < qtyMinimum) {
       return c.json(
-        { error: "amount too small to buy even one contract at current odds" },
+        { error: "amount too small to buy the minimum quantity at current odds" },
         422,
       );
     }
 
     let geminiOrderId: string | null = null;
     let tailStatus: "open" | "filled" = "open";
+    let filledOdds = entryOdds;
 
     try {
       const order = await gemini.placeOrder({
         symbol: outcome.instrumentSymbol,
         side: "buy",
         outcome: call.side,
-        quantity: String(quantity),
-        price: entryOdds.toFixed(4),
+        quantity: formatToIncrement(quantity, qtyIncrement),
+        price: formatToIncrement(entryOdds, priceIncrement),
       });
       geminiOrderId = String(order.orderId);
       // IOC orders are either immediately filled or cancelled
-      tailStatus =
-        parseFloat(order.filledQuantity) > 0 ? "filled" : "open";
+      tailStatus = parseFloat(order.filledQuantity) > 0 ? "filled" : "open";
+      const avg = order.avgExecutionPrice ? parseFloat(order.avgExecutionPrice) : NaN;
+      if (Number.isFinite(avg) && avg > 0) filledOdds = avg;
     } catch (err) {
       return c.json({ error: `Gemini order failed: ${String(err)}` }, 502);
     }
@@ -188,7 +205,7 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
       callId: req.callId,
       mode: "live",
       amountUsdc: req.amountUsdc,
-      entryOdds,
+      entryOdds: filledOdds,
       geminiOrderId,
       status: tailStatus,
       pnlUsdc: null,
@@ -202,26 +219,37 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
     const tail = await store.getTail(c.req.param("id"));
     if (!tail) return c.json({ error: "not found" }, 404);
 
-    // Compute paper-trade P&L on-the-fly if the market has resolved
-    if (tail.mode === "paper" && tail.pnlUsdc === null) {
+    // Settled tails (paper or live) carry final persisted pnl. Nothing to compute.
+    if (tail.status === "settled") {
+      return c.json(
+        toTailResponse(tail, {
+          realized: true,
+          exitOdds: tail.exitOdds,
+          settledAt: tail.settledAt ? tail.settledAt.toISOString() : null,
+        }),
+      );
+    }
+
+    // Open paper tails are marked to market against the current price.
+    if (tail.mode === "paper") {
       const call = await store.getCall(tail.callId);
-      if (call) {
-        const market = await store.getMarketById(call.marketId);
-        if (market?.status === "resolved") {
-          const pickedContract = market.outcomes.find(
+      const market = call ? await store.getMarketById(call.marketId) : null;
+      const outcome = call && market
+        ? market.outcomes.find(
             (o) => o.label === call.pickedOutcome || o.instrumentSymbol === call.pickedOutcome,
-          );
-          // win if the contract's resolution direction matches the side we bought
-          const won =
-            pickedContract?.resolutionSide != null &&
-            call.side != null &&
-            pickedContract.resolutionSide === call.side;
-          const contracts = Math.floor(tail.amountUsdc / tail.entryOdds);
-          tail.pnlUsdc = won
-            ? contracts - tail.amountUsdc
-            : -tail.amountUsdc;
-        }
-      }
+          )
+        : undefined;
+      // NO picks are priced off the buy.no leg; fall back to currentOdds when noOdds is missing.
+      const markPrice = outcome
+        ? call?.side === "no" && outcome.noOdds !== null
+          ? outcome.noOdds
+          : outcome.currentOdds
+        : null;
+      const unrealizedPnlUsdc =
+        markPrice !== null
+          ? paperPnlUsdc({ amountUsdc: tail.amountUsdc, entryOdds: tail.entryOdds, exitPrice: markPrice })
+          : null;
+      return c.json(toTailResponse(tail, { realized: false, markPrice, unrealizedPnlUsdc }));
     }
 
     return c.json(toTailResponse(tail));
@@ -233,7 +261,7 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
     const idParsed = userIdSchema.safeParse(c.req.param("userId"));
     if (!idParsed.success) return c.json({ error: "invalid userId" }, 400);
     const tails = await store.listUserTails(idParsed.data);
-    return c.json(tails.map(toTailResponse));
+    return c.json(tails.map((t) => toTailResponse(t)));
   });
 
   // ── Watches ─────────────────────────────────────────────────────────────────
@@ -344,7 +372,8 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
 
   /**
    * Called by the ingest worker when a new call is recorded. Auto-places $1
-   * paper tails for watchers and configurable live orders for copy-traders.
+   * paper tails for watchers and copy tails for copy-traders at their configured
+   * size — simulated (paper) by default, or real orders when copyTradeMode is "live".
    */
   app.post("/v1/calls/notify", requireServiceKey(serviceKey), async (c) => {
     let body: unknown;
@@ -420,11 +449,37 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
       else alreadyNotified += 1;
     }
 
-    // Copy traders: live orders (needs a side)
+    // Copy traders: paper simulation at the configured size by default; real orders only when
+    // copyTradeMode is "live" (which needs a side and an order venue that has the market).
     let copyTails = 0;
     const copyTraders = await store.getActiveCopyTraders(call.userXHandle);
-    if (call.side) {
+    if (copyTraders.length > 0 && copyTradeMode === "paper") {
+      const copyResults = await Promise.allSettled(
+        copyTraders.map(async ({ followerId, amountUsdc }) => {
+          const tail = await store.claimAutoTail({
+            followerId,
+            callId: call.id,
+            mode: "paper",
+            amountUsdc,
+            entryOdds,
+            geminiOrderId: null,
+            status: "open",
+            pnlUsdc: null,
+            source: "copy",
+          });
+          return tail !== null;
+        }),
+      );
+      for (const r of copyResults) {
+        if (r.status === "rejected") errors.push(`copy: ${String(r.reason)}`);
+        else if (r.value) copyTails += 1;
+        else alreadyNotified += 1;
+      }
+    } else if (copyTraders.length > 0 && call.side) {
       const side = call.side;
+      const qtyIncrement = outcome.quantityIncrement ?? 0.01;
+      const qtyMinimum = outcome.quantityMinimum ?? qtyIncrement;
+      const priceIncrement = outcome.priceIncrement ?? 0.01;
       const copyResults = await Promise.allSettled(
         copyTraders.map(async ({ followerId, amountUsdc }) => {
           // Claim first. Only the run that wins the claim may place an order for this follower.
@@ -441,10 +496,10 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
           });
           if (!tail) return false;
 
-          const quantity = Math.floor(amountUsdc / entryOdds);
-          if (quantity < 1) {
+          const quantity = snapDown(amountUsdc / entryOdds, qtyIncrement);
+          if (quantity < qtyMinimum) {
             await store.updateTail(tail.id, { status: "cancelled" });
-            throw new Error("amount too small to buy one contract at current odds");
+            throw new Error("amount too small to buy the minimum quantity at current odds");
           }
 
           let order;
@@ -453,8 +508,8 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
               symbol: outcome.instrumentSymbol,
               side: "buy",
               outcome: side,
-              quantity: String(quantity),
-              price: entryOdds.toFixed(4),
+              quantity: formatToIncrement(quantity, qtyIncrement),
+              price: formatToIncrement(entryOdds, priceIncrement),
             });
           } catch (err) {
             // No order was placed. The cancelled row stays, so this follower is not retried
@@ -463,10 +518,13 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
             throw err;
           }
 
+          const avg = order.avgExecutionPrice ? parseFloat(order.avgExecutionPrice) : NaN;
+          const filledOdds = Number.isFinite(avg) && avg > 0 ? avg : entryOdds;
           try {
             await store.updateTail(tail.id, {
               geminiOrderId: String(order.orderId),
               status: parseFloat(order.filledQuantity) > 0 ? "filled" : "open",
+              entryOdds: filledOdds,
             });
           } catch (err) {
             // The order exists on Gemini but the tail row was not updated. Say so loudly: this
@@ -491,15 +549,24 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
   return app;
 }
 
-function toTailResponse(tail: {
-  id: string;
-  status: string;
-  mode: string;
-  entryOdds: number;
-  amountUsdc: number;
-  geminiOrderId: string | null;
-  pnlUsdc: number | null;
-}) {
+function toTailResponse(
+  tail: {
+    id: string;
+    status: string;
+    mode: string;
+    entryOdds: number;
+    amountUsdc: number;
+    geminiOrderId: string | null;
+    pnlUsdc: number | null;
+  },
+  extra?: {
+    realized?: boolean;
+    markPrice?: number | null;
+    unrealizedPnlUsdc?: number | null;
+    exitOdds?: number | null;
+    settledAt?: string | null;
+  },
+) {
   return TailResponse.parse({
     tailId: tail.id,
     status: tail.status,
@@ -508,5 +575,6 @@ function toTailResponse(tail: {
     amountUsdc: tail.amountUsdc,
     geminiOrderId: tail.geminiOrderId,
     pnlUsdc: tail.pnlUsdc,
+    ...extra,
   });
 }

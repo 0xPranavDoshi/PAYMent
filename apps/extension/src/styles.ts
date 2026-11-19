@@ -15,6 +15,7 @@ export const TOKENS_CSS = `
     --ember: #c8461a; --ember-ink: #fffdf8; --win: #17794a; --coral: #b8321f;
     --chip: rgba(23, 20, 15, .05); --chip-line: rgba(23, 20, 15, .14);
     --raised: #f6f1e6;
+    --ring-s: 82%; --ring-l: 38%; /* the score ring: hue comes from the score, these make it readable on this theme */
     --focus: #c8461a;
     /* X's own colours, so a tweet shown here looks like the ones on the page. --tw-bg is replaced
        with the page's exact background by the extension. */
@@ -28,6 +29,7 @@ export const TOKENS_CSS = `
     --ember: #ff7a3d; --ember-ink: #1a0d05; --win: #5cd08c; --coral: #ef5b45;
     --chip: rgba(255, 244, 230, .06); --chip-line: rgba(255, 244, 230, .14);
     --raised: #1a1a1d;
+    --ring-s: 70%; --ring-l: 56%;
     --focus: #ffb36b;
     --tw-bg: #000000; --tw-ink: #e7e9ea; --tw-ink-2: #71767b; --tw-line: #2f3336; --tw-avatar: #2f3336; --tw-avatar-ink: #e7e9ea;
   }
@@ -80,7 +82,7 @@ export const POPOVER_CSS = `
   .gauge { position: relative; width: 80px; height: 80px; flex: none; }
   .gauge svg { width: 80px; height: 80px; transform: rotate(-90deg); display: block; }
   .gauge .track { stroke: var(--chip-line); }
-  .gauge .fill { stroke: var(--ember); animation: ring 1s cubic-bezier(.22, .8, .2, 1) both; }
+  .gauge .fill { stroke: hsl(var(--ring-h, 20) var(--ring-s) var(--ring-l)); animation: ring 1s cubic-bezier(.22, .8, .2, 1) both; }
   @keyframes ring { from { stroke-dasharray: 0 var(--c); } to { stroke-dasharray: var(--dash) var(--c); } }
   .gauge .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; }
   .gauge .score { font: 800 26px/1 var(--font); font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
@@ -156,7 +158,14 @@ export const POPOVER_CSS = `
   .tfoot .link:hover, .tfoot .flipbtn:hover { color: var(--ember); }
   .tfoot .acts { display: inline-flex; gap: 12px; align-items: center; }
   .empty { padding: 4px 16px 10px; color: var(--ink-2); }
-  .foot { display: flex; justify-content: flex-end; align-items: center; padding: 10px 16px 14px; font-size: 12px; }
+  .foot { padding: 12px 16px 16px; }
+  .site {
+    display: flex; align-items: center; justify-content: center; gap: 8px; height: 40px; border-radius: 20px; text-decoration: none;
+    font: 700 13px/1 var(--font); color: var(--ember); border: 1.5px solid var(--ember); transition: background .12s ease, color .12s ease;
+  }
+  .site svg { width: 14px; height: 14px; flex: none; }
+  .site:hover { background: var(--ember); color: var(--ember-ink); }
+  .site:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   .link { color: var(--ink-2); text-decoration: none; }
   .link:hover { color: var(--ember); }
   .skeleton { display: grid; gap: 10px; padding: 18px 16px 8px; }

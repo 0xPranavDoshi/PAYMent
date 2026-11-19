@@ -8,16 +8,20 @@ export interface CallRowView {
   /** Price of the pick when it was made, in cents, or "unpriced". */
   price: string;
   outcome: { kind: "won" | "lost" | "scored" | "pending" | "void"; text: string };
-  /** "+0.40", "−0.60", or null when the call earned no points. */
+  /** "+40¢", "−60¢", or null when the call earned no points. */
   points: string | null;
   tweetUrl: string;
 }
 
-/** A signed number with a real minus sign, so + and − line up. */
-export function formatPoints(points: number): string {
-  const rounded = Math.round(points * 100) / 100;
-  if (rounded === 0) return "0.00";
-  return `${rounded > 0 ? "+" : "−"}${Math.abs(rounded).toFixed(2)}`;
+/**
+ * Points as cents per $1 contract, with a real minus sign so + and − line up: 0.38 is "+38¢". A pick
+ * bought at 62¢ that wins pays $1, so it made 38¢; one that loses costs the 62¢. That matches the
+ * price shown beside it, and unlike a percentage it cannot be mistaken for a return on the amount staked.
+ */
+export function formatCents(points: number): string {
+  const cents = Math.round(points * 100);
+  if (cents === 0) return "0¢";
+  return `${cents > 0 ? "+" : "−"}${Math.abs(cents)}¢`;
 }
 
 export function callRowView(call: CallEntry): CallRowView {
@@ -39,7 +43,7 @@ export function callRowView(call: CallEntry): CallRowView {
     pick: call.side ? `${call.pickLabel} · ${call.side.toUpperCase()}` : call.pickLabel,
     price: call.oddsAtCall === null ? "unpriced" : `${Math.round(call.oddsAtCall * 100)}¢`,
     outcome,
-    points: call.points === null ? null : formatPoints(call.points),
+    points: call.points === null ? null : formatCents(call.points),
     tweetUrl: `https://x.com/i/status/${encodeURIComponent(call.tweetId)}`,
   };
 }
@@ -61,7 +65,7 @@ export interface ProfileView {
   record: string;
   hitRate: string;
   picks: string;
-  /** Average points per pick beyond the market price, shrunk for small samples, "+0.11". */
+  /** Average cents per $1 contract beyond the market price, shrunk for small samples, "+11¢". */
   edge: string;
   /** The 14-day change as a chip, or null when there is none worth showing. */
   delta: { direction: "up" | "down"; text: string } | null;
@@ -79,7 +83,7 @@ export function profileView(profile: UserProfile, now: Date = new Date()): Profi
     record: `${profile.nWins}–${profile.nResolved - profile.nWins}`,
     hitRate: profile.hitRate === null ? "–" : `${Math.round(profile.hitRate * 100)}%`,
     picks: String(profile.nResolved),
-    edge: isNew ? "–" : formatPoints(profile.skill),
+    edge: isNew ? "–" : formatCents(profile.skill),
     delta: badge.arrow
       ? { direction: badge.arrow.direction, text: `${badge.arrow.direction === "up" ? "▲" : "▼"} ${badge.arrow.amount} in 14 days` }
       : null,

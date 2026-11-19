@@ -7,6 +7,7 @@ import { BADGE_CSS } from "./styles.js";
 import { createThemeStore } from "./theme.js";
 import type { TradingActions } from "./trading.js";
 import { createBadgeStore } from "./badgeStore.js";
+import { isContextInvalidated } from "./context.js";
 import { createBatcher } from "./batcher.js";
 import { BADGE_TARGET_SELECTOR, profileHandleFromPath, resolveTarget } from "./selectors.js";
 
@@ -17,7 +18,7 @@ export interface StartOptions {
   loadProfile?: (handle: string) => Promise<ProfileData>;
   /** Base URL of the coPAYMe website, for the popover's link. */
   webUrl?: string;
-  /** What the popover's Paper trade and Copy trade buttons do. Without it they say trading is unavailable. */
+  /** What the popover's Watch and Copy trade buttons do. Without it they say trading is unavailable. */
   trading?: TradingActions;
   doc?: Document;
   /** Quiet period before a batch is sent. */
@@ -48,6 +49,8 @@ export function startBadges({
   const store = createBadgeStore();
   const requested = new Set<string>();
   const mounted = new WeakMap<Element, { host: HTMLElement; root: Root }>();
+  const roots = new Set<Root>();
+  let stopped = false;
 
   // Badges and the popover follow X's own theme (Light, Dim or Lights Out), live.
   const theme = createThemeStore(doc);
@@ -62,6 +65,8 @@ export function startBadges({
       // A badge lookup that lands mid-scan would show the pre-scan badge; the scan sets the new one.
       for (const handle of handles) if (store.get(handle) !== "scanning") store.set(handle, badges[handle] ?? null);
     } catch (err) {
+      // The extension was reloaded under this page: this copy can never work again, so retire it.
+      if (isContextInvalidated(err)) return stopAll();
       console.warn("[coPAYMe] badge lookup failed", err);
       // Forget these handles so the next tweet that shows them tries again.
       for (const handle of handles) requested.delete(handle);
@@ -69,7 +74,7 @@ export function startBadges({
   }, delayMs);
 
   function mount(article: Element) {
-    if (mounted.has(article)) return;
+    if (stopped || mounted.has(article)) return;
     const target = resolveTarget(article, doc.defaultView?.location.pathname ?? "");
     if (!target) return;
     const { handle, anchor } = target;
@@ -88,6 +93,7 @@ export function startBadges({
     const root = createRoot(container);
     root.render(<Badge handle={handle} store={store} onOpen={popover ? (h, el) => popover.toggle(h, el) : undefined} />);
     mounted.set(article, { host, root });
+    roots.add(root);
 
     if (store.get(handle) === undefined && !requested.has(handle)) {
       requested.add(handle);
@@ -99,6 +105,7 @@ export function startBadges({
     const entry = mounted.get(article);
     if (!entry) return;
     entry.root.unmount();
+    roots.delete(entry.root);
     entry.host.remove();
     hosts.delete(entry.host);
     mounted.delete(article);
@@ -130,6 +137,7 @@ export function startBadges({
     try {
       result = await scan(handle);
     } catch (err) {
+      if (isContextInvalidated(err)) return stopAll();
       console.warn("[coPAYMe] profile scan failed", err);
       result = { status: "failed" };
     }
@@ -145,10 +153,19 @@ export function startBadges({
   const routeTimer = scan ? setInterval(checkRoute, routeCheckMs) : null;
   if (scan) checkRoute();
 
-  return () => {
+  /** Stops watching the page and removes everything this script put on it. Safe to call more than once. */
+  function stopAll() {
+    if (stopped) return;
+    stopped = true;
     observer.disconnect();
     if (routeTimer) clearInterval(routeTimer);
     popover?.close();
     theme.stop();
-  };
+    roots.forEach((root) => root.unmount());
+    hosts.forEach((host) => host.remove());
+    roots.clear();
+    hosts.clear();
+  }
+
+  return stopAll;
 }

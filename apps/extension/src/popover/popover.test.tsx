@@ -90,9 +90,9 @@ describe("the popover", () => {
     expect(text).toContain("29–13");
     expect(text).toContain("69%");
     expect(text).toContain("UConn · YES · 62¢");
-    expect(text).toContain("+0.38");
+    expect(text).toContain("+38¢");
     expect(text).toContain("UConn · NO");
-    expect(text).toContain("−0.62");
+    expect(text).toContain("−62¢");
     expect(text).toContain("Pending");
 
     expect(card.querySelector(".dot")).toBeNull(); // no markers beside the picks
@@ -389,7 +389,7 @@ describe("the popover", () => {
 
     it("shows both buttons even when trading is not connected, and says so when one is pressed", async () => {
       await openCard(undefined);
-      expect(paper().textContent).toMatch(/Watch\b/);
+      expect(paper().textContent).toBe("Watch");
       expect(copy().textContent).toContain("Copy trade");
       click(paper());
       await vi.waitFor(() => expect(toast()).toBe("Trading isn't available yet."));
@@ -416,7 +416,7 @@ describe("the popover", () => {
       expect(paper().getAttribute("aria-pressed")).toBe("true");
 
       click(paper());
-      await vi.waitFor(() => expect(paper().textContent).toMatch(/Watch\b/));
+      await vi.waitFor(() => expect(paper().textContent).toBe("Watch"));
       expect(trading.setWatch).toHaveBeenLastCalledWith("alice", false);
     });
 
@@ -554,5 +554,55 @@ describe("the flipped card looks like a tweet", () => {
     document.body.style.backgroundColor = "rgb(255, 255, 255)"; // Light
     await vi.waitFor(() => expect(popoverHosts()[0]!.style.getPropertyValue("--tw-bg")).toBe("rgb(255, 255, 255)"));
     expect(popoverHosts()[0]!.dataset.theme).toBe("light");
+  });
+});
+
+describe("when the extension was reloaded under the page", () => {
+  let stop: () => void;
+  afterEach(() => stop?.());
+  const lookup = async (handles: string[]): Promise<BadgesResponse> => Object.fromEntries(handles.map((h) => [h, badge]));
+  const card = () => popoverHosts()[0]!.shadowRoot!;
+
+  it("tells the user to refresh, instead of offering a Retry that cannot work", async () => {
+    document.body.innerHTML = `<main>${tweetHtml("alice")}</main>`;
+    stop = startBadges({
+      lookup,
+      loadProfile: async () => {
+        throw new Error("Extension context invalidated.");
+      },
+      webUrl: WEB,
+      delayMs: 5,
+    });
+    await vi.waitFor(() => expect(badges().every((b) => b.shadowRoot?.querySelector("button"))).toBe(true));
+    click(badgeButton());
+    await vi.waitFor(() => expect(popoverText()).toContain("coPAYMe was updated. Refresh this page"));
+    expect(card().querySelector(".refresh")!.textContent).toBe("Refresh page");
+    expect(card().querySelector(".retry")).toBeNull();
+  });
+
+  it("says the same on a trade button, instead of showing the raw error", async () => {
+    document.body.innerHTML = `<main>${tweetHtml("alice")}</main>`;
+    const trading: TradingActions = {
+      state: async () => ({ signedIn: true, watching: false, copy: null }),
+      setWatch: async () => {
+        throw new Error("Extension context invalidated.");
+      },
+      startCopy: async () => {},
+      stopCopy: async () => {},
+    };
+    stop = startBadges({
+      lookup,
+      loadProfile: async () => ({ profile: profile("alice"), calls: [] }),
+      webUrl: WEB,
+      trading,
+      delayMs: 5,
+    });
+    await vi.waitFor(() => expect(badges().every((b) => b.shadowRoot?.querySelector("button"))).toBe(true));
+    click(badgeButton());
+    await vi.waitFor(() => expect(card().querySelectorAll(".actions .tbtn")).toHaveLength(2));
+    await new Promise((r) => setTimeout(r, 20));
+    click(card().querySelector<HTMLButtonElement>(".actions .tbtn")!);
+    await vi.waitFor(() => expect(card().querySelector(".toast")?.textContent).toContain("Refresh this page"));
+    expect(card().querySelector(".toast")!.textContent).not.toContain("invalidated");
   });
 });

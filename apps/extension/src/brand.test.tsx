@@ -50,3 +50,25 @@ describe("Gauge", () => {
     window.matchMedia = original;
   });
 });
+
+describe("the ring's colour follows the score", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+  const hueFor = (score: number | null) => {
+    const { el } = render(<Gauge score={score} />);
+    return (el.querySelector(".gauge") as HTMLElement).style.getPropertyValue("--ring-h");
+  };
+
+  it("passes a hue that gets greener as the score rises, and red for a poor one", () => {
+    const [low, mid, high] = [hueFor(15), hueFor(50), hueFor(92)].map(Number);
+    expect(low).toBeLessThan(25); // red
+    expect(mid).toBeGreaterThan(35); // orange and yellow
+    expect(mid).toBeLessThan(60);
+    expect(high).toBeGreaterThan(100); // green
+  });
+
+  it("sets no colour for a user with no score", () => {
+    expect(hueFor(null)).toBe("");
+  });
+});
