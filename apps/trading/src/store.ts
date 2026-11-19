@@ -52,7 +52,12 @@ export interface TradingStore {
   ): Promise<TailRow | null>;
   updateTail(
     tailId: string,
-    patch: { geminiOrderId?: string | null; status?: TailRow["status"]; pnlUsdc?: number | null },
+    patch: {
+      geminiOrderId?: string | null;
+      status?: TailRow["status"];
+      pnlUsdc?: number | null;
+      entryOdds?: number;
+    },
   ): Promise<void>;
   getTail(tailId: string): Promise<TailRow | null>;
   listUserTails(userId: string): Promise<TailRow[]>;
