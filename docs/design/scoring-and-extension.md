@@ -136,7 +136,7 @@ A Hono app on Node, versioned under `/v1`. Read routes are public and cached. Wr
 | --- | --- | --- |
 | `GET /v1/badges?handles=a,b,c` (up to 50) | `{ [handle]: { score, change14d, tier, nResolved, hitRate } }`, with `null` for unknown handles | Extension background worker |
 | `GET /v1/users/:handle` | Profile, score breakdown, latest snapshot hash | Extension popover |
-| `GET /v1/users/:handle/calls?cursor=` | Paged call ledger, newest first | Extension popover |
+| `GET /v1/users/:handle/calls?limit=&status=` (limit default 20, at most 50; status is a comma-separated list of `pending`, `scored`, `void`, `rejected`) | The user's calls, newest first: tweet id, game, pick and side, price, status, whether it won, and points. 404 for an unknown handle | Extension popover, website |
 | `GET /v1/calls/by-tweet/:tweetId` | The calls parsed from that tweet and their markets, if any exist | Extension tail card |
 | `POST /v1/posts` (header `x-service-key`; one post or up to 50) | `201` with `{ results }`, one per post: the post id and an outcome per pick. `created` or `updated`, or `skipped` with a reason: `no_market`, `unknown_contract`, `market_void`, `after_lock` or `duplicate_pick`. A post that fails to store comes back with an `error` and can be re-sent. Re-sending a post is safe | Pranav's scout service |
 | `POST /v1/worker/run` (header `x-service-key`) | What the run did: calls settled, voided and left pending, and the handles rescored. 409 if a run is already going | Anyone triggering a settle on demand |
@@ -177,14 +177,22 @@ Scores change only when a game settles, so badges can be cached aggressively. Th
 | API in-process LRU (5,000 entries) | `/badges` entry per handle | 60 s | Worker evicts on recompute |
 | `user_scores` table | Precomputed score per user | Until the next settle | Worker |
 
-Batching: the content script collects new handles from a `MutationObserver`, debounces for 150 ms, and sends one message to the background worker. The worker fills what it can from cache and sends the rest as a single `/badges` request. When a profile scan finishes, the extension drops that handle's cached entry, including a negative one, and fetches it again.
+Batching: the content script collects new handles from a `MutationObserver`, debounces for 150 ms, and sends one message to the background worker. The worker fills what it can from cache and sends the rest as a single `/badges` request.
+
+How the extension cache behaves (`apps/extension/src/badgeCache.ts` and `badgeService.ts`):
+
+- **Only what is missing is fetched.** Handles with a fresh entry are never sent to the API.
+- **Shared requests.** If two tabs ask for the same handle at once, one request is made.
+- **Old data beats none when the API is down.** An expired entry is kept for up to 24 hours; if a lookup fails, handles with such an entry still get it. If any handle has nothing at all, the lookup fails, so the page retries later instead of recording "no data".
+- **Versioned keys.** Entries are stored under the extension version (and a mock-mode marker), so an update starts from an empty cache. Old or unreadable entries are removed when the extension starts. This needs the `storage` permission.
+- **Popover data** (the profile and latest picks) is cached for 60 s in the background worker's memory, so reopening a popover costs nothing. When a profile scan finishes, the extension drops that handle's cached entry, including a negative one, and fetches it again.
 
 ### Chrome extension (WXT + React, MV3)
 
 - **Content script on `x.com`.** Finds each tweet's author handle in the tweet header, then mounts a badge (score and change arrow) in a shadow root next to the name so X's CSS cannot touch it. All X DOM selectors live in one `selectors.ts` file.
 - **Profile scan.** When the user opens `x.com/<handle>`, the content script (watching URL changes, since X is a single-page app, and ignoring X's own paths and `/status/…` pages) asks the background worker to call the scout service's `POST /v1/scout/:handle`, unless that handle was scanned in the last 10 minutes. While the scan runs the badge shows **Scanning…**, and the worker polls `GET /v1/scout/:handle` every 3 s for up to 90 s, then refreshes the badge. The extension therefore holds two base URLs, one for the scoring API and one for the scout service. See `docs/design/grok-pipeline.md`.
 - **Background service worker.** Owns caching, batching and every API call, which keeps CORS and the API URL out of the page.
-- **Badge popover.** Opens on click and shows the score, hit rate, resolved-call count, the last 5 calls (odds at call time, result, points) and a link to the full ledger.
+- **Badge popover.** The badge is a button. Clicking it opens a card next to it (below, or above when there is no room) with the score and its change, resolved picks and hit rate, the user's last 5 picks (game, pick and side, price when made, result, points, and a link to the tweet), and an "Open coPAYMe" link to the website. Unpriced picks show "unpriced" with no points. A user on the New badge sees how many picks a score needs. The card loads when opened, shows an error with Retry if that fails, and closes on Escape, a click outside, or a scroll. Clicking the badge never opens the tweet underneath it. It is read-only for now; Watch and Copy Trade buttons need the user's login first.
 - **Tail card.** Appears when the tweet itself is a pending call. It shows the pick, the odds then and now, a paper/live toggle and an amount, then sends the tail to Yash's trade endpoint. The tail buys the pick's side, which is not always YES.
 - **Toolbar popup.** Sign in with X (Mugdha's flow), wallet status, and a setting to hide badges under N resolved calls.
 
@@ -264,7 +272,7 @@ gantt
 
 The extension runs longest because it needs the live API before its popover and tail card can be finished.
 
-**Status on Nov 18.** Done: the scoring library, all migrations (applied to Supabase), `GET /v1/badges`, `GET /v1/users/:handle`, `GET /v1/leaderboard`, `POST /v1/posts` and the scoring worker, the first extension version with badges, the trading service (Yash) and the scout design (Pranav). Not done: the popover and tail card, and the scout service itself. With two days left the extension is the critical path. If time runs short, cut in this order: toolbar popup, popover call ledger, profile-scan hook.
+**Status on Nov 18.** Done: the scoring library, all migrations, `GET /v1/badges`, `GET /v1/users/:handle`, `GET /v1/users/:handle/calls`, `GET /v1/leaderboard`, `POST /v1/posts` and the scoring worker, the extension's badges, cache and popover, the first extension version with badges, the trading service (Yash) and the scout design (Pranav). Not done: the tail card, Watch and Copy Trade in the popover, and the scout service itself. With two days left the extension is the critical path. If time runs short, cut in this order: toolbar popup, popover call ledger, profile-scan hook.
 
 Done means:
 

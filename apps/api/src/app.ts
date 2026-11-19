@@ -1,5 +1,8 @@
 import {
+  CallStatus,
+  DEFAULT_CALLS_LIMIT,
   DEFAULT_LEADERBOARD_LIMIT,
+  MAX_CALLS_LIMIT,
   IngestRequest,
   MAX_BADGE_HANDLES,
   MAX_LEADERBOARD_LIMIT,
@@ -15,6 +18,7 @@ import {
 import { Hono } from "hono";
 import { TtlLru } from "./cache.js";
 import { createHash, timingSafeEqual } from "node:crypto";
+import { toCallEntry, type CallsStore } from "./calls.js";
 import { ingestPosts, type IngestStore } from "./ingest.js";
 import type { ScoreRow, ScoreStore } from "./store.js";
 import type { Worker } from "./worker.js";
@@ -33,6 +37,8 @@ export interface AppDeps {
    * created call, and only for picks tweeted recently. Without it, nothing is notified.
    */
   notifyNewCall?: (callId: string) => Promise<void>;
+  /** Where GET /v1/users/:handle/calls reads from. Without it, that route is switched off. */
+  calls?: CallsStore;
   /** The scoring worker, so POST /v1/worker/run can trigger a run on demand. */
   worker?: Pick<Worker, "runNow">;
   now?: () => number;
@@ -71,7 +77,7 @@ function toProfile(row: ScoreRow): UserProfile {
   };
 }
 
-export function createApp({ store, ingest, serviceKey, notifyNewCall, worker, now = Date.now }: AppDeps) {
+export function createApp({ store, ingest, serviceKey, notifyNewCall, worker, calls, now = Date.now }: AppDeps) {
   const app = new Hono();
   // Badge per lowercase handle. Unknown handles are cached as null so a busy
   // timeline does not hit the database for the same unknown handle every time.
@@ -129,6 +135,33 @@ export function createApp({ store, ingest, serviceKey, notifyNewCall, worker, no
     const [row] = await store.findByHandles([parsed.data]);
     if (!row) return c.json({ error: "not found" }, 404);
     return c.json(toProfile(row));
+  });
+
+  app.get("/v1/users/:handle/calls", async (c) => {
+    if (!calls) return c.json({ error: "the call ledger is not configured" }, 503);
+    const handle = XHandle.safeParse(c.req.param("handle"));
+    if (!handle.success) return c.json({ error: "invalid handle" }, 400);
+
+    let limit = DEFAULT_CALLS_LIMIT;
+    const rawLimit = c.req.query("limit");
+    if (rawLimit !== undefined) {
+      if (!/^\d+$/.test(rawLimit)) return c.json({ error: "limit must be a whole number" }, 400);
+      limit = Math.min(Math.max(Number(rawLimit), 1), MAX_CALLS_LIMIT);
+    }
+
+    let statuses: CallStatus[] | null = null;
+    const rawStatus = c.req.query("status");
+    if (rawStatus !== undefined) {
+      const parsed = rawStatus.split(",").map((s) => CallStatus.safeParse(s.trim()));
+      if (parsed.length === 0 || parsed.some((p) => !p.success)) {
+        return c.json({ error: `status must be a comma-separated list of ${CallStatus.options.join(", ")}` }, 400);
+      }
+      statuses = parsed.map((p) => p.data!);
+    }
+
+    const rows = await calls.listCalls(handle.data, { limit, statuses });
+    if (!rows) return c.json({ error: "not found" }, 404);
+    return c.json(rows.map(toCallEntry));
   });
 
   app.post("/v1/posts", async (c) => {

@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { MIGRATIONS_DIR, isLocalDatabase, migrate, migrationStatus, resetLocalDatabase } from "./migrate.js";
 import { DEMO_USERS, seedDemoData } from "./seed.js";
+import { createPostgresCallsStore } from "../calls.postgres.js";
 import { createPostgresStore } from "../store.postgres.js";
 
 // Runs only against a local database: TEST_DATABASE_URL=postgres://postgres@localhost:5432/copayme_test
@@ -570,6 +571,51 @@ describe.skipIf(!url)("against a real Postgres", () => {
       // Once the result arrives, the next run settles it.
       await finish("NORESULT", "yes");
       expect(await run()).toMatchObject({ settled: 1, unsettleable: 0 });
+    });
+
+    it("serves the call ledger: every kind of call, newest first, with results and links", async () => {
+      // A market for each situation. Tweets are a minute apart: the order is clear, and every
+      // one stays within the 10-minute window in which a pick can be priced from the synced market.
+      const at = (n: number) => new Date(Date.parse(TWEET) + n * 60_000).toISOString();
+      for (const t of ["WON", "LOST", "VOIDED", "WAITING", "NOPRICE"]) await market(t);
+      const ingest = async (n: number, ticker: string, side: "yes" | "no") => {
+        const [r] = await ingestPosts(createPostgresIngestStore(sql), [{
+          tweetId: `led${n}`, xUserId: "x-led", xHandle: "Ledger", tweetedAt: at(n), tweetText: "pick", sentiment: null,
+          picks: [{ geminiEventTicker: ticker, instrumentSymbol: "GEMI-UCONN", side, gameStartTime: LOCK, resolutionSide: null, resolvedAt: null, oddsAtTweet: null }],
+        }], new Date(at(n)));
+        expect(r!.picks[0]!.status).toBe("created");
+      };
+      await ingest(0, "WON", "yes");
+      await ingest(1, "LOST", "yes");
+      await ingest(2, "VOIDED", "yes");
+      await ingest(3, "WAITING", "yes");
+      await ingest(4, "NOPRICE", "no");
+      await sql`update calls set odds_at_call = null, odds_source = 'none'
+                where market_id = (select id from markets where gemini_market_id = 'NOPRICE')`;
+      await finish("WON", "yes");
+      await finish("LOST", "no");
+      await finish("VOIDED", null, "void");
+      await finish("NOPRICE", "no");
+      await run();
+
+      const app = createApp({ store: createPostgresStore(sql), calls: createPostgresCallsStore(sql) });
+      const ledger = await (await app.request("/v1/users/ledger/calls")).json();
+      expect(ledger.map((c: { eventName: string }) => c.eventName)).toEqual(["NOPRICE", "WAITING", "VOIDED", "LOST", "WON"]); // newest first
+      const by = Object.fromEntries(ledger.map((c: { eventName: string }) => [c.eventName, c]));
+      expect(by.WON).toMatchObject({ status: "scored", result: "won", oddsAtCall: 0.6, oddsSource: "snapshot", tweetId: "led0", side: "yes", pickLabel: "UConn" });
+      expect(by.WON.points).toBeCloseTo(0.4);
+      expect(by.LOST).toMatchObject({ status: "scored", result: "lost" });
+      expect(by.LOST.points).toBeCloseTo(-0.6);
+      expect(by.VOIDED).toMatchObject({ status: "void", result: null, points: null });
+      expect(by.WAITING).toMatchObject({ status: "pending", result: null, points: null });
+      expect(by.NOPRICE).toMatchObject({ status: "scored", result: "won", oddsAtCall: null, oddsSource: "none", points: null, side: "no" });
+
+      // limit and status filters, and an unknown user
+      expect((await (await app.request("/v1/users/ledger/calls?limit=2")).json()).map((c: { eventName: string }) => c.eventName)).toEqual(["NOPRICE", "WAITING"]);
+      const pending = await (await app.request("/v1/users/ledger/calls?status=pending,void")).json();
+      expect(pending.map((c: { eventName: string }) => c.eventName)).toEqual(["WAITING", "VOIDED"]);
+      expect((await app.request("/v1/users/nobody/calls")).status).toBe(404);
+      expect(await (await app.request("/v1/users/LEDGER/calls?limit=1")).json()).toHaveLength(1); // case-insensitive
     });
 
     it("settles a pick that was ingested after its market had already resolved (a backfill)", async () => {

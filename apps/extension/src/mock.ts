@@ -1,4 +1,5 @@
-import type { Badge, BadgesResponse } from "@copayme/shared";
+import type { Badge, BadgesResponse, CallEntry, UserProfile } from "@copayme/shared";
+import type { ProfileData } from "./messages.js";
 
 /** Same demo users as the API's seed script, so mock mode and a seeded database look alike. */
 const DEMO: Record<string, Badge> = {
@@ -45,4 +46,51 @@ export function mockBadges(handles: readonly string[]): BadgesResponse {
     }
   }
   return out;
+}
+
+const GAMES: [string, string, string][] = [
+  ["UConn vs Arizona", "UConn", "Arizona"],
+  ["Lakers vs Celtics", "Lakers", "Celtics"],
+  ["Chiefs vs Bills", "Chiefs", "Bills"],
+  ["Oilers vs Flames", "Oilers", "Flames"],
+  ["Real Madrid vs Barcelona", "Real Madrid", "Barcelona"],
+  ["Yankees vs Red Sox", "Yankees", "Red Sox"],
+];
+
+/** A generated profile and five recent picks for any handle with a badge, stable per handle. Not real data. */
+export function mockProfileData(handle: string): ProfileData {
+  const badge = mockBadges([handle])[handle] ?? null;
+  if (!badge) return { profile: null, calls: [] };
+
+  const h = hash(handle + ":calls");
+  const profile: UserProfile = {
+    ...badge,
+    handle,
+    nWins: Math.round((badge.hitRate ?? 0) * badge.nResolved),
+    skill: 0,
+    lastCallAt: new Date(Date.UTC(2026, 10, 19, 12, 0, 0)).toISOString(),
+    updatedAt: new Date(Date.UTC(2026, 10, 19, 12, 0, 0)).toISOString(),
+    latestSnapshot: null,
+  };
+  const calls: CallEntry[] = Array.from({ length: Math.min(5, Math.max(badge.nResolved, 2)) }, (_, i) => {
+    const [eventName, a, b] = GAMES[(h + i) % GAMES.length]!;
+    const odds = 0.3 + (((h >>> (i * 3)) % 50) / 100);
+    const pending = i === 0 && h % 2 === 0;
+    const won = ((h >>> i) & 1) === 1;
+    const unpriced = i === 4 && h % 3 === 0;
+    return {
+      callId: `00000000-0000-4000-8000-${String(h % 1_000_000).padStart(6, "0")}${String(i).padStart(6, "0")}`,
+      tweetId: String(1000 + i),
+      tweetedAt: new Date(Date.UTC(2026, 10, 19 - i, 18, 0, 0)).toISOString(),
+      eventName,
+      pickLabel: (h >>> i) % 3 === 0 ? b : a,
+      side: "yes",
+      oddsAtCall: unpriced ? null : Math.round(odds * 100) / 100,
+      oddsSource: unpriced ? "none" : "snapshot",
+      status: pending ? "pending" : "scored",
+      result: pending ? null : won ? "won" : "lost",
+      points: pending || unpriced ? null : Math.round(((won ? 1 : 0) - odds) * 100) / 100,
+    };
+  });
+  return { profile, calls };
 }
