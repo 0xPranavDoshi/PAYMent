@@ -95,6 +95,43 @@ export async function fetchCopyTrades(
   return (await res.json()) as CopyTradeConfig[];
 }
 
+/** Start (or re-point) copy-trading a trader at the given per-pick USDC size. */
+export async function startCopyTrade(
+  followerId: string,
+  traderHandle: string,
+  amountUsdc: number,
+): Promise<CopyTradeConfig> {
+  const res = await fetch(`${TRADING}/v1/copy-trades`, {
+    method: "POST",
+    headers: {
+      ...followerHeaders(followerId),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ traderHandle, amountUsdc }),
+  });
+  if (!res.ok) throw new Error(`startCopyTrade failed: ${res.status}`);
+  return (await res.json()) as CopyTradeConfig;
+}
+
+/** Pause copy-trading a trader (picks already copied stay open). */
+export async function stopCopyTrade(
+  followerId: string,
+  traderHandle: string,
+): Promise<void> {
+  const res = await fetch(
+    `${TRADING}/v1/copy-trades/${encodeURIComponent(traderHandle)}`,
+    {
+      method: "PATCH",
+      headers: {
+        ...followerHeaders(followerId),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ active: false }),
+    },
+  );
+  if (!res.ok) throw new Error(`stopCopyTrade failed: ${res.status}`);
+}
+
 export async function fetchTails(
   followerId: string,
   source?: string,
