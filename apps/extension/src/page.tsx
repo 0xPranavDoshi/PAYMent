@@ -3,13 +3,15 @@ import { createRoot, type Root } from "react-dom/client";
 import type { ProfileData } from "./messages.js";
 import { createPopoverManager } from "./popover/manager.js";
 import { Badge } from "./Badge.js";
-import { BADGE_CSS } from "./styles.js";
+import { BADGE_CSS, SCAN_CSS } from "./styles.js";
+import { ScanCard } from "./ScanCard.js";
+import { createScanStatusStore } from "./scanStatus.js";
 import { createThemeStore } from "./theme.js";
 import type { TradingActions } from "./trading.js";
 import { createBadgeStore } from "./badgeStore.js";
 import { isContextInvalidated } from "./context.js";
 import { createBatcher } from "./batcher.js";
-import { BADGE_TARGET_SELECTOR, newestTweetIdBy, profileHandleFromPath, resolveTarget } from "./selectors.js";
+import { BADGE_TARGET_SELECTOR, PROFILE_SELECTOR, newestTweetIdBy, resolveTarget } from "./selectors.js";
 
 export interface StartOptions {
   /** Fetches badges for these handles (in the extension, via the background worker). */
@@ -24,12 +26,11 @@ export interface StartOptions {
   /** Quiet period before a batch is sent. */
   delayMs?: number;
   /**
-   * Scans a handle's posts (in the extension, via the background worker and the scout). Called when
-   * the user opens a profile page. Without it, profiles are never scanned.
+   * Scans a handle's posts (in the extension, via the background worker and the scout). Called only
+   * when the user presses "Scan picks" on a profile: scans cost money and only suit accounts that post
+   * sports picks, so the user chooses. Without it, there is no scan button.
    */
   scan?: (handle: string, newestTweetId: string | null) => Promise<ScanResult>;
-  /** How often to check whether the user navigated to a profile (X changes pages without loading). */
-  routeCheckMs?: number;
   /**
    * How long to wait for the profile's own tweets to show before scanning without the newest tweet id,
    * how often to look, and how long to let the first screenful render once one shows.
@@ -51,12 +52,12 @@ export function startBadges({
   doc = document,
   delayMs = 150,
   scan,
-  routeCheckMs = 1000,
   timelineWaitMs = 4000,
   timelinePollMs = 250,
   timelineSettleMs = 500,
 }: StartOptions): () => void {
   const store = createBadgeStore();
+  const scanStatus = createScanStatusStore();
   const requested = new Set<string>();
   const mounted = new WeakMap<Element, { host: HTMLElement; root: Root }>();
   const roots = new Set<Root>();
@@ -73,7 +74,11 @@ export function startBadges({
     try {
       const badges = await lookup(handles);
       // A badge lookup that lands mid-scan would show the pre-scan badge; the scan sets the new one.
-      for (const handle of handles) if (store.get(handle) !== "scanning") store.set(handle, badges[handle] ?? null);
+      for (const handle of handles) {
+        const now = store.get(handle);
+        // A lookup that lands mid-scan, or after a scan ended, must not undo what the scan showed.
+        if (now !== "scanning" && now !== "empty" && now !== "failed") store.set(handle, badges[handle] ?? null);
+      }
     } catch (err) {
       // The extension was reloaded under this page: this copy can never work again, so retire it.
       if (isContextInvalidated(err)) return stopAll();
@@ -101,7 +106,15 @@ export function startBadges({
     anchor.appendChild(host);
 
     const root = createRoot(container);
-    root.render(<Badge handle={handle} store={store} onOpen={popover ? (h, el) => popover.toggle(h, el) : undefined} />);
+    root.render(
+      <Badge
+        handle={handle}
+        store={store}
+        onOpen={popover ? (h, el) => popover.toggle(h, el) : undefined}
+        canScan={Boolean(scan) && article.matches(PROFILE_SELECTOR)}
+        onScan={(h) => void startScan(h)}
+      />,
+    );
     mounted.set(article, { host, root });
     roots.add(root);
 
@@ -137,8 +150,6 @@ export function startBadges({
   doc.querySelectorAll(BADGE_TARGET_SELECTOR).forEach(mount);
   observer.observe(doc.body, { childList: true, subtree: true });
 
-  // Opening a profile scans that handle's posts, so a score can appear for people we haven't seen.
-  let lastProfile: string | null = null;
   const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
   /**
@@ -157,39 +168,71 @@ export function startBadges({
     return null;
   }
 
-  async function scanProfile(handle: string) {
-    if (!scan) return;
-    const newest = await newestOnTimeline(handle);
-    if (stopped) return;
+  // The user chooses which profiles to scan, by pressing "Scan picks" (or "Try again").
+  const scanning = new Set<string>();
+  async function startScan(handle: string) {
+    if (!scan || stopped || scanning.has(handle)) return;
+    scanning.add(handle);
     const before = store.get(handle);
+    scanStatus.set({ phase: "scanning", handle, startedAt: Date.now() });
     store.set(handle, "scanning");
-    let result: ScanResult;
     try {
-      result = await scan(handle, newest);
-    } catch (err) {
-      if (isContextInvalidated(err)) return stopAll();
-      console.warn("[coPAYMe] profile scan failed", err);
-      result = { status: "failed" };
+      const newest = await newestOnTimeline(handle);
+      if (stopped) return;
+      let result: ScanResult;
+      try {
+        result = await scan(handle, newest);
+      } catch (err) {
+        if (isContextInvalidated(err)) return stopAll();
+        console.warn("[coPAYMe] profile scan failed", err);
+        result = { status: "failed" };
+      }
+      if (stopped) return;
+      if (result.status === "done" && result.badge) {
+        store.set(handle, result.badge);
+        scanStatus.set({ phase: "done", handle, badge: result.badge });
+      } else if (result.status === "done") {
+        store.set(handle, "empty");
+        scanStatus.set({ phase: "empty", handle });
+      } else if (result.status === "skipped") {
+        store.set(handle, before === "scanning" ? null : before ?? null);
+        scanStatus.set({ phase: "recent", handle });
+      } else {
+        store.set(handle, "failed");
+        scanStatus.set({ phase: "failed", handle });
+      }
+    } finally {
+      scanning.delete(handle);
     }
-    if (result.status === "done") store.set(handle, result.badge);
-    else store.set(handle, before === "scanning" ? undefined : before);
   }
-  function checkRoute() {
-    const handle = profileHandleFromPath(doc.location?.pathname ?? "");
-    if (handle === lastProfile) return;
-    lastProfile = handle;
-    if (handle) void scanProfile(handle);
+
+  // The scan card: a corner panel that shows a scan running (with a stopwatch) and how it ended.
+  let scanHost: HTMLElement | null = null;
+  let scanRoot: Root | null = null;
+  if (scan) {
+    scanHost = doc.createElement("div");
+    scanHost.dataset.copayme = "scan";
+    scanHost.dataset.theme = theme.get();
+    scanHost.style.cssText = "position:fixed;top:72px;right:20px;z-index:2147483646;";
+    hosts.add(scanHost);
+    const shadow = scanHost.attachShadow({ mode: "open" });
+    const style = doc.createElement("style");
+    style.textContent = SCAN_CSS;
+    const container = doc.createElement("div");
+    shadow.append(style, container);
+    doc.body.appendChild(scanHost);
+    scanRoot = createRoot(container);
+    scanRoot.render(<ScanCard store={scanStatus} onRetry={(h) => void startScan(h)} />);
   }
-  const routeTimer = scan ? setInterval(checkRoute, routeCheckMs) : null;
-  if (scan) checkRoute();
 
   /** Stops watching the page and removes everything this script put on it. Safe to call more than once. */
   function stopAll() {
     if (stopped) return;
     stopped = true;
     observer.disconnect();
-    if (routeTimer) clearInterval(routeTimer);
     popover?.close();
+    scanRoot?.unmount();
+    scanHost?.remove();
     theme.stop();
     roots.forEach((root) => root.unmount());
     hosts.forEach((host) => host.remove());
