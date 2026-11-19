@@ -125,7 +125,7 @@ function Summary({
 
 const COPY_AMOUNTS = [5, 10, 25];
 
-/** Paper trade (follow with $1 paper bets) and Copy trade (mirror with real orders). */
+/** Watch (follow with $1 paper bets) and Copy trade (mirror each pick, simulated for now). */
 function TradeActions({ handle, trading }: { handle: string; trading?: TradingActions }) {
   const [state, setState] = useState<TradingState | null>(null);
   const [busy, setBusy] = useState<"watch" | "copy" | null>(null);
@@ -198,13 +198,13 @@ function TradeActions({ handle, trading }: { handle: string; trading?: TradingAc
           }}
         >
           {watching ? <CheckIcon /> : <PaperIcon />}
-          {watching ? "Following" : "Paper trade"}
+          {watching ? "Watching" : "Watch"}
         </button>
 
         <button
           type="button"
           className={`tbtn solid ${copying ? "on" : ""}`}
-          title={copying ? `Copying: a $${state?.copy?.amountUsdc} real order on each new pick. Press to stop.` : "Mirror each new pick with a real order"}
+          title={copying ? `Copying: a $${state?.copy?.amountUsdc} trade on each new pick. Press to stop.` : "Mirror each new pick with a trade (simulated for now)"}
           aria-pressed={copying}
           aria-busy={busy === "copy"}
           onClick={() => {
@@ -227,7 +227,7 @@ function TradeActions({ handle, trading }: { handle: string; trading?: TradingAc
       {confirming && (
         <div className="panel" role="group" aria-label="Confirm copy trading">
           <p>
-            <b>This places real orders.</b> coPAYMe will buy ${amount} on every new pick from @{handle}, as it is
+            <b>Simulated for now.</b> coPAYMe will place a ${amount} trade on every new pick from @{handle}, as it is
             tweeted. You can stop any time.
           </p>
           <div className="chips">

@@ -389,7 +389,7 @@ describe("the popover", () => {
 
     it("shows both buttons even when trading is not connected, and says so when one is pressed", async () => {
       await openCard(undefined);
-      expect(paper().textContent).toContain("Paper trade");
+      expect(paper().textContent).toMatch(/Watch\b/);
       expect(copy().textContent).toContain("Copy trade");
       click(paper());
       await vi.waitFor(() => expect(toast()).toBe("Trading isn't available yet."));
@@ -406,23 +406,23 @@ describe("the popover", () => {
       expect(card().querySelector(".panel")).toBeNull(); // no confirmation to start real orders
     });
 
-    it("toggles paper trading on and off", async () => {
+    it("toggles watching on and off", async () => {
       const trading = fakeTrading();
       await openCard(trading);
       await loaded();
       click(paper());
-      await vi.waitFor(() => expect(paper().textContent).toContain("Following"));
+      await vi.waitFor(() => expect(paper().textContent).toContain("Watching"));
       expect(trading.setWatch).toHaveBeenLastCalledWith("alice", true);
       expect(paper().getAttribute("aria-pressed")).toBe("true");
 
       click(paper());
-      await vi.waitFor(() => expect(paper().textContent).toContain("Paper trade"));
+      await vi.waitFor(() => expect(paper().textContent).toMatch(/Watch\b/));
       expect(trading.setWatch).toHaveBeenLastCalledWith("alice", false);
     });
 
     it("shows the current state when it opens", async () => {
       await openCard(fakeTrading({ watching: true, copy: { active: true, amountUsdc: 25 } }));
-      await vi.waitFor(() => expect(paper().textContent).toContain("Following"));
+      await vi.waitFor(() => expect(paper().textContent).toContain("Watching"));
       expect(copy().textContent).toContain("Copying · $25");
     });
 
@@ -432,14 +432,14 @@ describe("the popover", () => {
       await loaded();
       click(copy());
       await vi.waitFor(() => expect(card().querySelector(".panel")).not.toBeNull());
-      expect(card().querySelector(".panel")!.textContent).toContain("This places real orders");
+      expect(card().querySelector(".panel")!.textContent).toContain("Simulated for now");
       expect(trading.startCopy).not.toHaveBeenCalled(); // nothing happens until it is confirmed
 
       const chips = [...card().querySelectorAll<HTMLButtonElement>(".chip")];
       expect(chips.map((c) => c.textContent)).toEqual(["$5", "$10", "$25"]);
       expect(chips[1]!.getAttribute("aria-pressed")).toBe("true"); // $10 by default
       click(chips[2]!);
-      await vi.waitFor(() => expect(card().querySelector(".panel")!.textContent).toContain("buy $25"));
+      await vi.waitFor(() => expect(card().querySelector(".panel")!.textContent).toContain("$25 trade"));
 
       click([...card().querySelectorAll<HTMLButtonElement>(".panel .btn")].find((b) => b.textContent === "Start copying")!);
       await vi.waitFor(() => expect(copy().textContent).toContain("Copying · $25"));
@@ -486,7 +486,7 @@ describe("the popover", () => {
       click(paper());
       expect(trading.setWatch).toHaveBeenCalledTimes(1);
       release();
-      await vi.waitFor(() => expect(paper().textContent).toContain("Following"));
+      await vi.waitFor(() => expect(paper().textContent).toContain("Watching"));
       expect(trading.setWatch).toHaveBeenCalledTimes(1);
 
       // and a double-click on "Start copying" must not place two orders either
