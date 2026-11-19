@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  findProfileMountPoint,
   TWEET_SELECTOR,
   extractHandle,
   extractProfileHandle,
@@ -189,5 +190,29 @@ describe("resolveTarget", () => {
     expect(resolveTarget(profile, "/bob")?.anchor).toBe(profile.firstElementChild);
     expect(resolveTarget(profile, "/home")).toBeNull();
     expect(resolveTarget(document.body, "/bob")).toBeNull();
+  });
+});
+
+describe("findProfileMountPoint", () => {
+  const header = (html: string) => {
+    document.body.innerHTML = `<div data-testid="UserName">${html}</div>`;
+    return document.querySelector('[data-testid="UserName"]')!;
+  };
+
+  it("picks the display-name row when the name and handle rows are direct children", () => {
+    const el = header('<div id="name"><span>Bob</span></div><div id="handle"><span>@bob</span></div>');
+    expect(findProfileMountPoint(el, "bob").id).toBe("name");
+  });
+
+  it("picks the display-name row when both rows sit inside one wrapper, as on X", () => {
+    const el = header('<div id="wrap"><div id="name"><div dir="ltr"><span><span>BMatthews</span></span></div><svg></svg></div><div id="handle"><div dir="auto"><span>@the_bmatt</span></div></div></div>');
+    expect(findProfileMountPoint(el, "the_bmatt").id).toBe("name");
+  });
+
+  it("is case-insensitive about the handle, and falls back to the first child when it is not found", () => {
+    const el = header('<div id="name"><span>Bob</span></div><div id="handle"><span>@BOB</span></div>');
+    expect(findProfileMountPoint(el, "bob").id).toBe("name");
+    const odd = header('<div id="only"><span>Nothing here</span></div>');
+    expect(findProfileMountPoint(odd, "bob").id).toBe("only");
   });
 });

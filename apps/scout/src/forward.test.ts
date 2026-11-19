@@ -274,6 +274,20 @@ describe("createForwarder", () => {
     expect(body()[0].picks).toHaveLength(1);
   });
 
+  it("prices posts in parallel but keeps their order, with one market upsert shared by all of them", async () => {
+    const { forwarder, store, body } = setup([winEvent]);
+    const upsert = store.upsertMarket.bind(store);
+    const upsertMarket = vi.fn(async (row: Parameters<typeof upsert>[0]) => {
+      await new Promise((r) => setTimeout(r, 5));
+      return upsert(row);
+    });
+    store.upsertMarket = upsertMarket;
+    const ids = Array.from({ length: 9 }, (_, i) => `t${i}`);
+    expect(await forwarder.forward(ids.map((id) => post(id, [match({})])), "bob")).toEqual(ids);
+    expect(body().map((p: { tweetId: string }) => p.tweetId)).toEqual(ids);
+    expect(upsertMarket).toHaveBeenCalledTimes(1);
+  });
+
   it("batches requests at 50 posts", async () => {
     const { forwarder, body, urls } = setup([winEvent]);
     const posts = Array.from({ length: 120 }, (_, i) => post(`t${i}`, [match({})]));

@@ -2,9 +2,13 @@ import { ScoutResponse, type Badge } from "@copayme/shared";
 
 /** The scout serves a scan from cache for 10 minutes, so asking again sooner is pointless. */
 export const RESCAN_AFTER_MS = 10 * 60_000;
-/** How often to check a running scan, and for how long, before giving up for now. */
+/**
+ * How often to check a running scan, and for how long, before giving up for now. A first scan of a busy
+ * account (100 posts read by Grok, picks priced and scored) took ~2 minutes on Nov 19, past the old
+ * 90-second limit, so the badge never appeared; 4 minutes leaves room.
+ */
 export const POLL_EVERY_MS = 3_000;
-export const POLL_FOR_MS = 90_000;
+export const POLL_FOR_MS = 240_000;
 
 export type ScanOutcome =
   /** The scan finished; `badge` is the handle's fresh badge (null: still no score). */

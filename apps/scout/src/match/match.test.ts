@@ -59,12 +59,41 @@ describe("matchPrediction", () => {
     expect(r).toMatchObject({ status: "no_market", reason: "tweet during game" });
   });
 
-  it("game returned with no sub-markets at all -> retryable no_market", async () => {
+  it("game returned with no sub-markets at all, every time -> retryable no_market after 5 fetches", async () => {
+    const g = gemini(game());
     const r = await matchPrediction(pred({ betType: "total", claim: "over", line: 200 }), 0, TWEET, {
-      gemini: gemini(game()),
+      gemini: g,
       grok,
+      sleep: async () => {},
     });
     expect(r).toMatchObject({ status: "no_market", reason: NO_SUB_MARKETS_REASON });
+    expect(g.getEvent).toHaveBeenCalledTimes(5);
+  });
+
+  it("keeps asking while Gemini returns the game without its sub-markets (it alternates), then matches", async () => {
+    const total = {
+      id: "3",
+      ticker: "T",
+      title: "t",
+      status: "active",
+      template: "sports-total",
+      contracts: [{ instrumentSymbol: "SYM-O200", label: "Over 200.5", marketState: "open", strike: { type: "over", value: "200.5" } }],
+    };
+    const bare = game();
+    const full = game({ events: [total] as never });
+    const g = {
+      searchGames: vi.fn(async () => [bare]),
+      getEvent: vi.fn().mockResolvedValueOnce(bare).mockResolvedValueOnce(bare).mockResolvedValue(full),
+    } as unknown as GeminiClient;
+    const waits: number[] = [];
+    const r = await matchPrediction(pred({ betType: "total", claim: "over", line: 200.5 }), 0, TWEET, {
+      gemini: g,
+      grok,
+      sleep: async (ms) => void waits.push(ms),
+    });
+    expect(r).toMatchObject({ status: "matched", instrumentSymbol: "SYM-O200" });
+    expect(g.getEvent).toHaveBeenCalledTimes(3);
+    expect(waits).toEqual([1000, 1000]);
   });
 
   it("game has sub-markets but none for this bet type -> no_market", async () => {
@@ -110,7 +139,7 @@ describe("matchPrediction", () => {
       gemini: gemini(g),
       grok,
     });
-    expect(r).toMatchObject({ status: "no_market", reason: "no contract guaranteed by the claim" });
+    expect(r).toMatchObject({ status: "no_market", reason: "no contract at the tweet's line" });
   });
 
   it("valid win -> matched with fields filled, settled resolutionSide from the contract", async () => {
@@ -163,13 +192,13 @@ describe("matchPrediction", () => {
         },
       ],
     });
-    const r = await matchPrediction(pred({ betType: "spread", claim: "covers", line: 7 }), 0, TWEET, {
+    const r = await matchPrediction(pred({ betType: "spread", claim: "covers", line: 4.5 }), 0, TWEET, {
       gemini: gemini(g),
       grok,
     });
     expect(r).toMatchObject({
       status: "matched",
-      reason: "spread 4.5 <= 7",
+      reason: "spread 4.5",
       geminiEventTicker: "S",
       gameTicker: "G",
       marketStatus: "open",

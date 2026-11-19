@@ -16,6 +16,8 @@ export const noopForwarder: Forwarder = { forward: async () => [] };
 const WORKER_RUN_ATTEMPTS = 4;
 const WORKER_BUSY_WAIT_MS = 2_000;
 const WORKER_RUN_TIMEOUT_MS = 30_000;
+/** Posts priced at the same time when forwarding (Kalshi allows 20 reads/s; lookups are shared). */
+const FORWARD_CONCURRENCY = 4;
 
 const clamp01 = (n: number): number => (Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0);
 const priceOrNull = (v: unknown): number | null => {
@@ -141,20 +143,50 @@ export function createForwarder(opts: {
   const log = opts.log ?? (() => {});
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
 
-  /** Upserts each market once per call; false when the upsert failed (its picks are held back). */
-  const upserted = new Map<string, boolean>();
-  async function ensureMarket(row: MarketRow): Promise<boolean> {
+  /**
+   * Upserts each market once per call; false when the upsert failed (its picks are held back). Keeps the
+   * promise, so posts priced in parallel on the same market share one upsert.
+   */
+  const upserted = new Map<string, Promise<boolean>>();
+  function ensureMarket(row: MarketRow): Promise<boolean> {
     const known = upserted.get(row.geminiMarketId);
-    if (known !== undefined) return known;
-    let ok = true;
-    try {
-      await opts.store.upsertMarket(row);
-    } catch (err) {
-      ok = false;
-      log(`[scout] market upsert failed for ${row.geminiMarketId}: ${(err as Error).message}`);
+    if (known) return known;
+    const run = opts.store.upsertMarket(row).then(
+      () => true,
+      (err: unknown) => {
+        log(`[scout] market upsert failed for ${row.geminiMarketId}: ${(err as Error).message}`);
+        return false;
+      },
+    );
+    upserted.set(row.geminiMarketId, run);
+    return run;
+  }
+
+  /** The post for ingest with its priced picks, or null when none of its picks can go. */
+  async function toEntry(post: ScoutPostRow): Promise<NewPost | null> {
+    const picks: Pick[] = [];
+    for (const m of post.matches ?? []) {
+      if (m.status !== "matched" || !m.geminiEventTicker) continue;
+      try {
+        const sub = await opts.gemini.getEvent(m.geminiEventTicker);
+        const pick = await toPick(m, sub, post.tweetedAt, { gemini: opts.gemini, kalshi: opts.kalshi, log });
+        const market = toMarketRow(sub, m.gameStartTime);
+        if (pick && market && (await ensureMarket(market))) picks.push(pick);
+      } catch (err) {
+        // This pick's event can't be loaded; the post's other picks still go.
+        log(`[scout] skipping pick on ${m.geminiEventTicker}: ${(err as Error).message}`);
+      }
     }
-    upserted.set(row.geminiMarketId, ok);
-    return ok;
+    if (picks.length === 0) return null;
+    return {
+      tweetId: post.tweetId,
+      xUserId: post.xUserId,
+      xHandle: post.handle,
+      tweetedAt: post.tweetedAt.toISOString(),
+      tweetText: post.text,
+      sentiment: post.sentiment,
+      picks,
+    };
   }
 
   async function send(batch: NewPost[]): Promise<string[]> {
@@ -184,32 +216,17 @@ export function createForwarder(opts: {
   return {
     async forward(posts) {
       upserted.clear();
-      const entries: NewPost[] = [];
-      for (const post of posts) {
-        const picks: Pick[] = [];
-        for (const m of post.matches ?? []) {
-          if (m.status !== "matched" || !m.geminiEventTicker) continue;
-          try {
-            const sub = await opts.gemini.getEvent(m.geminiEventTicker);
-            const pick = await toPick(m, sub, post.tweetedAt, { gemini: opts.gemini, kalshi: opts.kalshi, log });
-            const market = toMarketRow(sub, m.gameStartTime);
-            if (pick && market && (await ensureMarket(market))) picks.push(pick);
-          } catch (err) {
-            // This pick's event can't be loaded; the post's other picks still go.
-            log(`[scout] skipping pick on ${m.geminiEventTicker}: ${(err as Error).message}`);
-          }
+      // Price a few posts at a time (each pick can take several Gemini/Kalshi requests), in order.
+      const built: (NewPost | null)[] = new Array<NewPost | null>(posts.length).fill(null);
+      let next = 0;
+      const worker = async () => {
+        while (next < posts.length) {
+          const i = next++;
+          built[i] = await toEntry(posts[i]!);
         }
-        if (picks.length === 0) continue;
-        entries.push({
-          tweetId: post.tweetId,
-          xUserId: post.xUserId,
-          xHandle: post.handle,
-          tweetedAt: post.tweetedAt.toISOString(),
-          tweetText: post.text,
-          sentiment: post.sentiment,
-          picks,
-        });
-      }
+      };
+      await Promise.all(Array.from({ length: Math.min(FORWARD_CONCURRENCY, posts.length) }, worker));
+      const entries = built.filter((e): e is NewPost => e !== null);
 
       const accepted: string[] = [];
       for (let i = 0; i < entries.length; i += MAX_POSTS_PER_REQUEST) {
