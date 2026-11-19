@@ -156,6 +156,22 @@ describe("pickGame", () => {
     expect(pick([g], pred(["Lakers"], ["Lakers"]))?.ticker).toBe("G1");
   });
 
+  it("doesn't fall back when the pick's own words name the opponent (a recap of a game that's over)", () => {
+    // "Chargers 23, Ravens 20. Los Angeles gets its first win" (real @Pickswise post): Grok read it as
+    // "Chargers win"; the Ravens game is over, and it must not land on the Chargers' next game.
+    const next = game({ ticker: "NYJ-LAC", startTime: at(5 * 24 * HOUR), home: ["Los Angeles C", "LAC"], away: ["New York J", "NYJ"] });
+    const recap: Prediction = {
+      ...pred(["Los Angeles Chargers", "Chargers", "LAC"], ["Baltimore Ravens", "Ravens", "BAL"], "NFL"),
+      quote: "Chargers 23, Ravens 20. Los Angeles gets its first win of 2026.",
+    };
+    expect(pickGame([next], recap, TWEET)).toEqual({ game: null, reason: "no game within 7 days" });
+  });
+
+  it("still falls back for a parlay leg whose quote doesn't name the opponent", () => {
+    const g = lakersGame(at(1000));
+    expect(pick([g], { ...pred(["Lakers"], ["Celtics", "BOS"]), quote: "Lakers ML" })?.ticker).toBe("G1");
+  });
+
   it("ignores events whose template is not sports-game", () => {
     const e = game({
       ticker: "S",

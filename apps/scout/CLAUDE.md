@@ -153,6 +153,37 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
   - A recent retweet can't trigger a fetch, but the next original post does, and the top-up then fetches everything since the last fetch.
 - **Not verified live on x.com yet:** the timestamp-link selector is based on X's current markup and covered by unit tests only.
 
+### @Pickswise test fixes (Nov 19)
+Adi's first scan of @Pickswise: 98 posts, 18 predictions, 15 picks forwarded, score 64 (12 resolved, 7 wins). Three problems:
+- **Badge never appeared:** the scan took ~2 min, but the extension stopped waiting after 90 s (`POLL_FOR_MS`) and showed nothing. Now 4 min.
+  - Forwarding was 22 s of it (measured on the 14 posts against real Gemini/Kalshi). Posts are now priced 4 at a time, and Kalshi lookups in flight are shared.
+  - The rest is Apify + Grok reading 98 posts; not yet split out (needs the scan's timing line).
+- **A recap became a pick:** "Chargers 23, Ravens 20. Los Angeles gets its first win of 2026." Grok read it as "Chargers win" (0.85), and the matcher, finding no Chargers–Ravens game ahead, dropped the opponent and took the Chargers' next game (vs Jets).
+  - **Prompt:** a final score or past-tense result is a recap. Tested on real Grok: 10/10 (3 recaps rejected, 7 real picks unchanged, including a 3-leg parlay).
+  - **Code:** the opponent fallback only applies when the pick's own quote doesn't name the opponent (`namedIn` in `match/candidates.ts`). That's the case for Grok-invented parlay opponents; a recap names its opponent.
+- **Wrong line (team decision, Pranav):** "Grambling St +37.5" matched the 40.5 line under the old nearest-implied-line rule. **Now only the exact line matches**; otherwise no match.
+  - The one exception is a written "N+" ("30+ points"), the same bet as over N−0.5 for whole-number stats.
+  - **Whole-number lines (team decision, Pranav):** these take the half-point line 0.5 away, since Gemini lists only half points. First choice is the line whose contract wins only when the bet wins, so a push counts as a loss: −7 → 7.5 YES; dog +7 → favourite's 6.5 NO; over 220 → 220.5; under 220 → 219.5. Otherwise the other neighbour; nothing further away.
+  - **Gemini drops sub-markets at random:** the same `getEvent` request alternates between returning a game's spread/total markets and not (measured: 0, 0, then 26 markets on three straight calls). The single refetch let totals fail by luck. Now up to 5 fetches, 1 s apart.
+  - **Dry run on all 98 stored @Pickswise posts** (re-read + re-match, nothing written), run twice:
+    - recap and brag gone;
+    - Grambling +37.5 dropped;
+    - all spreads, totals and winners on their exact lines;
+    - 3 picks that used to miss now match (Lakers −12.5, Western Michigan −14.5, Avalanche–Leafs over 6.5).
+    - Grok called the Chargers recap a prediction in run 1 and not in run 2, so the prompt alone isn't reliable for it; the opponent check in code stopped it from matching both times.
+    - West Virginia +9.5 and Florida −1.5 still came back without sub-markets after 5 tries; they stay pending and are retried each scan.
+  - **Team decisions (Pranav):**
+    - Markets that never come back don't count: a leg with no contract isn't forwarded.
+    - Parlay legs each count as their own pick.
+  - **Cleanup in Supabase (approved, Nov 19):** for @Pickswise and @ActionNetworkHQ, deleted calls/posts/scores, reset the scout's readings, then re-read with Grok (no Apify), re-matched, priced, forwarded and scored through a local API. Users rows kept; no tails, copy trades or rewards referenced these calls.
+    - **@Pickswise:** score **64 → 39** (15 resolved, 7 wins), 15 calls, all priced.
+    - **@ActionNetworkHQ:** score **31 → 20** (11 resolved, 3 wins), 15 calls, all priced.
+    - The Chargers recap and the "44 winning picks" brag have 0 calls; 0 calls remain on the 7 known-wrong contracts.
+    - Gemini twice returned an unparseable body mid-search; a no-fetch retry matched those posts.
+    - Wild–Canadiens under 6.5 (one leg of a 3-leg tweet), West Virginia +9.5 and Florida −1.5 came back without markets and don't count.
+  - **Brags are recaps too:** "44 winning picks on Saturday ✅ Indiana -8.5, Iowa State -3, Heat +4.5, Sharks ML" had become two picks, Heat +4.5 on Miami's next game and Sharks ML. The Heat pick was unpriced because that market opened on Kalshi 6.4 h after the tweet. The prompt now names lists of past winners; real Grok rejects 3/3 brags and keeps 2/2 picks.
+  - Stored rows made under the old rule: 4 of 27 line picks used a different line, all forwarded: Booker u23.5 → 24.5, total 44 → 44.5, Adebayo o17.5 → 14.5, Grambling +37.5 → 40.5.
+
 ## Open questions for the team (block turning forwarding on)
 - ~~**Gemini environment**~~ **resolved on main:** market data reads production (`GEMINI_READ_BASE_URL`), and orders go to the sandbox.
 - **Lock time: decided (Pranav, Nov 18). `markets.lock_time` = the market's `expiryDate`**, written the same way by the scout's upsert and by the trading sync (`apps/trading/src/sync.ts` `lockTimeFor`, changed in this branch).

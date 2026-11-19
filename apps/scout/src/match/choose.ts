@@ -127,32 +127,39 @@ function strikeOf(c: GeminiContract, type: string): number | null {
 }
 
 /**
- * Apply the line rule: "atMost" keeps v <= L and picks the largest; "atLeast" keeps v >= L and picks the
- * smallest. Spreads use only "spread" strikes; totals and props only "over" strikes.
+ * The line rule: only the contract at exactly the tweet's line, since any other line is a different bet
+ * (team decision, Nov 19: +37.5 must not become +40.5), except a whole-number line, which takes the
+ * half-point line next to it (below). No such contract: no match. Spreads use only "spread" strikes;
+ * totals and props only "over" strikes.
  */
 function applyLine(
   sub: GeminiEvent,
   contracts: GeminiContract[],
   kind: "spread" | "total" | "prop",
-  mode: "atMost" | "atLeast",
   side: "yes" | "no",
   L: number,
 ): Choice | null {
   const strikeType = kind === "spread" ? "spread" : "over";
-  let best: { c: GeminiContract; v: number } | null = null;
-  for (const c of contracts) {
-    const v = strikeOf(c, strikeType);
-    if (v === null) continue;
-    if (mode === "atMost" ? v > L : v < L) continue;
-    if (!best || (mode === "atMost" ? v > best.v : v < best.v)) best = { c, v };
+  const at = (line: number) =>
+    contracts.filter((c) => {
+      const v = strikeOf(c, strikeType);
+      return v !== null && Math.abs(v - line) < 1e-9;
+    });
+  // Gemini lists half-point lines only, so a whole-number line (team decision, Nov 19) takes the line
+  // 0.5 away. Of the two, first the one whose contract wins only when the bet wins (the bet's push
+  // counts as a loss): +0.5 on the YES side ("-7" -> 7.5, "over 220" -> 220.5), -0.5 on the NO side
+  // ("+7" -> the favorite's 6.5, "under 220" -> 219.5); else the other one.
+  const whole = Number.isInteger(L);
+  const strict = side === "yes" ? L + 0.5 : L - 0.5;
+  const lines = whole ? [strict, side === "yes" ? L - 0.5 : L + 0.5] : [L];
+  for (const line of lines) {
+    const found = at(line);
+    if (found.length > 1) return null; // two contracts at one line would be ambiguous
+    if (found.length === 1) {
+      return { subEvent: sub, contract: found[0]!, side, detail: whole ? `${kind} ${line} for ${L}` : `${kind} ${L}` };
+    }
   }
-  if (!best) return null;
-  return {
-    subEvent: sub,
-    contract: best.c,
-    side,
-    detail: `${kind} ${best.v} ${mode === "atMost" ? "<=" : ">="} ${L}`,
-  };
+  return null;
 }
 
 async function grokSubject(sub: GeminiEvent, subject: string, grok: Grok): Promise<GeminiContract[]> {
@@ -203,15 +210,17 @@ export async function chooseLine(
 ): Promise<Choice | null> {
   if (p.line === null || !Number.isFinite(p.line)) return null;
   // A spread line is a size: "-7" and "7" both mean "by 7"; the claim carries the direction.
-  const L = p.betType === "spread" ? Math.abs(p.line) : p.line;
+  let L = p.betType === "spread" ? Math.abs(p.line) : p.line;
+  // "30+" means at least 30, which for a stat counted in whole numbers is exactly "over 29.5", the same
+  // bet. A plain "over 30" is not (it pushes at 30), so only the written "N+" form is converted.
+  if (p.betType !== "spread" && /^\s*\d+\s*\+\s*$/.test(p.lineAsWritten ?? "") && Number.isInteger(L)) L -= 0.5;
 
   if (p.betType === "total") {
-    if (p.claim === "over") return applyLine(sub, sub.contracts, "total", "atMost", "yes", L);
-    if (p.claim === "under") return applyLine(sub, sub.contracts, "total", "atLeast", "no", L);
+    if (p.claim === "over") return applyLine(sub, sub.contracts, "total", "yes", L);
+    if (p.claim === "under") return applyLine(sub, sub.contracts, "total", "no", L);
     return null;
   }
 
-  let mode: "atMost" | "atLeast";
   let side: "yes" | "no";
   let team: TeamRef | null = null;
   let player = "";
@@ -221,11 +230,9 @@ export async function chooseLine(
     kind = "spread";
     const claim = spreadClaim(p);
     if (claim === "covers" || claim === "wins" || claim === "over") {
-      mode = "atMost";
       side = "yes";
       team = withGameNames(game, p.team);
     } else if (claim === "loses") {
-      mode = "atLeast";
       side = "no";
       team = opponentOf(game, p);
       if (!team) return null;
@@ -235,10 +242,8 @@ export async function chooseLine(
     if (!p.player) return null;
     player = p.player;
     if (p.claim === "over") {
-      mode = "atMost";
       side = "yes";
     } else if (p.claim === "under") {
-      mode = "atLeast";
       side = "no";
     } else return null;
   } else return null;
@@ -248,12 +253,12 @@ export async function chooseLine(
     : sub.contracts.filter((c) => contractMatchesPlayer(c, player));
   // the best-rank matches name two different teams (e.g. a rivalry both names contain): ambiguous
   if (team && spansSubjects(contracts)) return null;
-  if (contracts.length > 0) return applyLine(sub, contracts, kind, mode, side, L);
+  if (contracts.length > 0) return applyLine(sub, contracts, kind, side, L);
 
   // Fallback: ask Grok which contracts are the subject's; refuse an answer that spans subjects.
   contracts = await grokSubject(sub, team ? team.name : player, grok);
   if (spansSubjects(contracts)) return null;
-  const choice = applyLine(sub, contracts, kind, mode, side, L);
+  const choice = applyLine(sub, contracts, kind, side, L);
   return choice ? { ...choice, detail: `${choice.detail} (via grok)` } : null;
 }
 

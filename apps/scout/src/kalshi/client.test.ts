@@ -90,6 +90,18 @@ describe("findMarket", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("shares one request between lookups in flight at the same time", async () => {
+    const { client, fetchMock } = kalshi({
+      "/events/KXNCAAMBSPREAD-26NOV17MSUTENN": () => json(eventFixture),
+      "/markets": () => json(spread),
+    });
+    const tenn = { ...msu35, label: "Tennessee wins by more than 4.5 points", strike: { type: "spread" as const, value: "4.5" }, resolutionSide: "yes" as const };
+    const [a, b] = await Promise.all([client.findMarket(msuGame, msuSpread, msu35), client.findMarket(msuGame, msuSpread, tenn)]);
+    expect(a.series).toBe("KXNCAAMBSPREAD");
+    expect(b.series).toBe("KXNCAAMBSPREAD");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("explains why when there's no series for the bet", async () => {
     const golf = { ...msuGame, ticker: "GOLF-MAS-WIN" };
     expect(await createKalshiClient({ fetch: vi.fn() as never }).findMarket(golf, golf, msu35)).toEqual({
