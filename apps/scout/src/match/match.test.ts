@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { GeminiClient } from "../gemini/client.js";
 import type { GeminiEvent } from "../gemini/types.js";
 import type { Grok } from "../grok/client.js";
-import { matchPrediction } from "./match.js";
+import { matchPrediction, NO_SUB_MARKETS_REASON, TEAM_TOTAL_REASON } from "./match.js";
 
 const TWEET = new Date("2026-11-18T12:00:00.000Z");
 
@@ -41,6 +41,7 @@ const pred = (o: Partial<Prediction> = {}): Prediction => ({
   metric: null,
   line: null,
   claim: "wins",
+  lineAsWritten: null,
   conviction: "strong",
   quote: "q",
   ...o,
@@ -58,12 +59,30 @@ describe("matchPrediction", () => {
     expect(r).toMatchObject({ status: "no_market", reason: "tweet during game" });
   });
 
-  it("no sub-event -> no_market", async () => {
+  it("game returned with no sub-markets at all -> retryable no_market", async () => {
     const r = await matchPrediction(pred({ betType: "total", claim: "over", line: 200 }), 0, TWEET, {
       gemini: gemini(game()),
       grok,
     });
+    expect(r).toMatchObject({ status: "no_market", reason: NO_SUB_MARKETS_REASON });
+  });
+
+  it("game has sub-markets but none for this bet type -> no_market", async () => {
+    const spreadOnly = game({
+      events: [{ id: "2", ticker: "G-S", title: "s", status: "active", template: "sports-spread", contracts: [] }],
+    });
+    const r = await matchPrediction(pred({ betType: "total", claim: "over", line: 200 }), 0, TWEET, {
+      gemini: gemini(spreadOnly),
+      grok,
+    });
     expect(r).toMatchObject({ status: "no_market", reason: "no sub-event for bet type" });
+  });
+
+  it("team totals -> no_market without any Gemini lookup", async () => {
+    const g = gemini(game());
+    const r = await matchPrediction(pred({ betType: "team_total", claim: "under", line: 17.5 }), 0, TWEET, { gemini: g, grok });
+    expect(r).toMatchObject({ status: "no_market", reason: TEAM_TOTAL_REASON });
+    expect(g.searchGames).not.toHaveBeenCalled();
   });
 
   it("no guaranteed contract -> no_market", async () => {

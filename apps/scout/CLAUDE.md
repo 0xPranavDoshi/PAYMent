@@ -50,7 +50,11 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
 - **The prompt judges each post as of its own `createdAt`,** so old tweets about games that have since been played still count (needed for backfill).
 - **Spread direction is decided by the sign, step by step in the prompt** (Nov 18, revised after the smoke test). `line` is always positive. A "+" before the number means the team is the underdog: claim `loses`. A "-" means the favourite: claim `covers`. The wording only counts when there is no sign. The prompt says outright that "cover" is used for both sides ("Tennessee to cover +3.5" is an underdog bet), and includes that real tweet as an example.
   - *Why:* the first version listed "X covers L → covers". Grok matched the word "cover" and ignored the "+", so 2 of the 14 smoke-test matches were wrong.
-  - *Pranav chose a prompt-only fix* over a code check on a copied signed line (the alternative considered: Grok copies `"+3.5"` verbatim and code applies the sign). Revisit if the accuracy check finds sign errors again.
+  - *Pranav first chose a prompt-only fix.* The re-run showed Grok still flipping on "Tennessee to cover +3.5", so **the sign now lives in code** (Nov 18): Grok copies the line verbatim into `lineAsWritten` ("+3.5", "-7", "by 7"), and `spreadClaim()` reads the sign. Grok's `claim` is used only when there is no sign.
+- **`temperature: 0`** on every Grok call. *Why:* the same tweet got different readings on different runs, because we had left the default randomness on.
+- **`team_total` bet type**, always `no_market` (Gemini doesn't list team totals). *Why:* the schema had no slot for "Hawaii Team Total u17.5", so Grok squeezed it into `total` and it got matched to the game total.
+- **Batches of 5 posts, 4 in flight at once.** *Why:* long write-ups crowd a 20-post batch, and running batches one after another made the scan slow.
+- **`PIPELINE_VERSION` 3**, so stored posts are re-read with all of the above.
 - **Post text is treated as data, not instructions** (prompt-injection safety). Grok can never invent a market: it only extracts claims, and code chooses the contracts.
 
 ### Matching (code owns timing and contract choice)
@@ -124,6 +128,12 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
     - (b) "Hawaii Warriors Team Total u17.5" was matched to the *game* total ("More than 22.5 points scored" NO). Team totals aren't game totals.
     - (c) Tennessee got "no sub-event for bet type", but re-running `findGame` now returns the right game with its spread. Gemini apparently returned the game without child markets once, and we stored that as final.
     - (d) "Kevin Huerter o10.5": Grok gave the wrong team (Kings), so no prop was found.
+
+- **Reading check after the v3 changes (Nov 18, 2 Grok calls, under 1¢): 9 of 9.**
+  - Grok copied every sign verbatim: "+3.5" ×2, "+7", "+2.5", "-9.5", "-4", "-13.5". The code applied them.
+  - "Bears getting 6.5" has no sign, so Grok's own `loses` was used.
+  - "Hawaii Team Total u17.5" → `team_total` (no market), with no game total extracted.
+  - The recap → not a prediction.
 
 ## Changes in progress / next
 - [x] **Underdog spreads:** fixed in the prompt (sign decides), verified 8 of 8 on a live test. The fallback, if errors come back, is a code check on a verbatim signed line from Grok.

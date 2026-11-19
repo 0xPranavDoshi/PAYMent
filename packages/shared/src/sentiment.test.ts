@@ -18,6 +18,7 @@ describe("Sentiment", () => {
           metric: null,
           line: 7,
           claim: "covers",
+          lineAsWritten: "by 7",
           conviction: "strong",
           quote: "Lakers by 7",
         },

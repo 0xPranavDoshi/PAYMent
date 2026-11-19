@@ -3,7 +3,7 @@ import type { Forwarder } from "./forward.js";
 import type { GeminiClient } from "./gemini/client.js";
 import type { Grok } from "./grok/client.js";
 import { NO_GAME_REASON } from "./match/candidates.js";
-import { matchPrediction } from "./match/match.js";
+import { matchPrediction, NO_SUB_MARKETS_REASON } from "./match/match.js";
 import type { PostSource, RawPost } from "./posts/source.js";
 import { readPosts } from "./stages/read.js";
 import { PIPELINE_VERSION, type ScoutPostRow, type ScoutStore } from "./store.js";
@@ -23,6 +23,8 @@ const FIRST_SCAN_LIMIT = 100;
 const TOP_UP_LIMIT = 20;
 /** A post with no game found yet is retried on later scans until it is this old. */
 const NO_GAME_RETRY_MS = 8 * 24 * 60 * 60 * 1000;
+/** no_market reasons that may change on a later scan (Gemini lists games and sub-markets late). */
+const RETRYABLE_REASONS = new Set([NO_GAME_REASON, NO_SUB_MARKETS_REASON]);
 
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
@@ -110,10 +112,11 @@ export async function runScan(handle: string, deps: ScanDeps): Promise<void> {
         for (const [i, p] of row.sentiment.predictions.entries()) {
           matches.push(await matchPrediction(p, i, row.tweetedAt, { gemini, grok }));
         }
-        // Gemini may not have listed the game yet: keep the post pending while the window is still open.
+        // Gemini may not have listed the game (or its sub-markets) yet: keep the post pending while the
+        // window is still open.
         const noGameYet =
           matches.length > 0 &&
-          matches.every((m) => m.status === "no_market" && m.reason === NO_GAME_REASON) &&
+          matches.every((m) => m.status === "no_market" && RETRYABLE_REASONS.has(m.reason ?? "")) &&
           row.tweetedAt.getTime() > now().getTime() - NO_GAME_RETRY_MS;
         row.matches = noGameYet ? null : matches;
       } catch (e) {

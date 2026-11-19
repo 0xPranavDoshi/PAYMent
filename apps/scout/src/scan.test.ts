@@ -36,6 +36,7 @@ const pred: Prediction = {
   metric: null,
   line: null,
   claim: "wins",
+  lineAsWritten: null,
   conviction: "strong",
   quote: "q",
 };
@@ -128,7 +129,7 @@ describe("runScan", () => {
     await t.run();
     const [row] = await t.store.listPosts("bob");
     expect(row).toMatchObject({ matches: [], pipelineVersion: PIPELINE_VERSION, tweetId: "1" });
-    expect(PIPELINE_VERSION).toBe(2);
+    expect(PIPELINE_VERSION).toBe(3);
   });
 
   it("stores one PickMatch per prediction", async () => {

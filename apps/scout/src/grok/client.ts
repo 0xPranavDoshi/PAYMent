@@ -25,10 +25,12 @@ export function createGrok(opts: {
   return {
     async json<T>({ name, schema, system, user }: Parameters<Grok["json"]>[0]): Promise<T> {
       const { $schema: _omit, ...jsonSchema } = z.toJSONSchema(schema) as Record<string, unknown>;
-      // Provisional: if xAI rejects structured output for the chosen model, fall back to
-      // `response_format: { type: "json_object" }`. Zod validation below applies either way.
+      // Strict json_schema output verified live with grok-4-1-fast-reasoning (Nov 18 2026). If a model
+      // rejects it, fall back to `response_format: { type: "json_object" }`; Zod validation applies either way.
       const body = JSON.stringify({
         model: opts.model,
+        // Extraction, not creativity: the same post should always get the same reading.
+        temperature: 0,
         messages: [
           { role: "system", content: system },
           { role: "user", content: user },

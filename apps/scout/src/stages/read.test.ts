@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createGrok, GrokOutputError, type Grok } from "../grok/client.js";
 import type { RawPost } from "../posts/source.js";
-import { READ_BATCH_SIZE, READ_SYSTEM_PROMPT, readPosts } from "./read.js";
+import { READ_BATCH_SIZE, READ_CONCURRENCY, READ_SYSTEM_PROMPT, readPosts } from "./read.js";
 
 const post = (i: number, extra: Partial<RawPost> = {}): RawPost => ({
   tweetId: `id${i}`,
@@ -26,15 +26,34 @@ const echoGrok = () =>
   }) as unknown as Grok & { json: ReturnType<typeof vi.fn> };
 
 describe("readPosts", () => {
-  it("batches 45 posts into 20/20/5 and returns an entry per tweet", async () => {
-    expect(READ_BATCH_SIZE).toBe(20);
+  it("batches 12 posts into 5/5/2 and returns an entry per tweet", async () => {
+    expect(READ_BATCH_SIZE).toBe(5);
     const grok = echoGrok();
-    const out = await readPosts(posts(45), grok, "model-x");
+    const out = await readPosts(posts(12), grok, "model-x");
     expect(grok.json).toHaveBeenCalledTimes(3);
-    const sizes = grok.json.mock.calls.map(([a]) => new Set(a.user.match(/id\d+/g)).size);
-    expect(sizes).toEqual([20, 20, 5]);
-    expect(out.size).toBe(45);
+    const sizes = grok.json.mock.calls.map(([a]) => new Set(a.user.match(/id\d+/g)).size).sort();
+    expect(sizes).toEqual([2, 5, 5]);
+    expect(out.size).toBe(12);
     expect(out.get("id3")?.model).toBe("model-x");
+  });
+
+  it("keeps at most READ_CONCURRENCY batches in flight", async () => {
+    expect(READ_CONCURRENCY).toBe(4);
+    let inFlight = 0;
+    let peak = 0;
+    const grok = {
+      json: vi.fn(async ({ user }: { user: string }) => {
+        inFlight++;
+        peak = Math.max(peak, inFlight);
+        await new Promise((r) => setTimeout(r, 5));
+        inFlight--;
+        return { results: [...user.matchAll(/id\d+/g)].map((m) => verdict(m[0])) };
+      }),
+    } as unknown as Grok;
+    const out = await readPosts(posts(40), grok, "m");
+    expect(peak).toBe(4);
+    expect(grok.json).toHaveBeenCalledTimes(8);
+    expect([...out.values()].every((s) => s !== null)).toBe(true);
   });
 
   it("includes id, ISO time, text and quotedText in the user message", async () => {
@@ -49,18 +68,17 @@ describe("readPosts", () => {
 
   it("maps a failed batch to null while other batches succeed", async () => {
     const ok = echoGrok();
-    let call = 0;
     const grok = {
       json: vi.fn(async (a: { user: string }) => {
-        if (call++ === 1) throw new GrokOutputError("bad");
+        if (/"id5"/.test(a.user)) throw new GrokOutputError("bad");
         return ok.json(a as never);
       }),
     } as unknown as Grok;
-    const out = await readPosts(posts(45), grok, "m");
+    const out = await readPosts(posts(12), grok, "m");
     expect(out.get("id0")).not.toBeNull();
-    expect(out.get("id20")).toBeNull();
-    expect(out.get("id39")).toBeNull();
-    expect(out.get("id40")).not.toBeNull();
+    expect(out.get("id5")).toBeNull();
+    expect(out.get("id9")).toBeNull();
+    expect(out.get("id10")).not.toBeNull();
   });
 
   it("anchors 'not happened yet' to each post's createdAt in the system prompt sent to Grok", async () => {
@@ -74,22 +92,26 @@ describe("readPosts", () => {
   });
 
   it("maps a batch whose fetch rejects to null while other batches return values", async () => {
-    let call = 0;
     const fetchFn = vi.fn(async (_url: string, init?: RequestInit) => {
-      const n = call++;
-      // batch 2 (calls 1 and 2: first try + retry) hits a network error
-      if (n === 1 || n === 2) throw new TypeError("fetch failed");
       const user = JSON.parse(init!.body as string).messages[1].content as string;
+      // the batch holding id5..id9 hits a network error on its first try and its retry
+      if (/"id5"/.test(user)) throw new TypeError("fetch failed");
       const content = JSON.stringify({ results: [...user.matchAll(/id\d+/g)].map((m) => verdict(m[0])) });
       return new Response(JSON.stringify({ choices: [{ message: { content } }] }));
     });
     const grok = createGrok({ apiKey: "k", model: "m", fetch: fetchFn as unknown as typeof fetch });
-    const out = await readPosts(posts(45), grok, "m");
-    expect(fetchFn).toHaveBeenCalledTimes(4);
+    const out = await readPosts(posts(12), grok, "m");
+    expect(fetchFn).toHaveBeenCalledTimes(4); // 2 good batches + 2 attempts for the failing one
     expect(out.get("id0")).not.toBeNull();
-    expect(out.get("id20")).toBeNull();
-    expect(out.get("id39")).toBeNull();
-    expect(out.get("id40")).not.toBeNull();
+    expect(out.get("id5")).toBeNull();
+    expect(out.get("id9")).toBeNull();
+    expect(out.get("id10")).not.toBeNull();
+  });
+
+  it("asks for the line verbatim and separates team totals from game totals", () => {
+    expect(READ_SYSTEM_PROMPT).toContain(`lineAsWritten: copy the line EXACTLY`);
+    expect(READ_SYSTEM_PROMPT).toContain(`"UCONN +3.5" -> "+3.5"`);
+    expect(READ_SYSTEM_PROMPT).toMatch(/"Hawaii Team Total u17.5".*is "team_total", never "total"/);
   });
 
   it("defines spread lines as positive sizes, with the sign deciding direction", () => {

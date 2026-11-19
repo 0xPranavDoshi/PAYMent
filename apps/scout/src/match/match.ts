@@ -18,6 +18,10 @@ const noMarket = (predictionIndex: number, reason: string): PickMatch => ({
   resolutionSide: null,
 });
 
+export const TEAM_TOTAL_REASON = "team totals aren't listed on Gemini";
+/** The game came back with no child markets at all; Gemini sometimes omits them, so this is retried. */
+export const NO_SUB_MARKETS_REASON = "game returned without sub-markets";
+
 /** Map one prediction to a Gemini contract and side. Gemini errors from findGame propagate. */
 export async function matchPrediction(
   p: Prediction,
@@ -25,10 +29,12 @@ export async function matchPrediction(
   tweetedAt: Date,
   deps: { gemini: GeminiClient; grok: Grok },
 ): Promise<PickMatch> {
+  if (p.betType === "team_total") return noMarket(index, TEAM_TOTAL_REASON);
   const pick = await findGame(p, tweetedAt, deps.gemini);
   if (!pick.game) return noMarket(index, pick.reason);
   const game = pick.game;
   const sub = subEventFor(game, p);
+  if (!sub && p.betType !== "win" && (game.events ?? []).length === 0) return noMarket(index, NO_SUB_MARKETS_REASON);
   if (!sub) return noMarket(index, "no sub-event for bet type");
   const choice = p.betType === "win" ? chooseWin(game, p) : await chooseLine(sub, game, p, deps.grok);
   if (!choice) return noMarket(index, "no contract guaranteed by the claim");

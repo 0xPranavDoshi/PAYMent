@@ -2,7 +2,7 @@ import type { Prediction } from "@copayme/shared";
 import { describe, expect, it, vi } from "vitest";
 import type { GeminiContract, GeminiEvent } from "../gemini/types.js";
 import { GrokOutputError, type Grok } from "../grok/client.js";
-import { chooseLine, chooseWin, subEventFor, validateChoice, type Choice } from "./choose.js";
+import { chooseLine, chooseWin, spreadClaim, subEventFor, validateChoice, type Choice } from "./choose.js";
 
 const TWEET = new Date("2026-11-18T12:00:00.000Z");
 
@@ -83,6 +83,7 @@ const pred = (o: Partial<Prediction>): Prediction => ({
   metric: null,
   line: null,
   claim: "covers",
+  lineAsWritten: null,
   conviction: "strong",
   quote: "q",
   ...o,
@@ -224,6 +225,30 @@ describe("chooseLine", () => {
     const r = await chooseLine(azSpread, azGame, pred({ team: arizona, claim: "loses", line: 4.5 }), noGrok());
     expect(r?.contract.label).toContain("UConn");
     expect(r?.contract.strike?.value).toBe("4.5");
+    expect(r?.side).toBe("no");
+  });
+
+  it('the written sign overrides Grok\'s claim: "to cover +3.5" read as covers is still an underdog pick', async () => {
+    // The live smoke-test failure: Grok returned claim "covers" for "UCONN +3.5".
+    const azGame = ev({
+      ticker: "AZ",
+      template: "sports-game",
+      startTime: "2026-11-19T02:00:00.000Z",
+      participants: [
+        { name: "Arizona Wildcats", abbreviation: "ARI", side: "home" },
+        { name: "UConn Huskies", abbreviation: "UCONN", side: "away" },
+      ],
+    });
+    const azSpread = ev({
+      ticker: "AZ-S",
+      template: "sports-spread",
+      contracts: [spreadC("Arizona", "2.5"), spreadC("Arizona", "3.5"), spreadC("UConn", "3.5")],
+    });
+    const uconn = { name: "UConn Huskies", aliases: ["UConn", "UCONN"] };
+    const p = pred({ team: uconn, claim: "covers", line: 3.5, lineAsWritten: "+3.5" });
+    const r = await chooseLine(azSpread, azGame, p, noGrok());
+    expect(r?.contract.label).toContain("Arizona");
+    expect(r?.contract.strike?.value).toBe("3.5");
     expect(r?.side).toBe("no");
   });
 
@@ -443,5 +468,16 @@ describe("validateChoice", () => {
   it("rejects a game that starts at or before the tweet", () => {
     expect(validateChoice(game, ok, new Date(game.startTime as string))).toMatch(/starts/);
     expect(validateChoice(game, ok, new Date("2026-11-20T00:00:00Z"))).toMatch(/starts/);
+  });
+});
+
+describe("spreadClaim", () => {
+  it("reads direction from the written sign, falling back to Grok's claim without one", () => {
+    expect(spreadClaim(pred({ claim: "covers", lineAsWritten: "+3.5" }))).toBe("loses");
+    expect(spreadClaim(pred({ claim: "loses", lineAsWritten: "-7" }))).toBe("covers");
+    expect(spreadClaim(pred({ claim: "loses", lineAsWritten: "−2.5" }))).toBe("covers"); // unicode minus
+    expect(spreadClaim(pred({ claim: "covers", lineAsWritten: " +6.5 " }))).toBe("loses");
+    expect(spreadClaim(pred({ claim: "covers", lineAsWritten: "by 7" }))).toBe("covers");
+    expect(spreadClaim(pred({ claim: "loses", lineAsWritten: null }))).toBe("loses");
   });
 });

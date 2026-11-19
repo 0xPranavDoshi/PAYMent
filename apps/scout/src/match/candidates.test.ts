@@ -45,6 +45,7 @@ const pred = (team: string[], opponent: string[] | null = null, league: string |
   metric: null,
   line: null,
   claim: "wins",
+  lineAsWritten: null,
   conviction: "strong",
   quote: "q",
 });

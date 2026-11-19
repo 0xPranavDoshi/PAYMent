@@ -18,6 +18,7 @@ describe("createGrok", () => {
     expect((init!.headers as Record<string, string>).Authorization).toBe("Bearer k");
     const body = JSON.parse(init!.body as string);
     expect(body.model).toBe("m");
+    expect(body.temperature).toBe(0);
     expect(body.messages).toEqual([
       { role: "system", content: "SYS" },
       { role: "user", content: "USR" },

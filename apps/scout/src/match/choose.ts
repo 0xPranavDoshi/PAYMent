@@ -152,6 +152,18 @@ async function grokSubject(sub: GeminiEvent, subject: string, grok: Grok): Promi
   }
 }
 
+/**
+ * Direction of a spread pick. The sign Grok copied from the post decides: "+" means the team is the
+ * underdog ("loses" by less than L), "-" means the favourite ("covers"). Bettors say "cover" for both
+ * sides, so Grok's `claim` is used only when the post writes no sign ("by 7", "to cover").
+ */
+export function spreadClaim(p: Prediction): Prediction["claim"] {
+  const written = (p.lineAsWritten ?? "").trim();
+  if (/^\+/.test(written)) return "loses";
+  if (/^[-−–]/.test(written)) return "covers";
+  return p.claim;
+}
+
 export async function chooseLine(
   sub: GeminiEvent,
   game: GeminiEvent,
@@ -176,11 +188,12 @@ export async function chooseLine(
 
   if (p.betType === "spread") {
     kind = "spread";
-    if (p.claim === "covers" || p.claim === "wins" || p.claim === "over") {
+    const claim = spreadClaim(p);
+    if (claim === "covers" || claim === "wins" || claim === "over") {
       mode = "atMost";
       side = "yes";
       team = p.team;
-    } else if (p.claim === "loses") {
+    } else if (claim === "loses") {
       mode = "atLeast";
       side = "no";
       team = opponentOf(game, p);
