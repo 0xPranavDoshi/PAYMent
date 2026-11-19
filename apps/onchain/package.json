@@ -1,0 +1,24 @@
+{
+  "name": "@copayme/onchain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/index.ts",
+    "start": "tsx --env-file-if-exists=../../.env src/index.ts",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "setup:treasury": "tsx --env-file-if-exists=../../.env scripts/setup-treasury.ts"
+  },
+  "dependencies": {
+    "@circle-fin/developer-controlled-wallets": "^10.8.1",
+    "@copayme/shared": "workspace:^",
+    "@hono/node-server": "^2.1.8",
+    "hono": "^4.13.19",
+    "postgres": "^4.1.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  }
+}

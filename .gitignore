@@ -7,6 +7,13 @@ dist/
 !.env.example
 .DS_Store
 *.log
+*.tsbuildinfo
+
+# Circle entity-secret recovery file — never commit
+circle_recovery_file.dat
+**/circle_recovery_file.dat
+recovery_file_*.dat
+**/recovery_file_*.dat
 
 # Claude Code local state & agent worktrees
 .claude/
