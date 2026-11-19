@@ -120,6 +120,13 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
   - Where both exchanges have a price, Kalshi is within ~2¢ of Gemini (0.505/0.51, 0.385/0.39, 0.475/0.46, 0.275/0.27, 0.465/0.47, 0.495/0.47).
   - Neighbouring lines are never confused (MSU 3.5 → `MSU4`, not `MSU3`).
   - "Tennessee +3.5" is now priced at 0.535 (it won).
+- **End-to-end re-run with Kalshi pricing (Nov 18, Supabase, test user's rows replaced again):**
+  - **15 of 15 picks priced:** 7 via Gemini, 8 via Kalshi.
+  - 14 calls: the account's two Spurs spreads on the same game collapse to one, under ingest's one-pick-per-market rule.
+  - **Score 31, tier "scored", 11 resolved, 4 wins.** Run 2 had 5 resolved, and before pricing there were 0.
+  - The three wins Kalshi pricing let count: Tennessee +3.5 (+0.465), Charlotte +8.5 (+0.455), Booker under (+0.405).
+  - Losses priced via Kalshi: Nets −2.5, Ohio −10.5, Spurs −9.5.
+  - 3 still pending on future games.
 
 ## Open questions for the team (block turning forwarding on)
 - ~~**Gemini environment**~~ **resolved on main:** market data reads production (`GEMINI_READ_BASE_URL`), and orders go to the sandbox.
