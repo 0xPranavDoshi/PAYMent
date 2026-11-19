@@ -172,5 +172,22 @@ export function createPostgresStore(sql: postgres.Sql): ScoutStore {
           lock_time = excluded.lock_time, synced_at = now()
       `;
     },
+    async marketsToRefresh(now, limit) {
+      const rows = await sql<{ ticker: string; start: string }[]>`
+        select distinct on (m->>'geminiEventTicker')
+               m->>'geminiEventTicker' as ticker, m->>'gameStartTime' as start
+        from scout_posts p
+        cross join lateral jsonb_array_elements(coalesce(p.matches, '[]'::jsonb)) m
+        left join markets k on k.gemini_market_id = m->>'geminiEventTicker'
+        where p.forwarded_at is not null
+          and m->>'status' = 'matched'
+          and m->>'geminiEventTicker' is not null
+          and (m->>'gameStartTime')::timestamptz <= ${now}
+          and (k.status is null or k.status not in ('resolved', 'void'))
+        order by m->>'geminiEventTicker'
+        limit ${limit}
+      `;
+      return rows.map((r) => ({ geminiEventTicker: r.ticker, gameStartTime: r.start }));
+    },
   };
 }

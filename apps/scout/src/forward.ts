@@ -42,7 +42,7 @@ export function toMarketRow(sub: GeminiEvent, gameStartTime: string | null): Mar
       };
     }),
     lockTime: new Date(start),
-    status: sub.status === "settled" ? "resolved" : "open",
+    status: sub.status === "settled" ? "resolved" : sub.status === "invalid" ? "void" : "open",
     winningOutcome: winner?.label ?? null,
     resolvedAt: winner?.resolvedAt ? new Date(winner.resolvedAt) : null,
   };
