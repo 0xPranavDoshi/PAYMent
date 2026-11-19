@@ -80,16 +80,19 @@ describe("the popover", () => {
 
     await vi.waitFor(() => expect(popoverText()).toContain("Game 1"));
     const text = popoverText()!;
+    expect(text).toContain("coPAYMe");
     expect(text).toContain("72");
-    expect(text).toContain("▲8");
-    expect(text).toContain("42 resolved picks · 69% hit rate");
+    expect(text).toContain("▲ 8 in 14 days");
+    expect(text).toContain("29–13");
+    expect(text).toContain("69%");
     expect(text).toContain("UConn · YES · 62¢");
     expect(text).toContain("+0.38");
     expect(text).toContain("UConn · NO");
     expect(text).toContain("−0.62");
-    expect(text).toContain("Won");
-    expect(text).toContain("Lost");
     expect(text).toContain("Pending");
+
+    const card = popoverHosts()[0]!.shadowRoot!;
+    expect([...card.querySelectorAll(".dot")].map((d) => d.className.replace("dot ", ""))).toEqual(["won", "lost", "pending"]);
 
     const links = [...popoverHosts()[0]!.shadowRoot!.querySelectorAll("a")].map((a) => a.getAttribute("href"));
     expect(links).toContain("https://x.com/i/status/1001");
@@ -97,10 +100,10 @@ describe("the popover", () => {
   });
 
   it("explains the New badge and handles empty data", async () => {
-    await start(async () => ({ profile: profile("alice", { tier: "new", nResolved: 2, hitRate: 0.5 }), calls: [] }));
+    await start(async () => ({ profile: profile("alice", { tier: "new", nResolved: 2, nWins: 1, hitRate: 0.5 }), calls: [] }));
     click(badgeButton());
     await vi.waitFor(() => expect(popoverText()).toContain("No picks recorded yet"));
-    expect(popoverText()).toContain("New");
+    expect(popoverText()).toContain("NEW");
     expect(popoverText()).toContain("A score appears after 5 resolved picks");
 
     click(badgeButton()); // close
@@ -139,7 +142,7 @@ describe("the popover", () => {
     card.dispatchEvent(new Event("pointerdown", { bubbles: true, composed: true }));
     expect(popoverHosts()).toHaveLength(1);
 
-    click(popoverHosts()[0]!.shadowRoot!.querySelector<HTMLButtonElement>(".close")!);
+    click(popoverHosts()[0]!.shadowRoot!.querySelector<HTMLButtonElement>(".x")!);
     expect(popoverHosts()).toHaveLength(0);
   });
 

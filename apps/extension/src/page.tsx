@@ -2,10 +2,12 @@ import type { BadgesResponse } from "@copayme/shared";
 import { createRoot, type Root } from "react-dom/client";
 import type { ProfileData } from "./messages.js";
 import { createPopoverManager } from "./popover/manager.js";
-import { Badge, BADGE_CSS } from "./Badge.js";
+import { Badge } from "./Badge.js";
+import { BADGE_CSS } from "./styles.js";
+import { createThemeStore } from "./theme.js";
 import { createBadgeStore } from "./badgeStore.js";
 import { createBatcher } from "./batcher.js";
-import { TWEET_SELECTOR, extractHandle, findMountPoint } from "./selectors.js";
+import { BADGE_TARGET_SELECTOR, resolveTarget } from "./selectors.js";
 
 export interface StartOptions {
   /** Fetches badges for these handles (in the extension, via the background worker). */
@@ -25,7 +27,12 @@ export function startBadges({ lookup, loadProfile, webUrl = "", doc = document, 
   const requested = new Set<string>();
   const mounted = new WeakMap<Element, { host: HTMLElement; root: Root }>();
 
-  const popover = loadProfile ? createPopoverManager({ load: loadProfile, webUrl, doc }) : null;
+  // Badges and the popover follow X's own theme (Light, Dim or Lights Out), live.
+  const theme = createThemeStore(doc);
+  const hosts = new Set<HTMLElement>();
+  theme.subscribe((next) => hosts.forEach((host) => (host.dataset.theme = next)));
+
+  const popover = loadProfile ? createPopoverManager({ load: loadProfile, webUrl, theme, doc }) : null;
 
   const batcher = createBatcher(async (handles) => {
     try {
@@ -40,12 +47,14 @@ export function startBadges({ lookup, loadProfile, webUrl = "", doc = document, 
 
   function mount(article: Element) {
     if (mounted.has(article)) return;
-    const handle = extractHandle(article);
-    const anchor = findMountPoint(article);
-    if (!handle || !anchor) return;
+    const target = resolveTarget(article, doc.defaultView?.location.pathname ?? "");
+    if (!target) return;
+    const { handle, anchor } = target;
 
     const host = doc.createElement("span");
     host.dataset.copayme = "badge";
+    host.dataset.theme = theme.get();
+    hosts.add(host);
     const shadow = host.attachShadow({ mode: "open" });
     const style = doc.createElement("style");
     style.textContent = BADGE_CSS;
@@ -68,12 +77,13 @@ export function startBadges({ lookup, loadProfile, webUrl = "", doc = document, 
     if (!entry) return;
     entry.root.unmount();
     entry.host.remove();
+    hosts.delete(entry.host);
     mounted.delete(article);
   }
 
   const articlesIn = (node: Node): Element[] => {
     if (!(node instanceof Element)) return [];
-    return node.matches(TWEET_SELECTOR) ? [node] : [...node.querySelectorAll(TWEET_SELECTOR)];
+    return node.matches(BADGE_TARGET_SELECTOR) ? [node] : [...node.querySelectorAll(BADGE_TARGET_SELECTOR)];
   };
 
   // X keeps only the tweets near the viewport in the page, so tweets come and go as you scroll.
@@ -84,11 +94,12 @@ export function startBadges({ lookup, loadProfile, webUrl = "", doc = document, 
     }
   });
 
-  doc.querySelectorAll(TWEET_SELECTOR).forEach(mount);
+  doc.querySelectorAll(BADGE_TARGET_SELECTOR).forEach(mount);
   observer.observe(doc.body, { childList: true, subtree: true });
 
   return () => {
     observer.disconnect();
     popover?.close();
+    theme.stop();
   };
 }

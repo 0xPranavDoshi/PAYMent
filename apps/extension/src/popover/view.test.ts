@@ -1,6 +1,6 @@
 import type { CallEntry, UserProfile } from "@copayme/shared";
 import { describe, expect, it } from "vitest";
-import { callRowView, formatPoints, profileView } from "./view.js";
+import { callRowView, formatPoints, profileView, timeAgo } from "./view.js";
 
 const call = (over: Partial<CallEntry> = {}): CallEntry => ({
   callId: "11111111-1111-4111-8111-111111111111",
@@ -62,7 +62,21 @@ describe("callRowView", () => {
   });
 });
 
+describe("timeAgo", () => {
+  const now = new Date("2026-11-19T12:00:00Z");
+  const ago = (s: number) => new Date(now.getTime() - s * 1000).toISOString();
+  it("says how long ago, in the largest sensible unit", () => {
+    expect(timeAgo(ago(5), now)).toBe("just now");
+    expect(timeAgo(ago(60), now)).toBe("1m ago");
+    expect(timeAgo(ago(59 * 60), now)).toBe("59m ago");
+    expect(timeAgo(ago(3600), now)).toBe("1h ago");
+    expect(timeAgo(ago(26 * 3600), now)).toBe("1d ago");
+    expect(timeAgo(ago(-30), now)).toBe("just now"); // a clock slightly ahead
+  });
+});
+
 describe("profileView", () => {
+  const now = new Date("2026-11-19T12:00:00Z");
   const profile = (over: Partial<UserProfile> = {}): UserProfile => ({
     handle: "tipster",
     score: 72,
@@ -71,28 +85,38 @@ describe("profileView", () => {
     nResolved: 42,
     hitRate: 0.69,
     nWins: 29,
-    skill: 0.1,
-    lastCallAt: null,
+    skill: 0.108,
+    lastCallAt: "2026-11-19T09:00:00.000Z",
     updatedAt: "2026-11-19T12:00:00.000Z",
     latestSnapshot: null,
     ...over,
   });
 
-  it("summarises a scored user", () => {
-    const view = profileView(profile());
-    expect(view.badge).toMatchObject({ text: "72", arrow: { direction: "up", amount: 8 } });
-    expect(view.summary).toBe("42 resolved picks · 69% hit rate");
-    expect(view.note).toBeNull();
+  it("describes a scored user for the ring, the stats and the change chip", () => {
+    expect(profileView(profile(), now)).toMatchObject({
+      gauge: 72,
+      record: "29–13",
+      hitRate: "69%",
+      picks: "42",
+      edge: "+0.11",
+      delta: { direction: "up", text: "▲ 8 in 14 days" },
+      lastPick: "Last pick 3h ago",
+      note: null,
+    });
+    expect(profileView(profile({ change14d: -6 }), now).delta).toEqual({ direction: "down", text: "▼ 6 in 14 days" });
   });
 
-  it("explains the New badge", () => {
-    const view = profileView(profile({ tier: "new", nResolved: 1, hitRate: 1 }));
+  it("explains the New badge and leaves the ring empty and the edge blank", () => {
+    const view = profileView(profile({ tier: "new", nResolved: 2, nWins: 1, hitRate: 0.5, skill: 0.3 }), now);
+    expect(view).toMatchObject({ gauge: null, record: "1–1", edge: "–", note: "A score appears after 5 resolved picks." });
     expect(view.badge.text).toBe("New");
-    expect(view.summary).toBe("1 resolved pick · 100% hit rate");
-    expect(view.note).toBe("A score appears after 5 resolved picks.");
   });
 
-  it("leaves out the hit rate when there is none", () => {
-    expect(profileView(profile({ hitRate: null })).summary).toBe("42 resolved picks");
+  it("shows no chip for a small or unknown change, and dashes for what is missing", () => {
+    expect(profileView(profile({ change14d: 1 }), now).delta).toBeNull();
+    expect(profileView(profile({ change14d: null }), now).delta).toBeNull();
+    const bare = profileView(profile({ hitRate: null, lastCallAt: null }), now);
+    expect(bare.hitRate).toBe("–");
+    expect(bare.lastPick).toBeNull();
   });
 });

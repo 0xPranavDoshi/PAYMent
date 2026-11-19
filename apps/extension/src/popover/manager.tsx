@@ -1,13 +1,14 @@
 import { createRoot, type Root } from "react-dom/client";
 import type { ProfileData } from "../messages.js";
+import { POPOVER_CSS } from "../styles.js";
+import type { Theme, ThemeStore } from "../theme.js";
 import { Popover, type PopoverState } from "./Popover.js";
-import { POPOVER_CSS } from "./styles.js";
 
 const WIDTH = 320;
 const GAP = 6;
 const MARGIN = 8;
 /** Room the card is likely to need, for deciding whether it opens below or above its badge. */
-const ESTIMATED_HEIGHT = 380;
+const ESTIMATED_HEIGHT = 560;
 
 export interface PopoverManager {
   /** Opens the popover for this handle next to the badge, or closes it if it is already open there. */
@@ -23,9 +24,11 @@ export interface PopoverManager {
 export function createPopoverManager(opts: {
   load: (handle: string) => Promise<ProfileData>;
   webUrl: string;
+  /** Keeps the card in step with X's theme. Without it the card is light. */
+  theme?: ThemeStore;
   doc?: Document;
 }): PopoverManager {
-  const { load, webUrl, doc = document } = opts;
+  const { load, webUrl, theme, doc = document } = opts;
   const win = doc.defaultView ?? window;
 
   let current: { handle: string; anchor: Element; host: HTMLElement; root: Root; stop: () => void } | null = null;
@@ -57,6 +60,7 @@ export function createPopoverManager(opts: {
 
     const host = doc.createElement("div");
     host.dataset.copayme = "popover";
+    host.dataset.theme = theme?.get() ?? "light";
     host.style.cssText = "position:fixed;z-index:2147483647;";
     const shadow = host.attachShadow({ mode: "open" });
     const style = doc.createElement("style");
@@ -93,6 +97,9 @@ export function createPopoverManager(opts: {
       if (event.key === "Escape") close();
     };
     const onViewportChange = () => close();
+    const stopTheme = theme?.subscribe((next: Theme) => {
+      host.dataset.theme = next;
+    });
 
     doc.addEventListener("pointerdown", onPointerDown, true);
     doc.addEventListener("keydown", onKeyDown, true);
@@ -106,6 +113,7 @@ export function createPopoverManager(opts: {
       root,
       stop: () => {
         token++;
+        stopTheme?.();
         doc.removeEventListener("pointerdown", onPointerDown, true);
         doc.removeEventListener("keydown", onKeyDown, true);
         win.removeEventListener("scroll", onViewportChange, { capture: true } as EventListenerOptions);

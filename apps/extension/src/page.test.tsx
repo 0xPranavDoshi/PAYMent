@@ -16,7 +16,7 @@ const tweetHtml = (handle: string) => `
 /** Text inside every badge's shadow root on the page. */
 const badgeTexts = () =>
   [...document.querySelectorAll<HTMLElement>("[data-copayme=badge]")].map(
-    (host) => host.shadowRoot?.querySelector(".badge")?.textContent ?? "",
+    (host) => host.shadowRoot?.querySelector(".pill")?.textContent ?? "",
   );
 
 describe("startBadges", () => {
@@ -99,7 +99,53 @@ describe("startBadges", () => {
     timeline().insertAdjacentHTML("beforeend", '<article data-testid="tweet"><div>promoted</div></article>');
     addTweet("rookie");
 
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["New"]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["NEW"]));
     expect(lookup).toHaveBeenCalledWith(["rookie"]);
+  });
+});
+
+describe("badges on profile pages", () => {
+  let stop: () => void;
+  afterEach(() => stop?.());
+
+  const profileHeader = (handle: string) => `
+    <div data-testid="UserName">
+      <div><span>Dana Whitfield</span></div>
+      <div><span>@${handle}</span></div>
+    </div>`;
+
+  it("puts a badge on the profile header of the profile being viewed", async () => {
+    (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM.setURL("https://x.com/dana_picks");
+    document.body.innerHTML = `<main id="timeline"></main>`;
+    const lookup = vi.fn(async (): Promise<BadgesResponse> => ({ dana_picks: scored }));
+    stop = startBadges({ lookup, delayMs: 10 });
+
+    // X builds the profile page after navigation, so the header arrives later.
+    document.getElementById("timeline")!.insertAdjacentHTML("beforeend", profileHeader("dana_picks"));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8"]));
+    expect(lookup).toHaveBeenCalledWith(["dana_picks"]);
+    expect(document.querySelector('[data-testid="UserName"] > div [data-copayme=badge]')).not.toBeNull(); // in the name row
+  });
+
+  it("shares one lookup between a profile header and that person's tweets", async () => {
+    (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM.setURL("https://x.com/dana_picks");
+    document.body.innerHTML = `<main id="timeline">${profileHeader("dana_picks")}</main>`;
+    const lookup = vi.fn(async (): Promise<BadgesResponse> => ({ dana_picks: scored }));
+    stop = startBadges({ lookup, delayMs: 10 });
+    document.getElementById("timeline")!.insertAdjacentHTML("beforeend", tweetHtml("dana_picks"));
+
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8", "72▲8"]));
+    expect(lookup).toHaveBeenCalledTimes(1);
+  });
+
+  it("adds nothing when the address is not a profile", async () => {
+    (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM.setURL("https://x.com/home");
+    document.body.innerHTML = `<main id="timeline"></main>`;
+    const lookup = vi.fn(async (): Promise<BadgesResponse> => ({}));
+    stop = startBadges({ lookup, delayMs: 10 });
+    document.getElementById("timeline")!.insertAdjacentHTML("beforeend", profileHeader("dana_picks"));
+    await new Promise((r) => setTimeout(r, 60));
+    expect(badgeTexts()).toEqual([]);
+    expect(lookup).not.toHaveBeenCalled();
   });
 });
