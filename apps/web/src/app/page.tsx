@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { fetchLeaderboard, fetchRecentCalls, fetchScoreHistory, fetchTraderCalls, fetchTraderProfile, type LeaderboardEntry } from "@/lib/api";
-import { formatCents, formatChange, formatPct, scoreHue, shortDate } from "@/lib/format";
+import { fetchLeaderboard, fetchRecentCalls, fetchTraderCalls, fetchTraderProfile, type LeaderboardEntry } from "@/lib/api";
+import { formatCents, formatChange, formatPct } from "@/lib/format";
 import ExtensionPromo from "@/components/ExtensionPromo";
-import ScoreChart from "@/components/ScoreChart";
 import Page from "@/components/Page";
 import ScoreRing from "@/components/ScoreRing";
 import TraderGrid from "@/components/TraderGrid";
@@ -23,9 +22,8 @@ export default async function Home() {
   const at = found.findIndex((f) => f.length > 0);
   const lead = at >= 0 ? candidates[at]! : (scored[0] ?? board[0] ?? null);
   const calls = at >= 0 ? found[at]! : [];
-  const [profile, history, recent] = await Promise.all([
+  const [profile, recent] = await Promise.all([
     lead ? fetchTraderProfile(lead.handle).catch(() => null) : null,
-    lead ? fetchScoreHistory(lead.handle).catch(() => []) : [],
     fetchRecentCalls(4).catch(() => []),
   ]);
   const movers = [...scored].filter((e) => formatChange(e.change14d)).sort((a, b) => Math.abs(b.change14d ?? 0) - Math.abs(a.change14d ?? 0)).slice(0, 5);
@@ -55,9 +53,6 @@ export default async function Home() {
                     </div>
                   </div>
                 </div>
-                {history.length >= 2 && (
-                  <ScoreChart compact color={`hsl(${scoreHue(profile.score)} 70% 55%)`} points={history.map((p) => ({ label: shortDate(p.computedAt), score: p.score }))} />
-                )}
                 {calls.length > 0 && (
                   <div className="f-picks">
                     {calls.map((c) => {
