@@ -74,10 +74,11 @@ export function createPostgresStore(sql: postgres.Sql): ScoutStore {
       `;
       return rows.length > 0;
     },
-    async finishScan(handle, { newestTweetId, xUserId, now }) {
+    async finishScan(handle, { newestTweetId, xUserId, now, fetched = true }) {
       await sql`
         update scout_handles
-        set status = 'idle', scanned_at = ${now}, locked_at = null, last_error = null,
+        set status = 'idle', scanned_at = coalesce(${fetched ? now : null}::timestamptz, scanned_at),
+            locked_at = null, last_error = null,
             newest_tweet_id = coalesce(${newestTweetId}, newest_tweet_id),
             x_user_id = coalesce(${xUserId}, x_user_id)
         where x_handle = ${handle}

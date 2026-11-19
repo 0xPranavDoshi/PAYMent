@@ -29,6 +29,8 @@ export type ProfileReply = ({ ok: true } & ProfileData) | { ok: false; error: st
 export interface ScanRequest {
   type: "scan";
   handle: string;
+  /** The newest tweet by the handle shown on its profile (null: none showed); lets the scout skip X. */
+  newestTweetId: string | null;
 }
 
 export type ScanReply =

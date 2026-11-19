@@ -7,6 +7,7 @@ import { createTradingNotifier } from "./notify.js";
 import { createPostgresStore } from "./store.postgres.js";
 import { createWorker } from "./worker.js";
 import { createPostgresWorkerStore } from "./worker.postgres.js";
+import { dbPoolMax } from "@copayme/shared";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -14,7 +15,7 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
-const sql = connect(databaseUrl);
+const sql = connect(databaseUrl, { max: dbPoolMax(process.env.DB_POOL_MAX) });
 const serviceKey = process.env.SCORING_SERVICE_KEY;
 if (!serviceKey) console.warn("SCORING_SERVICE_KEY is not set: POST /v1/posts is switched off.");
 

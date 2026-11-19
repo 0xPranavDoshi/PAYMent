@@ -9,7 +9,7 @@ export default function LeaderboardTable({ entries }: { entries: LeaderboardEntr
   }
   return (
     <div className="board">
-      <div className="row head" aria-hidden="true">
+      <div className="lrow head" aria-hidden="true">
         <span>#</span>
         <span />
         <span>Trader</span>
@@ -20,7 +20,7 @@ export default function LeaderboardTable({ entries }: { entries: LeaderboardEntr
       {entries.map((e, i) => {
         const change = formatChange(e.change14d);
         return (
-          <Link key={e.handle} href={`/traders/${encodeURIComponent(e.handle)}`} className="row">
+          <Link key={e.handle} href={`/traders/${encodeURIComponent(e.handle)}`} className="lrow">
             <span className="rank">{i + 1}</span>
             <ScoreRing score={e.tier === "new" ? null : e.score} size={44} />
             <span className="who">

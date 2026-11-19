@@ -64,7 +64,16 @@ const toRaw = (r: ScoutPostRow): RawPost => ({
 });
 
 /** Run one scan. The caller already holds the lock; this always ends in finishScan or failScan. */
-export async function runScan(handle: string, deps: ScanDeps): Promise<void> {
+export interface ScanOptions {
+  /**
+   * false: the account has posted nothing since the last fetch (the extension saw no newer tweet), so
+   * skip X (Apify) and only finish what is pending: posts whose game wasn't listed yet, failed reads.
+   */
+  fetchNew?: boolean;
+}
+
+export async function runScan(handle: string, deps: ScanDeps, opts: ScanOptions = {}): Promise<void> {
+  const fetchNew = opts.fetchNew ?? true;
   const { store, source, grok, gemini, forwarder, model } = deps;
   const now = deps.now ?? (() => new Date());
   const log = deps.log ?? ((msg: string) => console.log(msg));
@@ -73,12 +82,14 @@ export async function runScan(handle: string, deps: ScanDeps): Promise<void> {
     const previous = await store.getHandle(handle);
     const sinceId = previous?.newestTweetId ?? undefined;
 
-    let fetched: RawPost[];
-    try {
-      fetched = await source.fetchPosts(handle, sinceId ? { sinceId, limit: TOP_UP_LIMIT } : { limit: FIRST_SCAN_LIMIT });
-    } catch (e) {
-      await store.failScan(handle, errMsg(e));
-      return;
+    let fetched: RawPost[] = [];
+    if (fetchNew) {
+      try {
+        fetched = await source.fetchPosts(handle, sinceId ? { sinceId, limit: TOP_UP_LIMIT } : { limit: FIRST_SCAN_LIMIT });
+      } catch (e) {
+        await store.failScan(handle, errMsg(e));
+        return;
+      }
     }
 
     const kept = fetched.filter((p) => !p.isRetweet);
@@ -153,12 +164,13 @@ export async function runScan(handle: string, deps: ScanDeps): Promise<void> {
       newestTweetId: maxId([previous?.newestTweetId ?? null, ...fetched.map((p) => p.tweetId)]),
       xUserId: fetched[0]?.xUserId ?? null,
       now: now(),
+      fetched: fetchNew,
     });
     const tDone = performance.now();
     const s = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
     const predictions = toMatch.reduce((n, r) => n + (r.sentiment?.predictions.length ?? 0), 0);
     log(
-      `[scout] scan @${handle}: fetch ${s(tFetched - tStart)} (${fetched.length} fetched, ${rows.size} to process), ` +
+      `[scout] scan @${handle}: fetch ${fetchNew ? s(tFetched - tStart) : "skipped (nothing new posted)"} (${fetched.length} fetched, ${rows.size} to process), ` +
         `read ${s(tRead - tFetched)} (${toRead.length} posts), match ${s(tMatched - tRead)} ` +
         `(${predictions} predictions in ${toMatch.length} posts), save+forward ${s(tDone - tMatched)}, total ${s(tDone - tStart)}`,
     );

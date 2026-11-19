@@ -60,7 +60,11 @@ export interface ScoutStore {
   tryLock(handle: string, now: Date): Promise<boolean>;
   finishScan(
     handle: string,
-    result: { newestTweetId: string | null; xUserId: string | null; now: Date },
+    /**
+     * `fetched: false` (a scan that skipped X because nothing new was posted) leaves scannedAt alone:
+     * scannedAt is when posts were last fetched from X.
+     */
+    result: { newestTweetId: string | null; xUserId: string | null; now: Date; fetched?: boolean },
   ): Promise<void>;
   failScan(handle: string, error: string): Promise<void>;
   countNewHandlesSince(since: Date): Promise<number>;
@@ -124,11 +128,11 @@ export function createMemoryStore(): ScoutStore & { markets: Map<string, MarketR
       row.lockedAt = now;
       return true;
     },
-    async finishScan(handle, { newestTweetId, xUserId, now }) {
+    async finishScan(handle, { newestTweetId, xUserId, now, fetched = true }) {
       const row = handles.get(handle);
       if (!row) return;
       row.status = "idle";
-      row.scannedAt = now;
+      if (fetched) row.scannedAt = now;
       row.lockedAt = null;
       row.lastError = null;
       if (newestTweetId !== null) row.newestTweetId = newestTweetId;
