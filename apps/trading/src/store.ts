@@ -34,6 +34,8 @@ export interface TailRow {
   geminiOrderId: string | null;
   status: "open" | "filled" | "settled" | "cancelled";
   pnlUsdc: number | null;
+  exitOdds: number | null;
+  settledAt: Date | null;
   source: "manual" | "watch" | "copy";
   createdAt: Date;
 }
@@ -42,20 +44,35 @@ export interface TradingStore {
   getCall(callId: string): Promise<CallRow | null>;
   getMarketById(marketId: string): Promise<MarketRow | null>;
   getMarketByGeminiId(geminiMarketId: string): Promise<MarketRow | null>;
-  createTail(tail: Omit<TailRow, "id" | "createdAt" | "source"> & { source?: TailRow["source"] }): Promise<TailRow>;
+  createTail(tail: Omit<TailRow, "id" | "createdAt" | "source" | "exitOdds" | "settledAt"> & { source?: TailRow["source"] }): Promise<TailRow>;
   /**
    * Creates an automatic (watch or copy) tail unless this follower already has one for this call.
    * Returns null when one exists: that follower was already handled, so skip them. Atomic.
    */
   claimAutoTail(
-    tail: Omit<TailRow, "id" | "createdAt" | "source"> & { source: "watch" | "copy" },
+    tail: Omit<TailRow, "id" | "createdAt" | "source" | "exitOdds" | "settledAt"> & { source: "watch" | "copy" },
   ): Promise<TailRow | null>;
   updateTail(
     tailId: string,
-    patch: { geminiOrderId?: string | null; status?: TailRow["status"]; pnlUsdc?: number | null },
+    patch: {
+      geminiOrderId?: string | null;
+      status?: TailRow["status"];
+      pnlUsdc?: number | null;
+      entryOdds?: number;
+      exitOdds?: number | null;
+      settledAt?: Date | null;
+    },
   ): Promise<void>;
   getTail(tailId: string): Promise<TailRow | null>;
   listUserTails(userId: string): Promise<TailRow[]>;
+  /** Open paper tails on calls belonging to this market, with the call's side and picked outcome. */
+  listOpenPaperTailsByMarket(marketId: string): Promise<Array<{
+    tailId: string;
+    amountUsdc: number;
+    entryOdds: number;
+    side: "yes" | "no" | null;
+    pickedOutcome: string;
+  }>>;
   upsertMarket(
     market: Omit<MarketRow, "id">,
   ): Promise<MarketRow>;

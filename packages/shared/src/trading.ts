@@ -23,6 +23,12 @@ export const TailResponse = z.object({
   amountUsdc: z.number(),
   geminiOrderId: z.string().nullable(),
   pnlUsdc: z.number().nullable(),
+  // Paper-sim settlement detail. Optional so existing clients keep working.
+  realized: z.boolean().optional(),          // true once the market resolved and pnl is final
+  markPrice: z.number().min(0).max(1).nullable().optional(), // current/exit price per contract
+  unrealizedPnlUsdc: z.number().nullable().optional(),       // mark-to-market pnl while open
+  exitOdds: z.number().min(0).max(1).nullable().optional(),  // resolved exit price (0/1) once settled
+  settledAt: z.string().datetime().nullable().optional(),
 });
 export type TailResponse = z.infer<typeof TailResponse>;
 
@@ -37,6 +43,11 @@ export const OutcomeInfo = z.object({
   currentOdds: z.number().min(0).max(1),
   noOdds: z.number().min(0).max(1).nullable(),
   resolutionSide: z.enum(["yes", "no"]).nullable(),
+  // Order sizing increments from Gemini. Optional: only the trading service's own
+  // sync populates them, so other workstreams can build markets without them.
+  priceIncrement: z.number().positive().nullish(),
+  quantityIncrement: z.number().positive().nullish(),
+  quantityMinimum: z.number().positive().nullish(),
 });
 export type OutcomeInfo = z.infer<typeof OutcomeInfo>;
 

@@ -37,6 +37,8 @@ interface DbTail {
   gemini_order_id: string | null;
   status: string;
   pnl_usdc: string | null;
+  exit_odds: number | null;
+  settled_at: Date | null;
   source: string;
   created_at: Date;
 }
@@ -104,6 +106,8 @@ function toTail(r: DbTail): TailRow {
     geminiOrderId: r.gemini_order_id,
     status: r.status as TailRow["status"],
     pnlUsdc: r.pnl_usdc !== null ? parseFloat(r.pnl_usdc) : null,
+    exitOdds: r.exit_odds,
+    settledAt: r.settled_at,
     source: r.source as TailRow["source"],
     createdAt: r.created_at,
   };
@@ -202,6 +206,9 @@ export function createPostgresStore(sql: postgres.Sql): TradingStore {
       if (patch.geminiOrderId !== undefined) columns.gemini_order_id = patch.geminiOrderId;
       if (patch.status !== undefined) columns.status = patch.status;
       if (patch.pnlUsdc !== undefined) columns.pnl_usdc = patch.pnlUsdc;
+      if (patch.entryOdds !== undefined) columns.entry_odds = patch.entryOdds;
+      if (patch.exitOdds !== undefined) columns.exit_odds = patch.exitOdds;
+      if (patch.settledAt !== undefined) columns.settled_at = patch.settledAt;
       if (Object.keys(columns).length === 0) return;
       await sql`update tails set ${sql(columns)} where id = ${tailId}`;
     },
@@ -219,6 +226,26 @@ export function createPostgresStore(sql: postgres.Sql): TradingStore {
         order by created_at desc
       `;
       return rows.map(toTail);
+    },
+
+    async listOpenPaperTailsByMarket(marketId) {
+      const rows = await sql<
+        { id: string; amount_usdc: string; entry_odds: number; side: string | null; picked_outcome: string }[]
+      >`
+        select t.id, t.amount_usdc, t.entry_odds, c.side, c.picked_outcome
+        from tails t
+        join calls c on c.id = t.call_id
+        where c.market_id = ${marketId}
+          and t.mode = 'paper'
+          and t.status = 'open'
+      `;
+      return rows.map((r) => ({
+        tailId: r.id,
+        amountUsdc: parseFloat(r.amount_usdc),
+        entryOdds: r.entry_odds,
+        side: (r.side as "yes" | "no") ?? null,
+        pickedOutcome: r.picked_outcome,
+      }));
     },
 
     async upsertMarket(market) {
