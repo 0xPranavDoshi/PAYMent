@@ -385,15 +385,21 @@ function PickRow({ call, handle }: { call: CallEntry; handle: string }) {
   const [flipped, setFlipped] = useState(false);
   const front = useRef<HTMLDivElement>(null);
   const back = useRef<HTMLDivElement>(null);
+  const item = useRef<HTMLLIElement>(null);
   const [height, setHeight] = useState<number | undefined>();
   // Both faces are stacked, so the card is as tall as whichever face is showing.
   useLayoutEffect(() => {
     const h = (flipped ? back : front).current?.offsetHeight;
     if (h) setHeight(h);
   }, [flipped, call]);
+  // The card scrolls. After reading a tall tweet and flipping back, the scroll position can be
+  // beyond the shorter content, leaving a blank card; bring the pick back into view instead.
+  useEffect(() => {
+    item.current?.scrollIntoView({ block: "nearest" });
+  }, [flipped]);
 
   return (
-    <li className={`pick ${flipped ? "flipped" : ""}`}>
+    <li ref={item} className={`pick ${flipped ? "flipped" : ""}`}>
       <div className="flip" style={height ? { height } : undefined}>
         <div className="face front" ref={front} inert={flipped}>
           <div style={{ minWidth: 0 }}>
