@@ -90,7 +90,7 @@ function setup(opts: {
   );
   const forwarder = { forward } as unknown as Forwarder;
   const logs: string[] = [];
-  const run = async (handle = "bob") => {
+  const run = async (handle = "bob", scanOpts: { fetchNew?: boolean } = {}) => {
     await store.tryLock(handle, NOW);
     await runScan(handle, {
       store,
@@ -101,7 +101,7 @@ function setup(opts: {
       model: "m",
       now: () => NOW,
       log: (m) => logs.push(m),
-    });
+    }, scanOpts);
   };
   return { store, fetchPosts, seenByGrok, searchGames, forward, run, source, logs };
 }
@@ -243,6 +243,26 @@ describe("runScan", () => {
     t.seenByGrok.length = 0;
     await t.run();
     expect(t.seenByGrok).toEqual(["1"]);
+  });
+
+  it("with nothing new posted: skips X, finishes pending posts, and keeps scannedAt (last fetch)", async () => {
+    const t = setup({ posts: [raw("1")], sentiments: { "1": prediction() }, searchError: true });
+    await t.run();
+    const before = await t.store.getHandle("bob");
+    expect((await t.store.listPosts("bob"))[0]?.matches).toBeNull();
+
+    t.searchGames.mockImplementation(async () => [game]);
+    t.fetchPosts.mockClear();
+    t.seenByGrok.length = 0;
+    await t.store.finishScan("bob", { newestTweetId: null, xUserId: null, now: new Date(NOW.getTime() - 60_000) });
+    await t.run("bob", { fetchNew: false });
+    expect(t.fetchPosts).not.toHaveBeenCalled();
+    expect(t.seenByGrok).toEqual([]);
+    expect((await t.store.listPosts("bob"))[0]?.matches?.[0]?.status).toBe("matched");
+    const after = await t.store.getHandle("bob");
+    expect(after).toMatchObject({ status: "idle", newestTweetId: before?.newestTweetId });
+    expect(after?.scannedAt).toEqual(new Date(NOW.getTime() - 60_000));
+    expect(t.logs.at(-1)).toContain("fetch skipped (nothing new posted)");
   });
 
   it("fails the scan with the message when fetchPosts throws", async () => {

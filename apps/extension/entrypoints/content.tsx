@@ -24,8 +24,8 @@ export default defineContentScript({
         return { profile: reply.profile, calls: reply.calls };
       },
       // Opening a profile asks the scout to read that handle's recent picks.
-      scan: async (handle) => {
-        const request: ScanRequest = { type: "scan", handle };
+      scan: async (handle, newestTweetId) => {
+        const request: ScanRequest = { type: "scan", handle, newestTweetId };
         const reply: ScanReply = await browser.runtime.sendMessage(request);
         if (!reply.ok) throw new Error(reply.error);
         return reply.status === "done" ? { status: "done", badge: reply.badge } : { status: reply.status };

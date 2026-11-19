@@ -105,19 +105,39 @@ describe("startBadges", () => {
 
   describe("profile scans", () => {
     afterEach(() => window.history.pushState({}, "", "/"));
+    const fastTimeline = { timelineWaitMs: 60, timelinePollMs: 5, timelineSettleMs: 5 };
+    /** A tweet with its timestamp link, as on a profile timeline. */
+    const addTweetWithId = (handle: string, id: string) =>
+      timeline().insertAdjacentHTML(
+        "beforeend",
+        tweetHtml(handle).replace("</article>", `<a href="/${handle}/status/${id}"><time>now</time></a></article>`),
+      );
+
+    it("sends the newest tweet the profile shows, waiting for the timeline to load", async () => {
+      window.history.pushState({}, "", "/espn");
+      const scan = vi.fn(async (): Promise<ScanResult> => ({ status: "skipped" }));
+      stop = startBadges({ lookup: async () => ({}), scan, delayMs: 10, routeCheckMs: 10, ...fastTimeline });
+      addTweet("nba");
+      await new Promise((r) => setTimeout(r, 15));
+      expect(scan).not.toHaveBeenCalled(); // still waiting for @espn's own tweets
+      addTweetWithId("espn", "999999999999999999"); // e.g. an older pinned tweet
+      addTweetWithId("espn", "1990000000000000002");
+      addTweetWithId("nba", "1999999999999999999");
+      await vi.waitFor(() => expect(scan).toHaveBeenCalledWith("espn", "1990000000000000002"));
+    });
 
     it("scans a handle when its profile is opened, shows Scanning…, then the new score", async () => {
       window.history.pushState({}, "", "/home");
       const lookup = vi.fn(async (): Promise<BadgesResponse> => ({ newcomer: null }));
       let finish!: (r: ScanResult) => void;
       const scan = vi.fn(() => new Promise<ScanResult>((resolve) => (finish = resolve)));
-      stop = startBadges({ lookup, scan, delayMs: 10, routeCheckMs: 10 });
+      stop = startBadges({ lookup, scan, delayMs: 10, routeCheckMs: 10, ...fastTimeline });
       addTweet("newcomer");
       await vi.waitFor(() => expect(lookup).toHaveBeenCalled());
       expect(scan).not.toHaveBeenCalled(); // /home is not a profile
 
       window.history.pushState({}, "", "/NewComer");
-      await vi.waitFor(() => expect(scan).toHaveBeenCalledWith("newcomer"));
+      await vi.waitFor(() => expect(scan).toHaveBeenCalledWith("newcomer", null));
       await vi.waitFor(() => expect(badgeTexts()).toEqual(["Scanning…"]));
 
       finish({ status: "done", badge: scored });
@@ -127,12 +147,12 @@ describe("startBadges", () => {
     it("scans each profile once per visit, not on every check", async () => {
       window.history.pushState({}, "", "/alice");
       const scan = vi.fn(async (): Promise<ScanResult> => ({ status: "skipped" }));
-      stop = startBadges({ lookup: async () => ({}), scan, delayMs: 10, routeCheckMs: 5 });
-      await new Promise((r) => setTimeout(r, 40));
+      stop = startBadges({ lookup: async () => ({}), scan, delayMs: 10, routeCheckMs: 5, ...fastTimeline });
+      await new Promise((r) => setTimeout(r, 120));
       expect(scan).toHaveBeenCalledTimes(1);
       window.history.pushState({}, "", "/alice/status/1");
       window.history.pushState({}, "", "/bob");
-      await vi.waitFor(() => expect(scan).toHaveBeenCalledWith("bob"));
+      await vi.waitFor(() => expect(scan).toHaveBeenCalledWith("bob", null));
       expect(scan).toHaveBeenCalledTimes(2);
     });
 
@@ -140,7 +160,7 @@ describe("startBadges", () => {
       window.history.pushState({}, "", "/home");
       const lookup = vi.fn(async (): Promise<BadgesResponse> => ({ alice: scored }));
       const scan = vi.fn(async (): Promise<ScanResult> => ({ status: "timeout" }));
-      stop = startBadges({ lookup, scan, delayMs: 10, routeCheckMs: 10 });
+      stop = startBadges({ lookup, scan, delayMs: 10, routeCheckMs: 10, ...fastTimeline });
       addTweet("alice");
       await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8"]));
       window.history.pushState({}, "", "/alice");

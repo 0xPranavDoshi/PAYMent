@@ -88,7 +88,7 @@ export default defineBackground(() => {
         return;
       }
       scans
-        .scan(message.handle)
+        .scan(message.handle, message.newestTweetId ?? null)
         .then((outcome): ScanReply =>
           outcome.status === "done" ? { ok: true, status: "done", badge: outcome.badge } : { ok: true, status: outcome.status },
         )

@@ -47,8 +47,8 @@ const scanDeps: ScanDeps = {
 
 const app = createApp({
   store,
-  startScan: (handle) => {
-    void runScan(handle, scanDeps).catch((e) => console.error(`[scout] scan crashed for ${handle}:`, e));
+  startScan: (handle, opts) => {
+    void runScan(handle, scanDeps, opts).catch((e) => console.error(`[scout] scan crashed for ${handle}:`, e));
   },
   dailyNewHandles: positiveIntOr(env.SCOUT_DAILY_NEW_HANDLES, 30),
   ...(env.SCOUT_ALLOWED_ORIGIN ? { allowedOrigin: env.SCOUT_ALLOWED_ORIGIN } : {}),

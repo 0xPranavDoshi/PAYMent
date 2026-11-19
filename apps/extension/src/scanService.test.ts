@@ -40,6 +40,15 @@ describe("createScanService", () => {
     expect(refreshBadge).toHaveBeenCalledWith("alice");
   });
 
+  it("tells the scout the newest tweet seen on the profile when starting a scan", async () => {
+    const fetcher = scout(["running", "idle"]);
+    const { service } = setup(fetcher);
+    await service.scan("alice", "1990000000000000002");
+    const [first, poll] = fetcher.mock.calls;
+    expect(String(first![0])).toBe("http://scout.test/v1/scout/alice?newest=1990000000000000002");
+    expect(String(poll![0])).toBe("http://scout.test/v1/scout/alice");
+  });
+
   it("returns the badge straight away for a handle the scout already scanned (200 from cache)", async () => {
     const fetcher = scout(["idle"]);
     const { service } = setup(fetcher);

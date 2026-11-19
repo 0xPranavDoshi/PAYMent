@@ -135,6 +135,24 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
   - Any failure is logged and ignored, so scoring falls back to the worker's schedule.
   - Nothing changes in the API or the extension.
 
+### Re-scans only when the account posted something new (Nov 19)
+- **Problem (measured in the Apify account):** a re-scan asks for tweets newer than the last one stored (`since_id`, at least 20 items). This actor **pads short results with placeholder items** (`{type,id,text}`, non-numeric id), and we pay for them at $0.00025 each.
+  - A re-scan with **0** new tweets returned 15 placeholders and cost $0.0037.
+  - So reopening a scanned profile every 10+ minutes cost ~0.4¢ each time for nothing. Grok was never called (it only gets unread posts).
+- **Fix:**
+  - **Extension:** after a profile opens, it waits (≤4 s) for that account's own tweets to render. It then sends the **largest tweet id by that handle** on the page as `POST /v1/scout/:handle?newest=<id>`.
+    - Taking the maximum means a pinned (older) tweet doesn't matter, and retweets don't count (their author is the original poster).
+    - The id comes from the link around the tweet's timestamp, not a quoted tweet's (`extractTweetId` / `newestTweetIdBy` in `apps/extension/src/selectors.ts`).
+  - **Scout:** if that id is ≤ the stored `newestTweetId` (compared as BigInt), **Apify isn't called**.
+    - If posts are still pending (game not listed yet, failed reads), it runs a scan with `fetchNew: false`. That re-matches them, costs nothing from X, and forwards and scores as usual.
+    - Otherwise it answers 200 from cache.
+  - **Fallback:** without a valid id, a known profile is re-fetched at most **once an hour** (was 10 min). With a newer id, the 10-minute rule still applies.
+  - **`scannedAt` now means "last fetch from X":** a no-fetch scan leaves it unchanged (`finishScan({ fetched: false })`).
+- **Failure modes:**
+  - If X changes its markup and no id is found, the behaviour is the hourly fallback, never a missed scan.
+  - A recent retweet can't trigger a fetch, but the next original post does, and the top-up then fetches everything since the last fetch.
+- **Not verified live on x.com yet:** the timestamp-link selector is based on X's current markup and covered by unit tests only.
+
 ## Open questions for the team (block turning forwarding on)
 - ~~**Gemini environment**~~ **resolved on main:** market data reads production (`GEMINI_READ_BASE_URL`), and orders go to the sandbox.
 - **Lock time: decided (Pranav, Nov 18). `markets.lock_time` = the market's `expiryDate`**, written the same way by the scout's upsert and by the trading sync (`apps/trading/src/sync.ts` `lockTimeFor`, changed in this branch).

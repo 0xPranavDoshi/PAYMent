@@ -27,7 +27,8 @@ function setup(opts: { dailyNewHandles?: number; allowedOrigin?: string } = {}) 
   const store = createMemoryStore();
   const startScan = vi.fn();
   const app = createApp({ store, startScan, now: () => NOW, ...opts });
-  const postHandle = (h: string) => app.request(`/v1/scout/${encodeURIComponent(h)}`, { method: "POST" });
+  const postHandle = (h: string, newest?: string) =>
+    app.request(`/v1/scout/${encodeURIComponent(h)}${newest === undefined ? "" : `?newest=${newest}`}`, { method: "POST" });
   return { store, startScan, app, postHandle };
 }
 
@@ -39,25 +40,76 @@ describe("POST /v1/scout/:handle", () => {
     const c = await postHandle("LEBRON");
     expect([a.status, b.status, c.status]).toEqual([202, 202, 202]);
     expect(startScan).toHaveBeenCalledTimes(1);
-    expect(startScan).toHaveBeenCalledWith("lebron");
+    expect(startScan).toHaveBeenCalledWith("lebron", { fetchNew: true });
     expect(await store.countNewHandlesSince(new Date(0))).toBe(1);
     const body = ScoutResponse.parse(await a.json());
     expect(body).toMatchObject({ handle: "lebron", status: "running", scannedAt: null, results: [] });
   });
 
-  it("serves a scan from 9 minutes ago from cache, rescans at 10", async () => {
+  it("with a newer tweet seen: serves a scan from 9 minutes ago from cache, rescans at 10", async () => {
     const { store, startScan, postHandle } = setup();
     await store.tryLock("lebron", new Date(NOW.getTime() - 20 * MIN));
-    await store.finishScan("lebron", { newestTweetId: null, xUserId: null, now: new Date(NOW.getTime() - 9 * MIN) });
-    const fresh = await postHandle("lebron");
+    await store.finishScan("lebron", { newestTweetId: "100", xUserId: null, now: new Date(NOW.getTime() - 9 * MIN) });
+    const fresh = await postHandle("lebron", "101");
     expect(fresh.status).toBe(200);
     expect(ScoutResponse.parse(await fresh.json()).status).toBe("idle");
     expect(startScan).not.toHaveBeenCalled();
 
-    await store.finishScan("lebron", { newestTweetId: null, xUserId: null, now: new Date(NOW.getTime() - 10 * MIN) });
-    const stale = await postHandle("lebron");
+    await store.finishScan("lebron", { newestTweetId: "100", xUserId: null, now: new Date(NOW.getTime() - 10 * MIN) });
+    const stale = await postHandle("lebron", "101");
     expect(stale.status).toBe(202);
-    expect(startScan).toHaveBeenCalledTimes(1);
+    expect(startScan).toHaveBeenCalledWith("lebron", { fetchNew: true });
+  });
+
+  it("without a newest tweet: serves from cache for an hour, rescans after", async () => {
+    const { store, startScan, postHandle } = setup();
+    await store.tryLock("lebron", new Date(NOW.getTime() - 120 * MIN));
+    await store.finishScan("lebron", { newestTweetId: "100", xUserId: null, now: new Date(NOW.getTime() - 59 * MIN) });
+    expect((await postHandle("lebron")).status).toBe(200);
+    expect((await postHandle("lebron", "not-an-id")).status).toBe(200);
+    expect(startScan).not.toHaveBeenCalled();
+
+    await store.finishScan("lebron", { newestTweetId: "100", xUserId: null, now: new Date(NOW.getTime() - 60 * MIN) });
+    expect((await postHandle("lebron")).status).toBe(202);
+    expect(startScan).toHaveBeenCalledWith("lebron", { fetchNew: true });
+  });
+
+  describe("when the account has posted nothing new", () => {
+    async function scannedLongAgo(store: ReturnType<typeof createMemoryStore>) {
+      await store.tryLock("lebron", new Date(NOW.getTime() - 3 * 24 * 60 * MIN));
+      await store.finishScan("lebron", {
+        newestTweetId: "1990000000000000000",
+        xUserId: null,
+        now: new Date(NOW.getTime() - 2 * 24 * 60 * MIN),
+      });
+    }
+
+    it("doesn't ask X, however long ago the last scan was", async () => {
+      const { store, startScan, postHandle } = setup();
+      await scannedLongAgo(store);
+      for (const seen of ["1990000000000000000", "1980000000000000000"]) {
+        const res = await postHandle("lebron", seen);
+        expect(res.status).toBe(200);
+        expect(ScoutResponse.parse(await res.json()).status).toBe("idle");
+      }
+      expect(startScan).not.toHaveBeenCalled();
+    });
+
+    it("still finishes posts that are pending, without fetching", async () => {
+      const { store, startScan, postHandle } = setup();
+      await scannedLongAgo(store);
+      await store.upsertPosts([post("1", "2026-11-18T10:00:00.000Z", { sentiment: null })]);
+      const res = await postHandle("lebron", "1990000000000000000");
+      expect(res.status).toBe(202);
+      expect(startScan).toHaveBeenCalledWith("lebron", { fetchNew: false });
+    });
+
+    it("fetches when a newer tweet was seen (ids compared as numbers, not text)", async () => {
+      const { store, startScan, postHandle } = setup();
+      await scannedLongAgo(store);
+      expect((await postHandle("lebron", "1990000000000000001")).status).toBe(202);
+      expect(startScan).toHaveBeenCalledWith("lebron", { fetchNew: true });
+    });
   });
 
   it("starts exactly one scan for two parallel POSTs", async () => {
@@ -76,8 +128,8 @@ describe("POST /v1/scout/:handle", () => {
     expect(await capped.json()).toEqual({ error: "daily_new_handle_cap" });
     expect(startScan).toHaveBeenCalledTimes(2);
 
-    await store.finishScan("one", { newestTweetId: null, xUserId: null, now: new Date(NOW.getTime() - 30 * MIN) });
-    expect((await postHandle("one")).status).toBe(202);
+    await store.finishScan("one", { newestTweetId: "5", xUserId: null, now: new Date(NOW.getTime() - 30 * MIN) });
+    expect((await postHandle("one", "6")).status).toBe(202);
     expect(startScan).toHaveBeenCalledTimes(3);
   });
 
