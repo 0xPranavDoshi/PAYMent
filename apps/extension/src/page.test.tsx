@@ -147,16 +147,48 @@ describe("startBadges", () => {
       await vi.waitFor(() => expect(pillText()).toBe("SCORE72▲8"));
     });
 
-    it("never puts the button on tweets, only on the profile header", async () => {
-      setUrl("/dana");
-      document.body.innerHTML = `<main id="timeline">${header("dana")}</main>`;
-      stop = startBadges({ lookup: known, scan: vi.fn(), delayMs: 10, ...fastTimeline });
-      addTweetWithId("dana", "1990000000000000001");
-      addTweetWithId("dana", "1990000000000000002");
-      await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
-      const hosts = document.querySelectorAll("[data-copayme=badge]");
-      const withText = [...hosts].filter((h) => h.shadowRoot?.querySelector(".pill"));
-      expect(withText).toHaveLength(1); // the header's
+    it("offers Scan picks on tweets too, and scans straight away from the feed (no profile timeline to wait for)", async () => {
+      setUrl("/home");
+      document.body.innerHTML = '<main id="timeline"></main>';
+      const scan = vi.fn(async (): Promise<ScanResult> => ({ status: "done", badge: scored }));
+      stop = startBadges({ lookup: async () => ({ alice: null, bob: scored }), scan, delayMs: 10, timelineWaitMs: 5_000 });
+      addTweet("alice");
+      addTweet("bob");
+      await vi.waitFor(() => expect(badgeTexts()).toEqual(["Scan picks", "SCORE72▲8"]));
+      const started = Date.now();
+      document.querySelector("[data-copayme=badge]")!.shadowRoot!.querySelector<HTMLButtonElement>(".pill")!.click();
+      await vi.waitFor(() => expect(scan).toHaveBeenCalledWith("alice", null));
+      expect(Date.now() - started).toBeLessThan(1_000); // not the 5 s timeline wait
+      await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8", "SCORE72▲8"]));
+    });
+
+    it("shows the new person's badge when X reuses the profile header for another profile", async () => {
+      setUrl("/pickswise");
+      document.body.innerHTML = `<main id="timeline">${header("pickswise")}</main>`;
+      const lookup = vi.fn(async (handles: string[]): Promise<BadgesResponse> =>
+        Object.fromEntries(handles.map((h) => [h, h === "pickswise" ? scored : null])),
+      );
+      stop = startBadges({ lookup, scan: vi.fn(), delayMs: 10, ...fastTimeline });
+      await vi.waitFor(() => expect(pillText()).toBe("SCORE72▲8"));
+
+      // Clicking a "who to follow" suggestion: the URL changes and X rewrites the same header element in place.
+      setUrl("/the_bmatt");
+      const headerEl = document.querySelector('[data-testid="UserName"]')!;
+      headerEl.innerHTML = '<div><span>BMatthews</span></div><div><span>@the_bmatt</span></div>';
+
+      await vi.waitFor(() => expect(pillText()).toBe("Scan picks")); // not pickswise's 72
+      expect(lookup).toHaveBeenLastCalledWith(["the_bmatt"]);
+      expect(document.querySelectorAll("[data-copayme=badge]")).toHaveLength(1); // no leftover badge
+    });
+
+    it("notices a profile change even when only the address changed first", async () => {
+      setUrl("/pickswise");
+      document.body.innerHTML = `<main id="timeline">${header("pickswise")}</main>`;
+      stop = startBadges({ lookup: async (hs) => Object.fromEntries(hs.map((h) => [h, h === "pickswise" ? scored : null])), scan: vi.fn(), delayMs: 10, ...fastTimeline });
+      await vi.waitFor(() => expect(pillText()).toBe("SCORE72▲8"));
+      document.querySelector('[data-testid="UserName"]')!.innerHTML = '<div><span>Other</span></div><div><span>@other</span></div>';
+      setUrl("/other");
+      await vi.waitFor(() => expect(pillText()).toBe("Scan picks"), { timeout: 2_000 });
     });
 
     it("scanning shows a running pill with a stopwatch and a card that says what is happening", async () => {

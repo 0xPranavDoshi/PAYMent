@@ -11,7 +11,7 @@ import type { TradingActions } from "./trading.js";
 import { createBadgeStore } from "./badgeStore.js";
 import { isContextInvalidated } from "./context.js";
 import { createBatcher } from "./batcher.js";
-import { BADGE_TARGET_SELECTOR, PROFILE_SELECTOR, newestTweetIdBy, resolveTarget } from "./selectors.js";
+import { BADGE_TARGET_SELECTOR, PROFILE_SELECTOR, newestTweetIdBy, profileHandleFromPath, resolveTarget } from "./selectors.js";
 
 export interface StartOptions {
   /** Fetches badges for these handles (in the extension, via the background worker). */
@@ -59,7 +59,7 @@ export function startBadges({
   const store = createBadgeStore();
   const scanStatus = createScanStatusStore();
   const requested = new Set<string>();
-  const mounted = new WeakMap<Element, { host: HTMLElement; root: Root }>();
+  const mounted = new WeakMap<Element, { host: HTMLElement; root: Root; handle: string }>();
   const roots = new Set<Root>();
   let stopped = false;
 
@@ -111,11 +111,11 @@ export function startBadges({
         handle={handle}
         store={store}
         onOpen={popover ? (h, el) => popover.toggle(h, el) : undefined}
-        canScan={Boolean(scan) && article.matches(PROFILE_SELECTOR)}
+        canScan={Boolean(scan)}
         onScan={(h) => void startScan(h)}
       />,
     );
-    mounted.set(article, { host, root });
+    mounted.set(article, { host, root, handle });
     roots.add(root);
 
     if (store.get(handle) === undefined && !requested.has(handle)) {
@@ -140,12 +140,38 @@ export function startBadges({
   };
 
   // X keeps only the tweets near the viewport in the page, so tweets come and go as you scroll.
+  /**
+   * X reuses the profile header element when you go from one profile to another, so a badge mounted
+   * once would keep showing the first person's score. Re-check each header's handle and remount it
+   * for the new person.
+   */
+  function refreshProfileHeaders() {
+    if (stopped) return;
+    const pathname = doc.defaultView?.location.pathname ?? "";
+    doc.querySelectorAll(PROFILE_SELECTOR).forEach((header) => {
+      const entry = mounted.get(header);
+      const now = resolveTarget(header, pathname)?.handle ?? null;
+      if (entry && entry.handle !== now) unmount(header);
+      if (!mounted.has(header)) mount(header);
+    });
+  }
+
   const observer = new MutationObserver((records) => {
     for (const record of records) {
       record.removedNodes.forEach((node) => articlesIn(node).forEach(unmount));
       record.addedNodes.forEach((node) => articlesIn(node).forEach(mount));
     }
+    refreshProfileHeaders();
   });
+  // X also changes pages without touching the header's own nodes, so check the address too.
+  let lastPath = doc.defaultView?.location.pathname ?? "";
+  const pathTimer = setInterval(() => {
+    const path = doc.defaultView?.location.pathname ?? "";
+    if (path !== lastPath) {
+      lastPath = path;
+      refreshProfileHeaders();
+    }
+  }, 300);
 
   doc.querySelectorAll(BADGE_TARGET_SELECTOR).forEach(mount);
   observer.observe(doc.body, { childList: true, subtree: true });
@@ -157,6 +183,8 @@ export function startBadges({
    * in time. The scout skips fetching from X (which costs) when it already has that tweet.
    */
   async function newestOnTimeline(handle: string): Promise<string | null> {
+    // Only a profile page lists the handle's own tweets; scanning from the feed has no timeline to wait for.
+    if (profileHandleFromPath(doc.defaultView?.location.pathname ?? "") !== handle) return null;
     const deadline = Date.now() + timelineWaitMs;
     while (!stopped && Date.now() < deadline) {
       if (newestTweetIdBy(doc, handle) !== null) {
@@ -230,6 +258,7 @@ export function startBadges({
     if (stopped) return;
     stopped = true;
     observer.disconnect();
+    clearInterval(pathTimer);
     popover?.close();
     scanRoot?.unmount();
     scanHost?.remove();
