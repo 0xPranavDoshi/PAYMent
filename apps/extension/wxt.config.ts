@@ -2,6 +2,7 @@ import { defineConfig } from "wxt";
 
 const apiOrigin = new URL(process.env.WXT_API_URL ?? "http://localhost:8787").origin;
 const scoutOrigin = new URL(process.env.WXT_SCOUT_URL ?? "http://localhost:8789").origin;
+const tradingOrigin = new URL(process.env.WXT_TRADING_URL ?? "http://localhost:8788").origin;
 
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
@@ -12,6 +13,6 @@ export default defineConfig({
     permissions: ["storage"],
     // The background worker fetches the scoring API and the scout (which scans a profile when it's
     // opened), so the page never makes cross-origin calls.
-    host_permissions: ["https://x.com/*", `${apiOrigin}/*`, `${scoutOrigin}/*`],
+    host_permissions: ["https://x.com/*", `${apiOrigin}/*`, `${scoutOrigin}/*`, `${tradingOrigin}/*`],
   },
 });

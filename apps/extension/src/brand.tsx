@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 /**
  * The coPAYMe mark: a "C" with a bright point in its opening, a coin lit from one side.
  * It is the product's signature, so it appears on every badge.
@@ -11,30 +13,64 @@ export function Mark({ className = "mark" }: { className?: string }) {
   );
 }
 
-const RADIUS = 31;
+const SIZE = 80;
+const STROKE = 6;
+const RADIUS = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-/** A ring that fills to the score (0 to 100), with the number inside; a bare ring and "NEW" without a score. */
-export function Gauge({ score, label }: { score: number | null; label: string }) {
-  const filled = score === null ? 0 : (CIRCUMFERENCE * Math.min(Math.max(score, 0), 100)) / 100;
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+
+/** Counts from 0 up to `target`, easing out, so the number lands as the ring finishes filling. */
+export function useCountUp(target: number | null, durationMs = 1000): number | null {
+  const [value, setValue] = useState<number | null>(target === null || prefersReducedMotion() ? target : 0);
+  useEffect(() => {
+    if (target === null || prefersReducedMotion()) {
+      setValue(target);
+      return;
+    }
+    let frame = 0;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / durationMs);
+      setValue(Math.round(target * (1 - (1 - t) ** 3)));
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [target, durationMs]);
+  return value;
+}
+
+/**
+ * A ring that fills to the score (0 to 100) when it appears, with the number counting up inside
+ * and the word SCORE under it. A user still on the New badge gets an empty ring and NEW.
+ */
+export function Gauge({ score }: { score: number | null }) {
+  const shown = useCountUp(score);
+  const dash = score === null ? 0 : (CIRCUMFERENCE * Math.min(Math.max(score, 0), 100)) / 100;
   return (
-    <div className="gauge">
-      <svg viewBox="0 0 72 72" aria-hidden="true">
-        <circle className="track" cx="36" cy="36" r={RADIUS} fill="none" strokeWidth="5" />
+    <div className="gauge" role="img" aria-label={score === null ? "No score yet" : `Score ${score} out of 100`}>
+      <svg viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden="true">
+        <circle className="track" cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" strokeWidth={STROKE} />
         {score !== null && (
           <circle
             className="fill"
-            cx="36"
-            cy="36"
+            cx={SIZE / 2}
+            cy={SIZE / 2}
             r={RADIUS}
             fill="none"
-            strokeWidth="5"
+            strokeWidth={STROKE}
             strokeLinecap="round"
-            strokeDasharray={`${filled} ${CIRCUMFERENCE}`}
+            strokeDasharray={`${dash} ${CIRCUMFERENCE}`}
+            style={{ "--dash": `${dash}px`, "--c": `${CIRCUMFERENCE}px` } as React.CSSProperties}
           />
         )}
       </svg>
-      <div className={`score ${score === null ? "new" : ""}`}>{label}</div>
+      <div className="center">
+        <span className={`score ${score === null ? "new" : ""}`}>{score === null ? "NEW" : shown}</span>
+        <span className="cap">SCORE</span>
+      </div>
     </div>
   );
 }

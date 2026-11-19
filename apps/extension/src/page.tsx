@@ -5,6 +5,7 @@ import { createPopoverManager } from "./popover/manager.js";
 import { Badge } from "./Badge.js";
 import { BADGE_CSS } from "./styles.js";
 import { createThemeStore } from "./theme.js";
+import type { TradingActions } from "./trading.js";
 import { createBadgeStore } from "./badgeStore.js";
 import { createBatcher } from "./batcher.js";
 import { BADGE_TARGET_SELECTOR, profileHandleFromPath, resolveTarget } from "./selectors.js";
@@ -16,6 +17,8 @@ export interface StartOptions {
   loadProfile?: (handle: string) => Promise<ProfileData>;
   /** Base URL of the coPAYMe website, for the popover's link. */
   webUrl?: string;
+  /** What the popover's Paper trade and Copy trade buttons do. Without it they say trading is unavailable. */
+  trading?: TradingActions;
   doc?: Document;
   /** Quiet period before a batch is sent. */
   delayMs?: number;
@@ -36,6 +39,7 @@ export function startBadges({
   lookup,
   loadProfile,
   webUrl = "",
+  trading,
   doc = document,
   delayMs = 150,
   scan,
@@ -50,7 +54,7 @@ export function startBadges({
   const hosts = new Set<HTMLElement>();
   theme.subscribe((next) => hosts.forEach((host) => (host.dataset.theme = next)));
 
-  const popover = loadProfile ? createPopoverManager({ load: loadProfile, webUrl, theme, doc }) : null;
+  const popover = loadProfile ? createPopoverManager({ load: loadProfile, webUrl, theme, trading, doc }) : null;
 
   const batcher = createBatcher(async (handles) => {
     try {

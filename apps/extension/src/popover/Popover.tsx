@@ -1,5 +1,7 @@
 import type { CallEntry, UserProfile } from "@copayme/shared";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Gauge, Mark } from "../brand.js";
+import { SIGNED_OUT, type TradingActions, type TradingState } from "../trading.js";
 import { callRowView, profileView } from "./view.js";
 
 export type PopoverState =
@@ -14,9 +16,11 @@ export function Popover(props: {
   webUrl: string;
   onClose: () => void;
   onRetry: () => void;
+  /** Without it, the trade buttons say trading is not available. */
+  trading?: TradingActions;
   now?: Date;
 }) {
-  const { handle, state, webUrl, onClose, onRetry, now } = props;
+  const { handle, state, webUrl, onClose, onRetry, trading, now } = props;
   const site = `${webUrl.replace(/\/$/, "")}/traders/${encodeURIComponent(handle)}`;
 
   return (
@@ -48,16 +52,13 @@ export function Popover(props: {
         </div>
       )}
 
-      {state.status === "ready" && !state.profile && (
-        <div className="state">No track record for @{handle} yet.</div>
-      )}
+      {state.status === "ready" && !state.profile && <div className="state">No track record for @{handle} yet.</div>}
 
       {state.status === "ready" && state.profile && (
-        <Summary profile={state.profile} calls={state.calls} now={now} />
+        <Summary profile={state.profile} calls={state.calls} now={now} trading={trading} />
       )}
 
       <div className="foot">
-        <span />
         <a className="link" href={site} target="_blank" rel="noopener noreferrer">
           Open coPAYMe ↗
         </a>
@@ -66,12 +67,22 @@ export function Popover(props: {
   );
 }
 
-function Summary({ profile, calls, now }: { profile: UserProfile; calls: CallEntry[]; now?: Date }) {
+function Summary({
+  profile,
+  calls,
+  now,
+  trading,
+}: {
+  profile: UserProfile;
+  calls: CallEntry[];
+  now?: Date;
+  trading?: TradingActions;
+}) {
   const view = profileView(profile, now);
   return (
     <>
       <div className="hero">
-        <Gauge score={view.gauge} label={view.badge.kind === "new" ? "NEW" : view.badge.text} />
+        <Gauge score={view.gauge} />
         <div className="who">
           <div className="handle">@{profile.handle}</div>
           {view.lastPick && <div className="sub">{view.lastPick}</div>}
@@ -95,34 +106,222 @@ function Summary({ profile, calls, now }: { profile: UserProfile; calls: CallEnt
         </div>
       </div>
 
+      <TradeActions handle={profile.handle} trading={trading} />
+
       <div className="sec">Recent picks</div>
       {calls.length === 0 ? (
         <div className="empty">No picks recorded yet.</div>
       ) : (
         <ul className="picks">
-          {calls.map((call) => {
-            const row = callRowView(call);
-            const tone = row.points === null ? "none" : row.outcome.kind === "won" ? "won" : row.outcome.kind === "lost" ? "lost" : "none";
-            return (
-              <li className="pick" key={call.callId}>
-                <span className={`dot ${row.outcome.kind}`} title={row.outcome.text} />
-                <div style={{ minWidth: 0 }}>
-                  <div className="t">{row.event}</div>
-                  <div className="s">
-                    <span>
-                      {row.pick} · {row.price}
-                    </span>
-                    <a href={row.tweetUrl} target="_blank" rel="noopener noreferrer">
-                      Tweet ↗
-                    </a>
-                  </div>
-                </div>
-                <span className={`pts ${tone}`}>{row.points ?? row.outcome.text}</span>
-              </li>
-            );
-          })}
+          {calls.map((call) => (
+            <PickRow key={call.callId} call={call} handle={profile.handle} />
+          ))}
         </ul>
       )}
     </>
+  );
+}
+
+const COPY_AMOUNTS = [5, 10, 25];
+
+/** Paper trade (follow with $1 paper bets) and Copy trade (mirror with real orders). */
+function TradeActions({ handle, trading }: { handle: string; trading?: TradingActions }) {
+  const [state, setState] = useState<TradingState | null>(null);
+  const [busy, setBusy] = useState<"watch" | "copy" | null>(null);
+  // State updates land after the next render, so rapid clicks would all see "not busy". The ref is
+  // set immediately, which is what stops a double-click from submitting twice.
+  const working = useRef(false);
+  const [confirming, setConfirming] = useState(false);
+  const [amount, setAmount] = useState(10);
+  const [notice, setNotice] = useState<{ kind: "info" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    if (!trading) return;
+    trading.state(handle).then(
+      (next) => live && setState(next),
+      () => live && setState(SIGNED_OUT),
+    );
+    return () => {
+      live = false;
+    };
+  }, [trading, handle]);
+
+  /** Whether trading can be used right now; if not, says why. */
+  function ready(): boolean {
+    if (!trading) {
+      setNotice({ kind: "info", text: "Trading isn't available yet." });
+      return false;
+    }
+    if (!state?.signedIn) {
+      setNotice({ kind: "info", text: "Sign in with X to trade. Coming soon." });
+      return false;
+    }
+    return true;
+  }
+
+  async function run(which: "watch" | "copy", action: () => Promise<void>, after: () => void) {
+    if (working.current) return;
+    working.current = true;
+    setBusy(which);
+    setNotice(null);
+    try {
+      await action();
+      after();
+    } catch (err) {
+      setNotice({ kind: "error", text: err instanceof Error ? err.message : "Something went wrong." });
+    } finally {
+      working.current = false;
+      setBusy(null);
+    }
+  }
+
+  const watching = state?.watching === true;
+  const copying = state?.copy?.active === true;
+
+  return (
+    <>
+      <div className="actions">
+        <button
+          type="button"
+          className={`btn ${watching ? "on" : ""}`}
+          aria-pressed={watching}
+          aria-busy={busy === "watch"}
+          onClick={() => {
+            setConfirming(false);
+            if (!ready() || working.current) return;
+            void run("watch", () => trading!.setWatch(handle, !watching), () =>
+              setState((s) => (s ? { ...s, watching: !watching } : s)),
+            );
+          }}
+        >
+          Paper trade
+          <small>{watching ? "Following · $1 per pick" : "Follow with paper bets"}</small>
+        </button>
+
+        <button
+          type="button"
+          className={`btn primary ${copying ? "on" : ""}`}
+          aria-pressed={copying}
+          aria-busy={busy === "copy"}
+          onClick={() => {
+            if (!ready() || working.current) return;
+            if (copying) {
+              void run("copy", () => trading!.stopCopy(handle), () =>
+                setState((s) => (s ? { ...s, copy: s.copy && { ...s.copy, active: false } } : s)),
+              );
+            } else {
+              setNotice(null);
+              setConfirming((open) => !open);
+            }
+          }}
+        >
+          Copy trade
+          <small>{copying ? `Copying · $${state?.copy?.amountUsdc} per pick` : "Mirror with real orders"}</small>
+        </button>
+      </div>
+
+      {confirming && (
+        <div className="panel" role="group" aria-label="Confirm copy trading">
+          <p>
+            <b>This places real orders.</b> coPAYMe will buy ${amount} on every new pick from @{handle}, as it is
+            tweeted. You can stop any time.
+          </p>
+          <div className="chips">
+            {COPY_AMOUNTS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                className="chip"
+                aria-pressed={amount === value}
+                onClick={() => setAmount(value)}
+              >
+                ${value}
+              </button>
+            ))}
+          </div>
+          <div className="row2">
+            <button
+              type="button"
+              className="btn primary"
+              onClick={() =>
+                void run("copy", () => trading!.startCopy(handle, amount), () => {
+                  setConfirming(false);
+                  setState((s) => (s ? { ...s, copy: { active: true, amountUsdc: amount } } : s));
+                })
+              }
+            >
+              Start copying
+            </button>
+            <button type="button" className="btn" onClick={() => setConfirming(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {notice && (
+        <div className={`toast ${notice.kind === "error" ? "error" : ""}`} role="status">
+          {notice.text}
+        </div>
+      )}
+    </>
+  );
+}
+
+function whenTweeted(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+/** One pick. "See tweet" flips the card over to show the tweet's text, instead of leaving the page. */
+function PickRow({ call, handle }: { call: CallEntry; handle: string }) {
+  const row = callRowView(call);
+  const tone = row.points === null ? "none" : row.outcome.kind === "won" ? "won" : row.outcome.kind === "lost" ? "lost" : "none";
+
+  const [flipped, setFlipped] = useState(false);
+  const front = useRef<HTMLDivElement>(null);
+  const back = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | undefined>();
+  // Both faces are stacked, so the card is as tall as whichever face is showing.
+  useLayoutEffect(() => {
+    const h = (flipped ? back : front).current?.offsetHeight;
+    if (h) setHeight(h);
+  }, [flipped, call]);
+
+  return (
+    <li className={`pick ${flipped ? "flipped" : ""}`}>
+      <div className="flip" style={height ? { height } : undefined}>
+        <div className="face front" ref={front} inert={flipped}>
+          <div style={{ minWidth: 0 }}>
+            <div className="t">{row.event}</div>
+            <div className="s">
+              <span>
+                {row.pick} · {row.price}
+              </span>
+              <button type="button" className="flipbtn" onClick={() => setFlipped(true)}>
+                See tweet
+              </button>
+            </div>
+          </div>
+          <span className={`pts ${tone}`}>{row.points ?? row.outcome.text}</span>
+        </div>
+
+        <div className="face back" ref={back} inert={!flipped}>
+          <div className="bhead">
+            <b>@{handle}</b>
+            <span>{whenTweeted(call.tweetedAt)}</span>
+          </div>
+          <p className="tw">{call.tweetText}</p>
+          <div className="bfoot">
+            <a className="link" href={row.tweetUrl} target="_blank" rel="noopener noreferrer">
+              Open on X ↗
+            </a>
+            <button type="button" className="flipbtn" onClick={() => setFlipped(false)}>
+              Back
+            </button>
+          </div>
+        </div>
+      </div>
+    </li>
   );
 }

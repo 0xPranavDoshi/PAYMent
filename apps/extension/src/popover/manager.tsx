@@ -2,6 +2,7 @@ import { createRoot, type Root } from "react-dom/client";
 import type { ProfileData } from "../messages.js";
 import { POPOVER_CSS } from "../styles.js";
 import type { Theme, ThemeStore } from "../theme.js";
+import type { TradingActions } from "../trading.js";
 import { Popover, type PopoverState } from "./Popover.js";
 
 const WIDTH = 320;
@@ -26,9 +27,11 @@ export function createPopoverManager(opts: {
   webUrl: string;
   /** Keeps the card in step with X's theme. Without it the card is light. */
   theme?: ThemeStore;
+  /** What the Paper trade and Copy trade buttons do. */
+  trading?: TradingActions;
   doc?: Document;
 }): PopoverManager {
-  const { load, webUrl, theme, doc = document } = opts;
+  const { load, webUrl, theme, trading, doc = document } = opts;
   const win = doc.defaultView ?? window;
 
   let current: { handle: string; anchor: Element; host: HTMLElement; root: Root; stop: () => void } | null = null;
@@ -41,18 +44,23 @@ export function createPopoverManager(opts: {
     current = null;
   }
 
-  function place(host: HTMLElement, anchor: Element) {
+  /**
+   * Puts the card next to its badge. It opens below, or above when there is no room below, and keeps
+   * that side while the page scrolls so it does not jump around.
+   */
+  function place(host: HTMLElement, anchor: Element, side?: "above" | "below"): "above" | "below" {
     const rect = anchor.getBoundingClientRect();
-    const left = Math.max(MARGIN, Math.min(rect.left, win.innerWidth - WIDTH - MARGIN));
-    host.style.left = `${left}px`;
+    host.style.left = `${Math.max(MARGIN, Math.min(rect.left, win.innerWidth - WIDTH - MARGIN))}px`;
     const below = win.innerHeight - rect.bottom;
-    if (below < ESTIMATED_HEIGHT && rect.top > below) {
+    const chosen = side ?? (below < ESTIMATED_HEIGHT && rect.top > below ? "above" : "below");
+    if (chosen === "above") {
       host.style.top = "auto";
       host.style.bottom = `${win.innerHeight - rect.top + GAP}px`;
     } else {
       host.style.bottom = "auto";
       host.style.top = `${rect.bottom + GAP}px`;
     }
+    return chosen;
   }
 
   function open(handle: string, anchor: Element) {
@@ -67,14 +75,14 @@ export function createPopoverManager(opts: {
     style.textContent = POPOVER_CSS;
     const container = doc.createElement("div");
     shadow.append(style, container);
-    place(host, anchor);
+    const side = place(host, anchor);
     doc.body.appendChild(host);
 
     const root = createRoot(container);
     let token = 0; // a newer request makes older answers irrelevant
 
     const render = (state: PopoverState) =>
-      root.render(<Popover handle={handle} state={state} webUrl={webUrl} onClose={close} onRetry={fetchProfile} />);
+      root.render(<Popover handle={handle} state={state} webUrl={webUrl} trading={trading} onClose={close} onRetry={fetchProfile} />);
 
     function fetchProfile() {
       const mine = ++token;
@@ -96,7 +104,21 @@ export function createPopoverManager(opts: {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") close();
     };
-    const onViewportChange = () => close();
+    // X's timeline scrolls constantly, so the card follows its badge instead of closing. It closes
+    // only when the badge is gone (X removed that tweet) or has scrolled out of view. Scrolling
+    // inside the card itself is not the page scrolling and is ignored.
+    let frame = 0;
+    const onViewportChange = (event?: Event) => {
+      if (event?.composedPath?.().includes(host)) return;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (current?.host !== host) return;
+        if (!anchor.isConnected) return close();
+        const rect = anchor.getBoundingClientRect();
+        if (rect.bottom < 0 || rect.top > win.innerHeight) return close();
+        place(host, anchor, side);
+      });
+    };
     const stopTheme = theme?.subscribe((next: Theme) => {
       host.dataset.theme = next;
     });
@@ -114,6 +136,7 @@ export function createPopoverManager(opts: {
       stop: () => {
         token++;
         stopTheme?.();
+        cancelAnimationFrame(frame);
         doc.removeEventListener("pointerdown", onPointerDown, true);
         doc.removeEventListener("keydown", onKeyDown, true);
         win.removeEventListener("scroll", onViewportChange, { capture: true } as EventListenerOptions);

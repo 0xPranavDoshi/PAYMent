@@ -41,6 +41,7 @@ export function Badge({
       }}
     >
       <Mark />
+      {view.kind === "scored" && <span className="cap">SCORE</span>}
       <span className="num">{view.kind === "new" ? "NEW" : view.text}</span>
       {view.arrow && (
         <span className={`arrow ${view.arrow.direction}`}>

@@ -3,6 +3,7 @@ import type { BadgesResponse, CallEntry, UserProfile } from "@copayme/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProfileData } from "../messages.js";
 import { startBadges } from "../page.js";
+import type { TradingActions, TradingState } from "../trading.js";
 
 const WEB = "https://copayme.example";
 
@@ -55,9 +56,9 @@ describe("the popover", () => {
   let stop: () => void;
   const lookup = async (handles: string[]): Promise<BadgesResponse> => Object.fromEntries(handles.map((h) => [h, badge]));
 
-  function start(loadProfile?: (handle: string) => Promise<ProfileData>, handles = ["alice"]) {
+  function start(loadProfile?: (handle: string) => Promise<ProfileData>, handles = ["alice"], trading?: TradingActions) {
     document.body.innerHTML = `<main>${handles.map(tweetHtml).join("")}</main>`;
-    stop = startBadges({ lookup, loadProfile, webUrl: WEB, delayMs: 5 });
+    stop = startBadges({ lookup, loadProfile, webUrl: WEB, trading, delayMs: 5 });
     return vi.waitFor(() => expect(badges().every((b) => b.shadowRoot?.querySelector("button"))).toBe(true));
   }
   afterEach(() => stop?.());
@@ -80,9 +81,11 @@ describe("the popover", () => {
     release(ready());
 
     await vi.waitFor(() => expect(popoverText()).toContain("Game 1"));
+    const card = popoverHosts()[0]!.shadowRoot!;
+    await vi.waitFor(() => expect(card.querySelector(".gauge .score")!.textContent).toBe("72")); // counts up to the score
     const text = popoverText()!;
     expect(text).toContain("coPAYMe");
-    expect(text).toContain("72");
+    expect(text).toContain("SCORE");
     expect(text).toContain("▲ 8 in 14 days");
     expect(text).toContain("29–13");
     expect(text).toContain("69%");
@@ -92,11 +95,12 @@ describe("the popover", () => {
     expect(text).toContain("−0.62");
     expect(text).toContain("Pending");
 
-    const card = popoverHosts()[0]!.shadowRoot!;
-    expect([...card.querySelectorAll(".dot")].map((d) => d.className.replace("dot ", ""))).toEqual(["won", "lost", "pending"]);
+    expect(card.querySelector(".dot")).toBeNull(); // no markers beside the picks
+    expect([...card.querySelectorAll(".pick .front .pts")].map((p) => p.className.replace("pts ", ""))).toEqual(["won", "lost", "none"]);
+    expect(card.querySelector(".gauge")!.getAttribute("aria-label")).toBe("Score 72 out of 100");
 
     const links = [...popoverHosts()[0]!.shadowRoot!.querySelectorAll("a")].map((a) => a.getAttribute("href"));
-    expect(links).toContain("https://x.com/i/status/1001");
+    expect(links).toContain("https://x.com/i/status/1001"); // "Open on X", on the back of the card
     expect(links).toContain(`${WEB}/traders/alice`);
   });
 
@@ -114,7 +118,7 @@ describe("the popover", () => {
     await vi.waitFor(() => expect(popoverText()).toContain("No track record for @alice yet"));
   });
 
-  it("closes on Escape, on a click outside, and when the page scrolls", async () => {
+  it("closes on Escape and on a click outside", async () => {
     await start(async () => ready());
     const open = async () => {
       click(badgeButton());
@@ -127,10 +131,6 @@ describe("the popover", () => {
 
     await open();
     document.body.dispatchEvent(new Event("pointerdown", { bubbles: true, composed: true }));
-    expect(popoverHosts()).toHaveLength(0);
-
-    await open();
-    window.dispatchEvent(new Event("scroll"));
     expect(popoverHosts()).toHaveLength(0);
   });
 
@@ -240,5 +240,268 @@ describe("the popover", () => {
     await vi.waitFor(() => expect(popoverHosts()).toHaveLength(1));
     expect(popoverHosts()[0]!.style.bottom).toBe("106px"); // 800 - 700 + 6
     expect(popoverHosts()[0]!.style.left).toBe("872px"); // kept on screen: 1200 - 320 - 8
+  });
+
+  describe("scrolling", () => {
+    const rect = (top: number) => ({ left: 100, right: 160, top, bottom: top + 24, width: 60, height: 24, x: 100, y: top, toJSON: () => ({}) });
+    const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r(null)));
+
+    async function openAt(top: number) {
+      window.innerHeight = 900;
+      window.innerWidth = 1200;
+      await start(async () => ready());
+      const button = badgeButton();
+      let current = top;
+      button.getBoundingClientRect = () => rect(current) as DOMRect;
+      click(button);
+      await vi.waitFor(() => expect(popoverHosts()).toHaveLength(1));
+      return { move: (t: number) => (current = t), button };
+    }
+
+    it("stays open and follows its badge when the page scrolls", async () => {
+      const { move } = await openAt(100);
+      expect(popoverHosts()[0]!.style.top).toBe("130px"); // 100 + 24 + 6
+
+      move(60); // the page scrolled 40px
+      window.dispatchEvent(new Event("scroll"));
+      await vi.waitFor(() => expect(popoverHosts()[0]!.style.top).toBe("90px"));
+      expect(popoverHosts()).toHaveLength(1);
+
+      for (let i = 0; i < 5; i++) {
+        move(60 - i * 3);
+        window.dispatchEvent(new Event("scroll"));
+        await nextFrame();
+      }
+      expect(popoverHosts()).toHaveLength(1); // many small scrolls never close it
+    });
+
+    it("keeps to the side it opened on, instead of jumping as the page scrolls", async () => {
+      const { move } = await openAt(700); // too low for the card to fit below: opens above
+      expect(popoverHosts()[0]!.style.bottom).toBe("206px"); // 900 - 700 + 6
+      move(300); // now there would be room below, but it stays above
+      window.dispatchEvent(new Event("scroll"));
+      await vi.waitFor(() => expect(popoverHosts()[0]!.style.bottom).toBe("606px")); // 900 - 300 + 6
+      expect(popoverHosts()[0]!.style.top).toBe("auto");
+    });
+
+    it("ignores scrolling inside the card itself", async () => {
+      const { move } = await openAt(100);
+      move(-500); // would be off-screen if the page had scrolled
+      popoverHosts()[0]!.shadowRoot!.querySelector(".card")!.dispatchEvent(new Event("scroll"));
+      await nextFrame();
+      await nextFrame();
+      expect(popoverHosts()).toHaveLength(1);
+    });
+
+    it("closes once its badge has scrolled out of view, or its tweet is removed", async () => {
+      const { move } = await openAt(100);
+      move(-200); // wholly above the viewport
+      window.dispatchEvent(new Event("scroll"));
+      await vi.waitFor(() => expect(popoverHosts()).toHaveLength(0));
+
+      const second = await openAt(100);
+      second.move(2000); // wholly below it
+      window.dispatchEvent(new Event("resize"));
+      await vi.waitFor(() => expect(popoverHosts()).toHaveLength(0));
+
+      await openAt(100);
+      document.querySelector("article")!.remove(); // X unmounts tweets that scroll far away
+      window.dispatchEvent(new Event("scroll"));
+      await vi.waitFor(() => expect(popoverHosts()).toHaveLength(0));
+    });
+  });
+
+  describe("flipping a pick to show its tweet", () => {
+    const rows = () => [...popoverHosts()[0]!.shadowRoot!.querySelectorAll(".pick")] as HTMLElement[];
+    const flipButton = (i: number) => rows()[i]!.querySelector<HTMLButtonElement>(".front .flipbtn")!;
+
+    async function openCard() {
+      await start(async () => ready());
+      click(badgeButton());
+      await vi.waitFor(() => expect(rows()).toHaveLength(3));
+    }
+
+    it("turns one card over to show the tweet, and back again", async () => {
+      await openCard();
+      expect(rows()[0]!.classList.contains("flipped")).toBe(false);
+
+      click(flipButton(0));
+      await vi.waitFor(() => expect(rows()[0]!.classList.contains("flipped")).toBe(true));
+      const back = rows()[0]!.querySelector(".back")!;
+      expect(back.textContent).toContain("@alice");
+      expect(back.textContent).toContain("Tweet number 1");
+      expect(back.querySelector("a")!.getAttribute("href")).toBe("https://x.com/i/status/1001");
+      expect(rows()[1]!.classList.contains("flipped")).toBe(false); // the others stay put
+      expect(popoverHosts()).toHaveLength(1); // and the popover stays open
+
+      click(back.querySelector<HTMLButtonElement>(".flipbtn")!);
+      await vi.waitFor(() => expect(rows()[0]!.classList.contains("flipped")).toBe(false));
+    });
+
+    it("only the face that is showing can be reached by keyboard", async () => {
+      await openCard();
+      const front = () => rows()[0]!.querySelector(".front") as HTMLElement & { inert: boolean };
+      const back = () => rows()[0]!.querySelector(".back") as HTMLElement & { inert: boolean };
+      expect([front().inert, back().inert]).toEqual([false, true]);
+      click(flipButton(0));
+      await vi.waitFor(() => expect([front().inert, back().inert]).toEqual([true, false]));
+    });
+
+    it("can show several tweets at once, and renders tweet text as plain text", async () => {
+      const hostile = '<img src=x onerror="alert(1)"> & friends';
+      await start(async () => ({ profile: profile("alice"), calls: [call(1, { tweetText: hostile }), call(2)] }));
+      click(badgeButton());
+      await vi.waitFor(() => expect(rows()).toHaveLength(2));
+      click(flipButton(0));
+      click(flipButton(1));
+      await vi.waitFor(() => expect(rows().every((r) => r.classList.contains("flipped"))).toBe(true));
+      const back = rows()[0]!.querySelector(".back")!;
+      expect(back.querySelector("img")).toBeNull();
+      expect(back.querySelector(".tw")!.textContent).toBe(hostile);
+    });
+  });
+
+  describe("the trade buttons", () => {
+    const buttons = () => [...popoverHosts()[0]!.shadowRoot!.querySelectorAll<HTMLButtonElement>(".actions .btn")];
+    const paper = () => buttons()[0]!;
+    const copy = () => buttons()[1]!;
+    const card = () => popoverHosts()[0]!.shadowRoot!;
+    const toast = () => card().querySelector(".toast")?.textContent ?? null;
+
+    function fakeTrading(initial: Partial<TradingState> = {}, over: Partial<TradingActions> = {}) {
+      let state: TradingState = { signedIn: true, watching: false, copy: null, ...initial };
+      const actions = {
+        state: vi.fn(async () => state),
+        setWatch: vi.fn(async (_h: string, on: boolean) => void (state = { ...state, watching: on })),
+        startCopy: vi.fn(async (_h: string, amountUsdc: number) => void (state = { ...state, copy: { active: true, amountUsdc } })),
+        stopCopy: vi.fn(async () => void (state = { ...state, copy: state.copy && { ...state.copy, active: false } })),
+        ...over,
+      };
+      return actions satisfies TradingActions;
+    }
+
+    async function openCard(trading?: TradingActions) {
+      await start(async () => ready(), ["alice"], trading);
+      click(badgeButton());
+      await vi.waitFor(() => expect(buttons()).toHaveLength(2));
+    }
+    const loaded = () => new Promise((r) => setTimeout(r, 20)); // let the trading state arrive
+
+    it("shows both buttons even when trading is not connected, and says so when one is pressed", async () => {
+      await openCard(undefined);
+      expect(paper().textContent).toContain("Paper trade");
+      expect(copy().textContent).toContain("Copy trade");
+      click(paper());
+      await vi.waitFor(() => expect(toast()).toBe("Trading isn't available yet."));
+    });
+
+    it("tells a signed-out user to sign in, and never calls the trading service", async () => {
+      const trading = fakeTrading({ signedIn: false });
+      await openCard(trading);
+      await loaded();
+      click(paper());
+      await vi.waitFor(() => expect(toast()).toBe("Sign in with X to trade. Coming soon."));
+      click(copy());
+      expect(trading.setWatch).not.toHaveBeenCalled();
+      expect(card().querySelector(".panel")).toBeNull(); // no confirmation to start real orders
+    });
+
+    it("toggles paper trading on and off", async () => {
+      const trading = fakeTrading();
+      await openCard(trading);
+      await loaded();
+      click(paper());
+      await vi.waitFor(() => expect(paper().textContent).toContain("Following · $1 per pick"));
+      expect(trading.setWatch).toHaveBeenLastCalledWith("alice", true);
+      expect(paper().getAttribute("aria-pressed")).toBe("true");
+
+      click(paper());
+      await vi.waitFor(() => expect(paper().textContent).toContain("Follow with paper bets"));
+      expect(trading.setWatch).toHaveBeenLastCalledWith("alice", false);
+    });
+
+    it("shows the current state when it opens", async () => {
+      await openCard(fakeTrading({ watching: true, copy: { active: true, amountUsdc: 25 } }));
+      await vi.waitFor(() => expect(paper().textContent).toContain("Following"));
+      expect(copy().textContent).toContain("Copying · $25 per pick");
+    });
+
+    it("asks for confirmation before copy trading, then starts it for the chosen amount", async () => {
+      const trading = fakeTrading();
+      await openCard(trading);
+      await loaded();
+      click(copy());
+      await vi.waitFor(() => expect(card().querySelector(".panel")).not.toBeNull());
+      expect(card().querySelector(".panel")!.textContent).toContain("This places real orders");
+      expect(trading.startCopy).not.toHaveBeenCalled(); // nothing happens until it is confirmed
+
+      const chips = [...card().querySelectorAll<HTMLButtonElement>(".chip")];
+      expect(chips.map((c) => c.textContent)).toEqual(["$5", "$10", "$25"]);
+      expect(chips[1]!.getAttribute("aria-pressed")).toBe("true"); // $10 by default
+      click(chips[2]!);
+      await vi.waitFor(() => expect(card().querySelector(".panel")!.textContent).toContain("buy $25"));
+
+      click([...card().querySelectorAll<HTMLButtonElement>(".panel .btn")].find((b) => b.textContent === "Start copying")!);
+      await vi.waitFor(() => expect(copy().textContent).toContain("Copying · $25 per pick"));
+      expect(trading.startCopy).toHaveBeenCalledWith("alice", 25);
+      expect(card().querySelector(".panel")).toBeNull();
+    });
+
+    it("cancel closes the confirmation without placing anything, and copy trading can be stopped", async () => {
+      const trading = fakeTrading();
+      await openCard(trading);
+      await loaded();
+      click(copy());
+      await vi.waitFor(() => expect(card().querySelector(".panel")).not.toBeNull());
+      click([...card().querySelectorAll<HTMLButtonElement>(".panel .btn")].find((b) => b.textContent === "Cancel")!);
+      await vi.waitFor(() => expect(card().querySelector(".panel")).toBeNull());
+      expect(trading.startCopy).not.toHaveBeenCalled();
+
+      const active = fakeTrading({ copy: { active: true, amountUsdc: 10 } });
+      stop();
+      await openCard(active);
+      await vi.waitFor(() => expect(copy().textContent).toContain("Copying"));
+      click(copy());
+      await vi.waitFor(() => expect(copy().textContent).toContain("Mirror with real orders"));
+      expect(active.stopCopy).toHaveBeenCalledWith("alice");
+    });
+
+    it("shows the error and changes nothing when the trading service refuses", async () => {
+      const trading = fakeTrading({}, { setWatch: vi.fn(async () => { throw new Error("market is closed"); }) });
+      await openCard(trading);
+      await loaded();
+      click(paper());
+      await vi.waitFor(() => expect(toast()).toBe("market is closed"));
+      expect(card().querySelector(".toast")!.classList.contains("error")).toBe(true);
+      expect(paper().getAttribute("aria-pressed")).toBe("false");
+    });
+
+    it("ignores a second press while the first is still running", async () => {
+      let release!: () => void;
+      const trading = fakeTrading({}, { setWatch: vi.fn(() => new Promise<void>((r) => (release = r))) });
+      await openCard(trading);
+      await loaded();
+      click(paper());
+      click(paper());
+      click(paper());
+      expect(trading.setWatch).toHaveBeenCalledTimes(1);
+      release();
+      await vi.waitFor(() => expect(paper().textContent).toContain("Following"));
+      expect(trading.setWatch).toHaveBeenCalledTimes(1);
+
+      // and a double-click on "Start copying" must not place two orders either
+      let releaseCopy!: () => void;
+      const copyTrading = fakeTrading({}, { startCopy: vi.fn(() => new Promise<void>((r) => (releaseCopy = r))) });
+      stop();
+      await openCard(copyTrading);
+      await loaded();
+      click(copy());
+      await vi.waitFor(() => expect(card().querySelector(".panel")).not.toBeNull());
+      const start = [...card().querySelectorAll<HTMLButtonElement>(".panel .btn")].find((b) => b.textContent === "Start copying")!;
+      click(start);
+      click(start);
+      expect(copyTrading.startCopy).toHaveBeenCalledTimes(1);
+      releaseCopy();
+    });
   });
 });

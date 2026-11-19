@@ -38,7 +38,7 @@ describe("startBadges", () => {
     addTweet("bob");
     addTweet("nobody");
 
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8", "72▲8", ""]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8", "SCORE72▲8", ""]));
     expect(lookup).toHaveBeenCalledTimes(1);
     expect(lookup).toHaveBeenCalledWith(["alice", "bob", "nobody"]);
   });
@@ -49,7 +49,7 @@ describe("startBadges", () => {
     addTweet("alice");
     addTweet("alice");
 
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8", "72▲8"]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8", "SCORE72▲8"]));
     expect(lookup).toHaveBeenCalledTimes(1);
     expect(lookup).toHaveBeenCalledWith(["alice"]);
   });
@@ -58,10 +58,10 @@ describe("startBadges", () => {
     const lookup = vi.fn(async (): Promise<BadgesResponse> => ({ alice: scored }));
     stop = startBadges({ lookup, delayMs: 10 });
     addTweet("alice");
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8"]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8"]));
 
     addTweet("alice"); // scrolled to another tweet by the same person
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8", "72▲8"]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8", "SCORE72▲8"]));
     expect(lookup).toHaveBeenCalledTimes(1);
   });
 
@@ -77,7 +77,7 @@ describe("startBadges", () => {
     expect(badgeTexts()).toEqual([""]);
 
     addTweet("alice");
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8", "72▲8"]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8", "SCORE72▲8"]));
     expect(lookup).toHaveBeenCalledTimes(2);
   });
 
@@ -85,7 +85,7 @@ describe("startBadges", () => {
     const lookup = vi.fn(async (): Promise<BadgesResponse> => ({ alice: scored }));
     stop = startBadges({ lookup, delayMs: 10 });
     addTweet("alice");
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8"]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8"]));
 
     timeline().querySelector("article")!.remove();
     await vi.waitFor(() => expect(badgeTexts()).toEqual([]));
@@ -121,7 +121,7 @@ describe("startBadges", () => {
       await vi.waitFor(() => expect(badgeTexts()).toEqual(["Scanning…"]));
 
       finish({ status: "done", badge: scored });
-      await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8"]));
+      await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8"]));
     });
 
     it("scans each profile once per visit, not on every check", async () => {
@@ -142,10 +142,10 @@ describe("startBadges", () => {
       const scan = vi.fn(async (): Promise<ScanResult> => ({ status: "timeout" }));
       stop = startBadges({ lookup, scan, delayMs: 10, routeCheckMs: 10 });
       addTweet("alice");
-      await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8"]));
+      await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8"]));
       window.history.pushState({}, "", "/alice");
       await vi.waitFor(() => expect(scan).toHaveBeenCalled());
-      await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8"]));
+      await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8"]));
     });
   });
 });
@@ -168,7 +168,7 @@ describe("badges on profile pages", () => {
 
     // X builds the profile page after navigation, so the header arrives later.
     document.getElementById("timeline")!.insertAdjacentHTML("beforeend", profileHeader("dana_picks"));
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8"]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8"]));
     expect(lookup).toHaveBeenCalledWith(["dana_picks"]);
     expect(document.querySelector('[data-testid="UserName"] > div [data-copayme=badge]')).not.toBeNull(); // in the name row
   });
@@ -180,7 +180,7 @@ describe("badges on profile pages", () => {
     stop = startBadges({ lookup, delayMs: 10 });
     document.getElementById("timeline")!.insertAdjacentHTML("beforeend", tweetHtml("dana_picks"));
 
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8", "72▲8"]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8", "SCORE72▲8"]));
     expect(lookup).toHaveBeenCalledTimes(1);
   });
 
