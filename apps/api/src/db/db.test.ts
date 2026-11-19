@@ -1,6 +1,9 @@
+import type { NewPost, Pick } from "@copayme/shared";
 import postgres from "postgres";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app.js";
+import { ingestPosts } from "../ingest.js";
+import { createPostgresIngestStore } from "../ingest.postgres.js";
 import { copyFile, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -205,6 +208,182 @@ describe.skipIf(!url)("against a real Postgres", () => {
       } finally {
         await rm(dir, { recursive: true, force: true });
       }
+    });
+  });
+
+  describe("post ingest", () => {
+    const TICKER = "NCAAM-UCONN-ARI-M";
+    const SYNCED = "2026-11-19T12:00:00Z";
+    const LOCK = "2026-11-20T02:00:00Z";
+    const now = new Date("2026-11-19T12:10:00Z");
+    const store = () => createPostgresIngestStore(sql);
+
+    const pick = (over: Partial<Pick> = {}): Pick => ({
+      geminiEventTicker: TICKER,
+      instrumentSymbol: "GEMI-UCONN",
+      side: "yes",
+      gameStartTime: LOCK,
+      resolutionSide: null,
+      resolvedAt: null,
+      oddsAtTweet: null,
+      ...over,
+    });
+    const post = (over: Partial<NewPost> = {}): NewPost => ({
+      tweetId: "t1",
+      xUserId: "u1",
+      xHandle: "@Tipster",
+      tweetedAt: "2026-11-19T12:03:00Z",
+      tweetText: "UConn wins",
+      sentiment: { isPrediction: true, confidence: 0.9 },
+      picks: [pick()],
+      ...over,
+    });
+    const run = (posts: NewPost[]) => ingestPosts(store(), posts, now);
+    const outcomes = (r: { picks: { status: string; reason?: string }[] }) => r.picks.map((p) => p.reason ?? p.status);
+
+    async function addMarket(ticker: string, over: { status?: string; lock?: string; synced?: string } = {}) {
+      const outcomesJson = [
+        { label: "UConn", instrumentSymbol: "GEMI-UCONN", currentOdds: 0.62, noOdds: 0.4, resolutionSide: null },
+        { label: "Arizona", instrumentSymbol: "GEMI-ARI", currentOdds: 0.38, noOdds: null, resolutionSide: null },
+      ];
+      await sql`
+        insert into markets (gemini_market_id, sport, event_name, outcomes, lock_time, status, synced_at)
+        values (${ticker}, 'basketball', 'UConn vs Arizona', ${sql.json(outcomesJson)},
+                ${over.lock ?? LOCK}, ${over.status ?? "open"}, ${over.synced ?? SYNCED})`;
+    }
+    const allCalls = () =>
+      sql<{ side: string; instrument_symbol: string; odds_at_call: number | null; odds_source: string; status: string; post: string; ingest_lag_s: number }[]>`
+        select c.side, c.instrument_symbol, c.odds_at_call, c.odds_source, c.status, p.tweet_id as post, c.ingest_lag_s
+        from calls c join posts p on p.id = c.post_id order by c.tweeted_at`;
+
+    beforeAll(async () => {
+      await resetLocalDatabase(sql, url!);
+    });
+    beforeEach(async () => {
+      await sql`truncate calls, posts, markets, tails, users cascade`;
+      await addMarket(TICKER);
+    });
+
+    it("creates the user, the post and a priced call, and prices each side correctly", async () => {
+      await addMarket("OTHER");
+      const [r] = await run([
+        post({
+          picks: [
+            pick({ side: "yes" }),
+            pick({ geminiEventTicker: "OTHER", side: "no" }), // noOdds 0.4
+          ],
+        }),
+      ]);
+      expect(outcomes(r!)).toEqual(["created", "created"]);
+
+      const calls = await allCalls();
+      expect(calls).toHaveLength(2);
+      expect(calls[0]).toMatchObject({ side: "yes", odds_at_call: 0.62, odds_source: "snapshot", status: "pending", ingest_lag_s: 420 });
+      expect(calls[1]).toMatchObject({ side: "no", odds_at_call: 0.4 });
+
+      const [u] = await sql`select x_user_id, x_handle from users`;
+      expect(u).toMatchObject({ x_user_id: "u1", x_handle: "Tipster" });
+      const [p] = await sql`select sentiment from posts`;
+      expect(p!.sentiment).toEqual({ isPrediction: true, confidence: 0.9 });
+    });
+
+    it("derives the NO price from YES when the contract has no noOdds", async () => {
+      await run([post({ picks: [pick({ instrumentSymbol: "GEMI-ARI", side: "no" })] })]);
+      const [c] = await allCalls();
+      expect(c!.odds_at_call).toBeCloseTo(0.62);
+    });
+
+    it("stores the call unpriced when the sync was long before the tweet, or uses a supplied price", async () => {
+      await run([post({ tweetedAt: "2026-11-19T13:00:00Z" })]);
+      expect((await allCalls())[0]).toMatchObject({ odds_at_call: null, odds_source: "none" });
+
+      await sql`truncate calls, posts cascade`;
+      await run([post({ tweetedAt: "2026-11-19T13:00:00Z", picks: [pick({ oddsAtTweet: 0.55 })] })]);
+      expect((await allCalls())[0]).toMatchObject({ odds_at_call: 0.55, odds_source: "history" });
+    });
+
+    it("reports picks it cannot place, and stores the post regardless", async () => {
+      await addMarket("VOID", { status: "void" });
+      await addMarket("LOCKED", { lock: "2026-11-19T12:03:00Z" });
+      const [r] = await run([
+        post({
+          picks: [
+            pick({ geminiEventTicker: "MISSING" }),
+            pick({ geminiEventTicker: "VOID" }),
+            pick({ instrumentSymbol: "GEMI-NOPE" }),
+            pick({ geminiEventTicker: "LOCKED" }),
+          ],
+        }),
+      ]);
+      expect(outcomes(r!)).toEqual(["no_market", "market_void", "unknown_contract", "after_lock"]);
+      expect(await allCalls()).toHaveLength(0);
+      expect(await sql`select 1 from posts`).toHaveLength(1);
+    });
+
+    it("is safe to re-send: same post updates its call instead of adding one", async () => {
+      await run([post()]);
+      const [again] = await run([post()]);
+      expect(outcomes(again!)).toEqual(["updated"]);
+      expect(await allCalls()).toHaveLength(1);
+
+      // A corrected parse of the same tweet replaces the pick.
+      const [fixed] = await run([post({ picks: [pick({ instrumentSymbol: "GEMI-ARI", side: "yes" })] })]);
+      expect(outcomes(fixed!)).toEqual(["updated"]);
+      expect((await allCalls())[0]).toMatchObject({ instrument_symbol: "GEMI-ARI", post: "t1" });
+      expect(await sql`select 1 from posts`).toHaveLength(1);
+    });
+
+    it("keeps the earliest tweet: an earlier one replaces a later pending pick, a later one is a duplicate", async () => {
+      await run([post({ tweetId: "late", tweetedAt: "2026-11-19T12:08:00Z" })]);
+      const [early] = await run([post({ tweetId: "early", tweetedAt: "2026-11-19T12:01:00Z", picks: [pick({ side: "no" })] })]);
+      expect(outcomes(early!)).toEqual(["updated"]);
+      expect(await allCalls()).toMatchObject([{ post: "early", side: "no" }]);
+
+      const [later] = await run([post({ tweetId: "later", tweetedAt: "2026-11-19T12:09:00Z" })]);
+      expect(outcomes(later!)).toEqual(["skipped"].map(() => "duplicate_pick"));
+      expect(await allCalls()).toMatchObject([{ post: "early" }]);
+    });
+
+    it("never changes a call that has already been scored", async () => {
+      await run([post({ tweetId: "first", tweetedAt: "2026-11-19T12:05:00Z" })]);
+      await sql`update calls set status = 'scored'`;
+      const [r] = await run([post({ tweetId: "earlier", tweetedAt: "2026-11-19T12:01:00Z" })]);
+      expect(outcomes(r!)).toEqual(["duplicate_pick"]);
+      expect(await allCalls()).toMatchObject([{ post: "first", status: "scored" }]);
+    });
+
+    it("gives the same result when two requests race for the same market", async () => {
+      const results = await Promise.all([
+        run([post({ tweetId: "late", tweetedAt: "2026-11-19T12:08:00Z" })]),
+        run([post({ tweetId: "early", tweetedAt: "2026-11-19T12:01:00Z" })]),
+      ]);
+      expect(results.flat().every((r) => !r.error)).toBe(true);
+      expect(await allCalls()).toMatchObject([{ post: "early" }]); // exactly one call, the earlier tweet
+    });
+
+    it("refuses a tweet id that belongs to another user and leaves that user's data alone", async () => {
+      await run([post()]);
+      const [r] = await run([post({ xUserId: "u2", xHandle: "impostor" })]);
+      expect(r).toMatchObject({ postId: null, error: expect.stringContaining("another user") });
+      expect((await allCalls())[0]).toMatchObject({ post: "t1" });
+    });
+
+    it("follows a handle change, and rolls back a post that fails without affecting the others", async () => {
+      await run([post()]);
+      await run([post({ tweetId: "t2", xHandle: "Renamed" })]);
+      expect(await sql`select x_handle from users where x_user_id = 'u1'`).toMatchObject([{ x_handle: "Renamed" }]);
+
+      // u3 tries to take a handle that u1 owns: unique violation, so that whole post rolls back.
+      const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+      const results = await ingestPosts(store(), [
+        post({ tweetId: "t3", xUserId: "u3", xHandle: "renamed" }),
+        post({ tweetId: "t4", xUserId: "u4", xHandle: "Fine", picks: [] }),
+      ], now, () => {});
+      errors.mockRestore();
+      expect(results[0]).toMatchObject({ postId: null, error: "could not store post" });
+      expect(results[1]!.error).toBeUndefined();
+      expect(await sql`select 1 from users where x_user_id = 'u3'`).toHaveLength(0);
+      expect(await sql`select 1 from posts where tweet_id = 't3'`).toHaveLength(0);
     });
   });
 
