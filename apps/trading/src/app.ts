@@ -11,6 +11,7 @@ import {
 import { z } from "zod";
 import type { TradingStore } from "./store.js";
 import type { GeminiClient } from "./gemini.js";
+import { snapDown, formatToIncrement } from "./gemini.js";
 import { syncMarkets } from "./sync.js";
 
 /** Max allowed price movement between quotedOdds and live price before rejecting. */
@@ -155,30 +156,36 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
       return c.json({ error: "call is missing side (yes/no), cannot place live order" }, 422);
     }
 
-    // quantity = floor(amountUsdc / price) so we never overspend
-    const quantity = Math.floor(req.amountUsdc / entryOdds);
-    if (quantity < 1) {
+    // Size the order to the instrument's quantity increment so we never overspend
+    // and never send a quantity Gemini would reject.
+    const qtyIncrement = outcome.quantityIncrement ?? 0.01;
+    const qtyMinimum = outcome.quantityMinimum ?? qtyIncrement;
+    const priceIncrement = outcome.priceIncrement ?? 0.01;
+    const quantity = snapDown(req.amountUsdc / entryOdds, qtyIncrement);
+    if (quantity < qtyMinimum) {
       return c.json(
-        { error: "amount too small to buy even one contract at current odds" },
+        { error: "amount too small to buy the minimum quantity at current odds" },
         422,
       );
     }
 
     let geminiOrderId: string | null = null;
     let tailStatus: "open" | "filled" = "open";
+    let filledOdds = entryOdds;
 
     try {
       const order = await gemini.placeOrder({
         symbol: outcome.instrumentSymbol,
         side: "buy",
         outcome: call.side,
-        quantity: String(quantity),
-        price: entryOdds.toFixed(4),
+        quantity: formatToIncrement(quantity, qtyIncrement),
+        price: formatToIncrement(entryOdds, priceIncrement),
       });
       geminiOrderId = String(order.orderId);
       // IOC orders are either immediately filled or cancelled
-      tailStatus =
-        parseFloat(order.filledQuantity) > 0 ? "filled" : "open";
+      tailStatus = parseFloat(order.filledQuantity) > 0 ? "filled" : "open";
+      const avg = order.avgExecutionPrice ? parseFloat(order.avgExecutionPrice) : NaN;
+      if (Number.isFinite(avg) && avg > 0) filledOdds = avg;
     } catch (err) {
       return c.json({ error: `Gemini order failed: ${String(err)}` }, 502);
     }
@@ -188,7 +195,7 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
       callId: req.callId,
       mode: "live",
       amountUsdc: req.amountUsdc,
-      entryOdds,
+      entryOdds: filledOdds,
       geminiOrderId,
       status: tailStatus,
       pnlUsdc: null,
@@ -425,6 +432,9 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
     const copyTraders = await store.getActiveCopyTraders(call.userXHandle);
     if (call.side) {
       const side = call.side;
+      const qtyIncrement = outcome.quantityIncrement ?? 0.01;
+      const qtyMinimum = outcome.quantityMinimum ?? qtyIncrement;
+      const priceIncrement = outcome.priceIncrement ?? 0.01;
       const copyResults = await Promise.allSettled(
         copyTraders.map(async ({ followerId, amountUsdc }) => {
           // Claim first. Only the run that wins the claim may place an order for this follower.
@@ -441,10 +451,10 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
           });
           if (!tail) return false;
 
-          const quantity = Math.floor(amountUsdc / entryOdds);
-          if (quantity < 1) {
+          const quantity = snapDown(amountUsdc / entryOdds, qtyIncrement);
+          if (quantity < qtyMinimum) {
             await store.updateTail(tail.id, { status: "cancelled" });
-            throw new Error("amount too small to buy one contract at current odds");
+            throw new Error("amount too small to buy the minimum quantity at current odds");
           }
 
           let order;
@@ -453,8 +463,8 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
               symbol: outcome.instrumentSymbol,
               side: "buy",
               outcome: side,
-              quantity: String(quantity),
-              price: entryOdds.toFixed(4),
+              quantity: formatToIncrement(quantity, qtyIncrement),
+              price: formatToIncrement(entryOdds, priceIncrement),
             });
           } catch (err) {
             // No order was placed. The cancelled row stays, so this follower is not retried
@@ -463,10 +473,13 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
             throw err;
           }
 
+          const avg = order.avgExecutionPrice ? parseFloat(order.avgExecutionPrice) : NaN;
+          const filledOdds = Number.isFinite(avg) && avg > 0 ? avg : entryOdds;
           try {
             await store.updateTail(tail.id, {
               geminiOrderId: String(order.orderId),
               status: parseFloat(order.filledQuantity) > 0 ? "filled" : "open",
+              entryOdds: filledOdds,
             });
           } catch (err) {
             // The order exists on Gemini but the tail row was not updated. Say so loudly: this

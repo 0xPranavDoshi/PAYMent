@@ -202,6 +202,7 @@ export function createPostgresStore(sql: postgres.Sql): TradingStore {
       if (patch.geminiOrderId !== undefined) columns.gemini_order_id = patch.geminiOrderId;
       if (patch.status !== undefined) columns.status = patch.status;
       if (patch.pnlUsdc !== undefined) columns.pnl_usdc = patch.pnlUsdc;
+      if (patch.entryOdds !== undefined) columns.entry_odds = patch.entryOdds;
       if (Object.keys(columns).length === 0) return;
       await sql`update tails set ${sql(columns)} where id = ${tailId}`;
     },

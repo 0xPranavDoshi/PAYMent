@@ -24,6 +24,9 @@ export interface GeminiContract {
   expiryDate: string | null;
   resolutionSide: "yes" | "no" | null;
   resolvedAt: string | null;
+  priceIncrement?: string;
+  quantityIncrement?: string;
+  quantityMinimum?: string;
 }
 
 export interface GeminiEvent {
@@ -60,7 +63,16 @@ export interface GeminiOrder {
 }
 
 export class GeminiClient {
+  // Gemini rejects nonces that are not strictly increasing. All orders share one
+  // API key, so concurrent placeOrder calls must not collide on Date.now().
+  private lastNonce = 0;
+
   constructor(private cfg: GeminiConfig) {}
+
+  private nextNonce(): number {
+    this.lastNonce = Math.max(Date.now(), this.lastNonce + 1);
+    return this.lastNonce;
+  }
 
   async listSportsEvents(params?: {
     status?: string;
@@ -77,9 +89,9 @@ export class GeminiClient {
       throw new Error(`Gemini listEvents ${res.status}: ${await res.text()}`);
     }
     const data: unknown = await res.json();
-    return Array.isArray(data)
-      ? (data as GeminiEvent[])
-      : ((data as { events?: GeminiEvent[] }).events ?? []);
+    if (Array.isArray(data)) return data as GeminiEvent[];
+    const body = data as { data?: GeminiEvent[]; events?: GeminiEvent[] };
+    return body.data ?? body.events ?? [];
   }
 
   async getEvent(ticker: string): Promise<GeminiEvent> {
@@ -89,7 +101,8 @@ export class GeminiClient {
     if (!res.ok) {
       throw new Error(`Gemini getEvent ${res.status}: ${await res.text()}`);
     }
-    return res.json() as Promise<GeminiEvent>;
+    const data = (await res.json()) as GeminiEvent | { data?: GeminiEvent };
+    return (data as { data?: GeminiEvent }).data ?? (data as GeminiEvent);
   }
 
   async placeOrder(params: {
@@ -100,7 +113,7 @@ export class GeminiClient {
     price: string;
   }): Promise<GeminiOrder> {
     const endpoint = "/v1/prediction-markets/order";
-    const nonce = Date.now();
+    const nonce = this.nextNonce();
     const payload = {
       request: endpoint,
       nonce,
@@ -118,15 +131,18 @@ export class GeminiClient {
       .update(encodedPayload)
       .digest("hex");
 
+    // Gemini private endpoints carry the payload in the header, not the body.
+    // The body must be empty (Content-Length: 0).
     const res = await fetch(`${this.cfg.orderBaseUrl}${endpoint}`, {
       method: "POST",
       headers: {
         "Content-Type": "text/plain",
+        "Content-Length": "0",
+        "Cache-Control": "no-cache",
         "X-GEMINI-APIKEY": this.cfg.apiKey,
         "X-GEMINI-PAYLOAD": encodedPayload,
         "X-GEMINI-SIGNATURE": signature,
       },
-      body: encodedPayload,
     });
     if (!res.ok) {
       throw new Error(`Gemini placeOrder ${res.status}: ${await res.text()}`);
@@ -144,6 +160,12 @@ export function askPrice(
   return Number.isFinite(p) && p > 0 ? p : parseFloat(contract.prices.bestAsk);
 }
 
+function parsePositive(v: string | undefined): number | null {
+  if (v === undefined) return null;
+  const n = parseFloat(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 /** Convert a Gemini event contract into our OutcomeInfo shape. */
 export function contractToOutcome(contract: GeminiContract): OutcomeInfo {
   const noP = parseFloat(contract.prices.buy.no);
@@ -152,6 +174,28 @@ export function contractToOutcome(contract: GeminiContract): OutcomeInfo {
     instrumentSymbol: contract.instrumentSymbol,
     currentOdds: askPrice(contract, "yes"),
     noOdds: Number.isFinite(noP) && noP > 0 ? noP : null,
-    resolutionSide: contract.resolutionSide,
+    resolutionSide: contract.resolutionSide ?? null,
+    priceIncrement: parsePositive(contract.priceIncrement),
+    quantityIncrement: parsePositive(contract.quantityIncrement),
+    quantityMinimum: parsePositive(contract.quantityMinimum),
   };
+}
+
+/** Decimal places implied by an increment, e.g. 0.01 -> 2, 1 -> 0. */
+export function decimalPlaces(increment: number): number {
+  const str = String(increment);
+  const dot = str.indexOf(".");
+  return dot === -1 ? 0 : str.length - dot - 1;
+}
+
+/** Round a value down to the nearest multiple of `increment`. */
+export function snapDown(value: number, increment: number): number {
+  if (!Number.isFinite(increment) || increment <= 0) return value;
+  const snapped = Math.floor((value + 1e-9) / increment) * increment;
+  return parseFloat(snapped.toFixed(decimalPlaces(increment)));
+}
+
+/** Snap a value down to the increment and format it as a fixed-decimal string. */
+export function formatToIncrement(value: number, increment: number): string {
+  return snapDown(value, increment).toFixed(decimalPlaces(increment));
 }
