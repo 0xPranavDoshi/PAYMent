@@ -107,7 +107,9 @@ function Summary({
 
       <div className="stats">
         <div title="Wins and losses">
-          <b>{view.record}</b>
+          <b aria-label={view.record}>
+            <span className="w">{view.wins}</span>–<span className="l">{view.losses}</span>
+          </b>
           <span>Record</span>
         </div>
         <div>
@@ -115,7 +117,7 @@ function Summary({
           <span>Hit rate</span>
         </div>
         <div title="Average cents per $1 contract beyond the market price, shrunk for small samples">
-          <b>{view.edge}</b>
+          <b className={view.edgeTone === "none" ? undefined : view.edgeTone === "up" ? "w" : "l"}>{view.edge}</b>
           <span>Edge</span>
         </div>
       </div>

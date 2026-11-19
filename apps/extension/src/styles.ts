@@ -99,7 +99,9 @@ export const POPOVER_CSS = `
   .stats div { padding: 10px 0; }
   .stats div + div { padding-left: 12px; border-left: 1px solid var(--card-line); }
   .stats b { display: block; font: 700 15px/1.1 var(--font); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
-  .stats span { color: var(--ink-3); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+  .stats b .w, .stats b.w { color: var(--win); }
+  .stats b .l, .stats b.l { color: var(--coral); }
+  .stats > div > span { color: var(--ink-3); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 
   .actions { display: flex; gap: 8px; padding: 12px 16px 0; }
   .tbtn {

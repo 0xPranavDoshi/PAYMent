@@ -95,6 +95,9 @@ describe("profileView", () => {
     expect(profileView(profile(), now)).toMatchObject({
       gauge: 72,
       record: "29–13",
+      wins: 29,
+      losses: 13,
+      edgeTone: "up",
       hitRate: "69%",
       picks: "42",
       edge: "+11¢",
@@ -107,7 +110,7 @@ describe("profileView", () => {
 
   it("explains the New badge and leaves the ring empty and the edge blank", () => {
     const view = profileView(profile({ tier: "new", nResolved: 2, nWins: 1, hitRate: 0.5, skill: 0.3 }), now);
-    expect(view).toMatchObject({ gauge: null, record: "1–1", edge: "–", note: "A score appears after 5 resolved picks." });
+    expect(view).toMatchObject({ gauge: null, record: "1–1", edge: "–", edgeTone: "none", note: "A score appears after 5 resolved picks." });
     expect(view.badge.text).toBe("New");
   });
 

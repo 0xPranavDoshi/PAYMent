@@ -61,12 +61,16 @@ export interface ProfileView {
   badge: BadgeView;
   /** The score for the ring, or null for a user still on the New badge. */
   gauge: number | null;
-  /** Wins and losses, "29–13". */
+  /** Wins and losses, "29–13", and each count on its own so they can be coloured. */
   record: string;
+  wins: number;
+  losses: number;
   hitRate: string;
   picks: string;
   /** Average cents per $1 contract beyond the market price, shrunk for small samples, "+11¢". */
   edge: string;
+  /** Green for a positive edge, red for a negative one, plain when it rounds to zero or there is none. */
+  edgeTone: "up" | "down" | "none";
   /** The 14-day change as a chip, or null when there is none worth showing. */
   delta: { direction: "up" | "down"; text: string } | null;
   lastPick: string | null;
@@ -81,9 +85,12 @@ export function profileView(profile: UserProfile, now: Date = new Date()): Profi
     badge,
     gauge: isNew ? null : profile.score,
     record: `${profile.nWins}–${profile.nResolved - profile.nWins}`,
+    wins: profile.nWins,
+    losses: profile.nResolved - profile.nWins,
     hitRate: profile.hitRate === null ? "–" : `${Math.round(profile.hitRate * 100)}%`,
     picks: String(profile.nResolved),
     edge: isNew ? "–" : formatCents(profile.skill),
+    edgeTone: isNew || Math.round(profile.skill * 100) === 0 ? "none" : profile.skill > 0 ? "up" : "down",
     delta: badge.arrow
       ? { direction: badge.arrow.direction, text: `${badge.arrow.direction === "up" ? "▲" : "▼"} ${badge.arrow.amount} in 14 days` }
       : null,
