@@ -105,12 +105,23 @@ export function createKalshiClient(
     return null;
   }
 
+  /** Lookups in progress, so picks priced in parallel on the same game share one request. */
+  const pending = new Map<string, Promise<unknown>>();
   async function cached<T>(key: string, ttlMs: number, load: () => Promise<T | null>): Promise<T | null> {
     const hit = cache.get(key);
     if (hit && hit.expiresAt > now()) return hit.value as T;
-    const value = await load();
-    if (value !== null) cache.set(key, { value, expiresAt: now() + ttlMs });
-    return value;
+    const running = pending.get(key);
+    if (running) return running as Promise<T | null>;
+    const run = load().then((value) => {
+      if (value !== null) cache.set(key, { value, expiresAt: now() + ttlMs });
+      return value;
+    });
+    pending.set(key, run);
+    try {
+      return await run;
+    } finally {
+      pending.delete(key);
+    }
   }
 
   /** The event by Gemini's own team codes (they often match Kalshi's), confirmed by its title's teams. */

@@ -163,13 +163,13 @@ describe("matchPrediction", () => {
         },
       ],
     });
-    const r = await matchPrediction(pred({ betType: "spread", claim: "covers", line: 7 }), 0, TWEET, {
+    const r = await matchPrediction(pred({ betType: "spread", claim: "covers", line: 4.5 }), 0, TWEET, {
       gemini: gemini(g),
       grok,
     });
     expect(r).toMatchObject({
       status: "matched",
-      reason: "spread 4.5 <= 7",
+      reason: "spread 4.5",
       geminiEventTicker: "S",
       gameTicker: "G",
       marketStatus: "open",

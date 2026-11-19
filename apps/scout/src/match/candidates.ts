@@ -27,6 +27,16 @@ export function aliasRank(alias: string, p: Participant): number {
   return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, "u").test(name) ? 1 : 0;
 }
 
+/** True when one of the team's names (3+ characters) appears as whole words in the text, ignoring case. */
+export function namedIn(team: TeamRef, text: string): boolean {
+  const t = norm(text);
+  return aliasesOf(team).some((a) => {
+    if (a.length < 3) return false;
+    const escaped = a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, "u").test(t);
+  });
+}
+
 /** The best rank any of the team's aliases reaches on this participant. */
 export function teamRank(team: TeamRef, p: Participant): number {
   return Math.max(0, ...aliasesOf(team).map((a) => aliasRank(a, p)));
@@ -83,9 +93,14 @@ export function pickGame(events: GeminiEvent[], p: Prediction, tweetedAt: Date):
   }
 
   // A named opponent narrows the search, but Grok sometimes names another parlay leg's team: when no
-  // game has both, fall back to the team alone.
+  // game has both, fall back to the team alone. Not when the pick's own words name the opponent, though:
+  // then that game is the one meant, and it isn't ahead (e.g. a recap, "Chargers 23, Ravens 20"), so
+  // the team's next game would be a pick nobody made.
   let matches = matchingEvents(games, p);
-  if (matches.length === 0 && p.opponent) matches = matchingEvents(games, { ...p, opponent: null });
+  if (matches.length === 0 && p.opponent) {
+    if (namedIn(p.opponent, p.quote)) return { game: null, reason: NO_GAME_REASON };
+    matches = matchingEvents(games, { ...p, opponent: null });
+  }
 
   let best: { event: GeminiEvent; start: number } | null = null;
   for (const e of matches) {

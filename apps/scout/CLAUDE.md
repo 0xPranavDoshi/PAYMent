@@ -153,6 +153,19 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
   - A recent retweet can't trigger a fetch, but the next original post does, and the top-up then fetches everything since the last fetch.
 - **Not verified live on x.com yet:** the timestamp-link selector is based on X's current markup and covered by unit tests only.
 
+### @Pickswise test fixes (Nov 19)
+Adi's first scan of @Pickswise: 98 posts, 18 predictions, 15 picks forwarded, score 64 (12 resolved, 7 wins). Three problems:
+- **Badge never appeared:** the scan took ~2 min, but the extension stopped waiting after 90 s (`POLL_FOR_MS`) and showed nothing. Now 4 min.
+  - Forwarding was 22 s of it (measured on the 14 posts against real Gemini/Kalshi). Posts are now priced 4 at a time, and Kalshi lookups in flight are shared.
+  - The rest is Apify + Grok reading 98 posts; not yet split out (needs the scan's timing line).
+- **A recap became a pick:** "Chargers 23, Ravens 20. Los Angeles gets its first win of 2026." Grok read it as "Chargers win" (0.85), and the matcher, finding no Chargers–Ravens game ahead, dropped the opponent and took the Chargers' next game (vs Jets).
+  - **Prompt:** a final score or past-tense result is a recap. Tested on real Grok: 10/10 (3 recaps rejected, 7 real picks unchanged, including a 3-leg parlay).
+  - **Code:** the opponent fallback only applies when the pick's own quote doesn't name the opponent (`namedIn` in `match/candidates.ts`). That's the case for Grok-invented parlay opponents; a recap names its opponent.
+- **Wrong line (team decision, Pranav):** "Grambling St +37.5" matched the 40.5 line under the old nearest-implied-line rule. **Now only the exact line matches**; otherwise no match.
+  - The one exception is a written "N+" ("30+ points"), the same bet as over N−0.5 for whole-number stats.
+  - "Over 30" or "Lakers by 7" (a whole number, which pushes) no longer match, since Gemini's ladders are .5 lines.
+  - Stored rows made under the old rule: 4 of 27 line picks used a different line, all forwarded: Booker u23.5 → 24.5, total 44 → 44.5, Adebayo o17.5 → 14.5, Grambling +37.5 → 40.5.
+
 ## Open questions for the team (block turning forwarding on)
 - ~~**Gemini environment**~~ **resolved on main:** market data reads production (`GEMINI_READ_BASE_URL`), and orders go to the sandbox.
 - **Lock time: decided (Pranav, Nov 18). `markets.lock_time` = the market's `expiryDate`**, written the same way by the scout's upsert and by the trading sync (`apps/trading/src/sync.ts` `lockTimeFor`, changed in this branch).

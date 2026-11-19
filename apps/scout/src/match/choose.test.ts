@@ -149,11 +149,18 @@ describe("subEventFor", () => {
 });
 
 describe("chooseLine", () => {
-  it("Lakers by 7 -> 4.5 yes (largest v <= 7)", async () => {
-    const r = await chooseLine(spreadEv, game, pred({ line: 7 }), noGrok());
+  it("only the exact line: Lakers by 7 with lines 1.5/4.5/7.5 -> no match (any other line is a different bet)", async () => {
+    expect(await chooseLine(spreadEv, game, pred({ line: 7 }), noGrok())).toBeNull();
+    const r = await chooseLine(spreadEv, game, pred({ line: 4.5 }), noGrok());
     expect(r?.contract.strike?.value).toBe("4.5");
     expect(r?.contract.label).toContain("Lakers");
-    expect(r?.side).toBe("yes");
+    expect(r).toMatchObject({ side: "yes", detail: "spread 4.5" });
+  });
+
+  it("an underdog line the ladder doesn't have is dropped, not moved to the next line (+37.5 never becomes +40.5)", async () => {
+    // Real @Pickswise leg: "Grambling St +37.5"; Gemini listed the favorite's 34.5 and 40.5 lines only.
+    const sub = ev({ ticker: "S9", contracts: [spreadC("Hornets", "34.5"), spreadC("Hornets", "40.5")] });
+    expect(await chooseLine(sub, game, pred({ claim: "loses", line: 37.5 }), noGrok())).toBeNull();
   });
 
   it("covers 5.5 with a 5.5 line includes equality", async () => {
@@ -163,35 +170,37 @@ describe("chooseLine", () => {
     expect(r?.side).toBe("yes");
   });
 
-  it("over 220 on totals -> 219.5 yes", async () => {
+  it("totals: over 219.5 -> 219.5 yes; over 220 has no 220 line -> no match", async () => {
     const sub = ev({
       ticker: "T2",
       contracts: [totalC("215.5"), totalC("219.5"), totalC("224.5")],
     });
-    const r = await chooseLine(sub, game, pred({ betType: "total", claim: "over", line: 220 }), noGrok());
+    const r = await chooseLine(sub, game, pred({ betType: "total", claim: "over", line: 219.5 }), noGrok());
     expect(r?.contract.strike?.value).toBe("219.5");
     expect(r?.side).toBe("yes");
+    expect(await chooseLine(sub, game, pred({ betType: "total", claim: "over", line: 220 }), noGrok())).toBeNull();
   });
 
-  it("under 140 on totals -> 140.5 no", async () => {
+  it("under 140.5 on totals -> 140.5 no; under 140 -> no match", async () => {
     const sub = ev({
       ticker: "T3",
       contracts: [totalC("134.5"), totalC("140.5"), totalC("143.5")],
     });
-    const r = await chooseLine(sub, game, pred({ betType: "total", claim: "under", line: 140 }), noGrok());
+    const r = await chooseLine(sub, game, pred({ betType: "total", claim: "under", line: 140.5 }), noGrok());
     expect(r?.contract.strike?.value).toBe("140.5");
     expect(r?.side).toBe("no");
+    expect(await chooseLine(sub, game, pred({ betType: "total", claim: "under", line: 140 }), noGrok())).toBeNull();
   });
 
-  it("LeBron 30+ -> 29.5 yes", async () => {
-    const r = await chooseLine(
-      propEv,
-      game,
-      pred({ betType: "player_prop", player: "lebron james", metric: "points", claim: "over", line: 30 }),
-      noGrok(),
-    );
+  it('LeBron "30+" -> 29.5 yes (the same bet for whole-number stats); "over 30" -> no match', async () => {
+    const lebron = { betType: "player_prop" as const, player: "lebron james", metric: "points", claim: "over" as const, line: 30 };
+    const r = await chooseLine(propEv, game, pred({ ...lebron, lineAsWritten: "30+" }), noGrok());
     expect(r?.contract.strike?.value).toBe("29.5");
     expect(r?.side).toBe("yes");
+    expect(await chooseLine(propEv, game, pred({ ...lebron, lineAsWritten: "over 30" }), noGrok())).toBeNull();
+    expect(await chooseLine(propEv, game, pred({ ...lebron, line: 29.5, lineAsWritten: "o29.5" }), noGrok())).toMatchObject({
+      contract: { strike: { value: "29.5" } },
+    });
   });
 
   it("underdog +4.5 (loses) uses the opponent's 4.5 spread, no", async () => {
@@ -253,11 +262,11 @@ describe("chooseLine", () => {
   });
 
   it("a negative spread line with claim covers behaves like the positive line", async () => {
-    const r = await chooseLine(spreadEv, game, pred({ line: -7 }), noGrok());
+    const r = await chooseLine(spreadEv, game, pred({ line: -7.5 }), noGrok());
     expect(r?.contract.label).toContain("Lakers");
-    expect(r?.contract.strike?.value).toBe("4.5");
+    expect(r?.contract.strike?.value).toBe("7.5");
     expect(r?.side).toBe("yes");
-    expect(r?.detail).toBe("spread 4.5 <= 7");
+    expect(r?.detail).toBe("spread 7.5");
   });
 
   it("spread: a rivalry where the alias only contains-matches both teams -> null", async () => {
@@ -305,12 +314,12 @@ describe("chooseLine", () => {
     const r = await chooseLine(
       sub,
       game,
-      pred({ betType: "player_prop", player: "Jaylen Smith", metric: "points", claim: "over", line: 30 }),
+      pred({ betType: "player_prop", player: "Jaylen Smith", metric: "points", claim: "over", line: 29, lineAsWritten: "29+" }),
       grok,
     );
     expect(grok.json).toHaveBeenCalledTimes(1);
     expect(r?.contract.instrumentSymbol).toBe("GEMI-X-2");
-    expect(r?.detail).toBe("prop 28.5 <= 30 (via grok)");
+    expect(r?.detail).toBe("prop 28.5 (via grok)");
   });
 
   it("grok fallback symbols spanning two players -> null", async () => {
@@ -345,34 +354,35 @@ describe("chooseLine", () => {
     const spreadSub = ev({
       ticker: "S6",
       contracts: [
-        c("S-OVER", "Lakers 6.5", { abbreviatedName: "Lakers", strike: { type: "over", value: "6.5" } }),
+        c("S-OVER", "Lakers 4.5", { abbreviatedName: "Lakers", strike: { type: "over", value: "4.5" } }),
         spreadC("Lakers", "4.5"),
       ],
     });
-    const s = await chooseLine(spreadSub, game, pred({ line: 7 }), noGrok());
-    expect(s?.contract.strike?.value).toBe("4.5");
+    const s = await chooseLine(spreadSub, game, pred({ line: 4.5 }), noGrok());
+    expect(s?.contract.instrumentSymbol).not.toBe("S-OVER");
+    expect(s?.contract.strike).toEqual({ type: "spread", value: "4.5" });
 
     const totalSub = ev({
       ticker: "T6",
-      contracts: [c("T-UNDER", "Under 219.5", { strike: { type: "under", value: "219.5" } }), totalC("215.5")],
+      contracts: [c("T-UNDER", "Under 215.5", { strike: { type: "under", value: "215.5" } }), totalC("215.5")],
     });
-    const t = await chooseLine(totalSub, game, pred({ betType: "total", claim: "over", line: 220 }), noGrok());
-    expect(t?.contract.strike?.value).toBe("215.5");
+    const t = await chooseLine(totalSub, game, pred({ betType: "total", claim: "over", line: 215.5 }), noGrok());
+    expect(t?.contract.strike).toEqual({ type: "over", value: "215.5" });
 
     const propSub = ev({
       ticker: "P6",
       contracts: [
-        c("P-SPREAD", "LeBron James 30+", { target: { name: "LeBron James" }, strike: { type: "spread", value: "29.5" } }),
+        c("P-SPREAD", "LeBron James 25+", { target: { name: "LeBron James" }, strike: { type: "spread", value: "24.5" } }),
         propC("LeBron James", "24.5"),
       ],
     });
     const prop = await chooseLine(
       propSub,
       game,
-      pred({ betType: "player_prop", player: "LeBron James", metric: "points", claim: "over", line: 30 }),
+      pred({ betType: "player_prop", player: "LeBron James", metric: "points", claim: "over", line: 24.5 }),
       noGrok(),
     );
-    expect(prop?.contract.strike?.value).toBe("24.5");
+    expect(prop?.contract.strike).toEqual({ type: "over", value: "24.5" });
   });
 
   it("grok fallback symbol outside the list -> null (schema is an enum of the sub-event symbols)", async () => {
