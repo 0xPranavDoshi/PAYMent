@@ -6,7 +6,7 @@ import type { RawPost } from "../posts/source.js";
 /** Small batches: posts like ActionNetwork write-ups are long, and accuracy drops as batches grow. */
 export const READ_BATCH_SIZE = 5;
 /** Batches read at the same time (keeps a 100-post scan well inside the 90 s poll window). */
-export const READ_CONCURRENCY = 4;
+export const READ_CONCURRENCY = 8;
 
 const BatchOutput = z.object({
   results: z.array(

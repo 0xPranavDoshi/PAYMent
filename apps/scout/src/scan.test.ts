@@ -89,14 +89,33 @@ function setup(opts: {
     (opts.accepted ?? ((ids: string[]) => ids))(posts.map((p) => p.tweetId)),
   );
   const forwarder = { forward } as unknown as Forwarder;
+  const logs: string[] = [];
   const run = async (handle = "bob") => {
     await store.tryLock(handle, NOW);
-    await runScan(handle, { store, source, grok, gemini, forwarder, model: "m", now: () => NOW, log: () => {} });
+    await runScan(handle, {
+      store,
+      source,
+      grok,
+      gemini,
+      forwarder,
+      model: "m",
+      now: () => NOW,
+      log: (m) => logs.push(m),
+    });
   };
-  return { store, fetchPosts, seenByGrok, searchGames, forward, run, source };
+  return { store, fetchPosts, seenByGrok, searchGames, forward, run, source, logs };
 }
 
 describe("runScan", () => {
+  it("logs one timing line per scan with each stage's duration and counts", async () => {
+    const t = setup({ posts: [raw("1")], sentiments: { "1": nonPrediction() } });
+    await t.run();
+    const line = t.logs.find((l) => l.startsWith("[scout] scan @bob:"));
+    expect(line).toMatch(
+      /fetch \d+\.\ds \(1 fetched, 1 to process\), read \d+\.\ds \(1 posts\), match \d+\.\ds \(0 predictions in 0 posts\), save\+forward \d+\.\ds, total \d+\.\ds/,
+    );
+  });
+
   it("first scan fetches 100 with no sinceId; top-ups fetch 20 since newestTweetId", async () => {
     const t = setup({ posts: [raw("5"), raw("9")], sentiments: { "5": nonPrediction(), "9": nonPrediction() } });
     await t.run();

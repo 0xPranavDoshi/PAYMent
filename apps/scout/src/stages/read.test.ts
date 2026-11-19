@@ -38,7 +38,7 @@ describe("readPosts", () => {
   });
 
   it("keeps at most READ_CONCURRENCY batches in flight", async () => {
-    expect(READ_CONCURRENCY).toBe(4);
+    expect(READ_CONCURRENCY).toBe(8);
     let inFlight = 0;
     let peak = 0;
     const grok = {
@@ -50,9 +50,9 @@ describe("readPosts", () => {
         return { results: [...user.matchAll(/id\d+/g)].map((m) => verdict(m[0])) };
       }),
     } as unknown as Grok;
-    const out = await readPosts(posts(40), grok, "m");
-    expect(peak).toBe(4);
-    expect(grok.json).toHaveBeenCalledTimes(8);
+    const out = await readPosts(posts(60), grok, "m");
+    expect(peak).toBe(8);
+    expect(grok.json).toHaveBeenCalledTimes(12);
     expect([...out.values()].every((s) => s !== null)).toBe(true);
   });
 

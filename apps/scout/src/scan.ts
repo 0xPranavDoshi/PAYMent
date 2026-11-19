@@ -23,6 +23,8 @@ const FIRST_SCAN_LIMIT = 100;
 const TOP_UP_LIMIT = 20;
 /** A post with no game found yet is retried on later scans until it is this old. */
 const NO_GAME_RETRY_MS = 8 * 24 * 60 * 60 * 1000;
+/** Posts matched at the same time. */
+const MATCH_CONCURRENCY = 6;
 /** no_market reasons that may change on a later scan (Gemini lists games and sub-markets late). */
 const RETRYABLE_REASONS = new Set([NO_GAME_REASON, NO_SUB_MARKETS_REASON]);
 
@@ -66,6 +68,7 @@ export async function runScan(handle: string, deps: ScanDeps): Promise<void> {
   const { store, source, grok, gemini, forwarder, model } = deps;
   const now = deps.now ?? (() => new Date());
   const log = deps.log ?? ((msg: string) => console.log(msg));
+  const tStart = performance.now();
   try {
     const previous = await store.getHandle(handle);
     const sinceId = previous?.newestTweetId ?? undefined;
@@ -95,21 +98,25 @@ export async function runScan(handle: string, deps: ScanDeps): Promise<void> {
       rows.set(r.tweetId, r);
     }
 
+    const tFetched = performance.now();
+
     const toRead = [...rows.values()].filter((r) => r.sentiment === null);
     if (toRead.length > 0) {
       const read = await readPosts(toRead.map(toRaw), grok, model);
       for (const r of toRead) r.sentiment = read.get(r.tweetId) ?? null;
     }
+    const tRead = performance.now();
 
+    const toMatch: ScoutPostRow[] = [];
     for (const row of rows.values()) {
       if (row.sentiment === null || row.matches !== null) continue;
-      if (!countsAsPrediction(row.sentiment)) {
-        row.matches = [];
-        continue;
-      }
+      if (countsAsPrediction(row.sentiment)) toMatch.push(row);
+      else row.matches = [];
+    }
+    const matchRow = async (row: ScoutPostRow): Promise<void> => {
       try {
         const matches: PickMatch[] = [];
-        for (const [i, p] of row.sentiment.predictions.entries()) {
+        for (const [i, p] of row.sentiment!.predictions.entries()) {
           matches.push(await matchPrediction(p, i, row.tweetedAt, { gemini, grok }));
         }
         // Gemini may not have listed the game (or its sub-markets) yet: keep the post pending while the
@@ -122,7 +129,15 @@ export async function runScan(handle: string, deps: ScanDeps): Promise<void> {
       } catch (e) {
         log(`[scout] matching failed for tweet ${row.tweetId}, will retry: ${errMsg(e)}`);
       }
-    }
+    };
+    // A small worker pool: identical Gemini searches in flight are shared, so parallel posts mostly
+    // hit the same few league/day lookups.
+    let nextRow = 0;
+    const worker = async () => {
+      while (nextRow < toMatch.length) await matchRow(toMatch[nextRow++]!);
+    };
+    await Promise.all(Array.from({ length: Math.min(MATCH_CONCURRENCY, toMatch.length) }, worker));
+    const tMatched = performance.now();
 
     await store.upsertPosts([...rows.values()]);
 
@@ -139,6 +154,14 @@ export async function runScan(handle: string, deps: ScanDeps): Promise<void> {
       xUserId: fetched[0]?.xUserId ?? null,
       now: now(),
     });
+    const tDone = performance.now();
+    const s = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
+    const predictions = toMatch.reduce((n, r) => n + (r.sentiment?.predictions.length ?? 0), 0);
+    log(
+      `[scout] scan @${handle}: fetch ${s(tFetched - tStart)} (${fetched.length} fetched, ${rows.size} to process), ` +
+        `read ${s(tRead - tFetched)} (${toRead.length} posts), match ${s(tMatched - tRead)} ` +
+        `(${predictions} predictions in ${toMatch.length} posts), save+forward ${s(tDone - tMatched)}, total ${s(tDone - tStart)}`,
+    );
   } catch (e) {
     await store.failScan(handle, errMsg(e));
   }
