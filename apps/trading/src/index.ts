@@ -13,12 +13,18 @@ const {
   GEMINI_ORDER_BASE_URL = "https://api.sandbox.gemini.com",
   TRADING_SERVICE_KEY,
   TRADING_PORT = "8788",
+  // "paper" (default) simulates copy trades; "live" places real orders (only where the
+  // order venue has the market — the Gemini sandbox has no sports, so keep this "paper").
+  COPY_TRADE_MODE = "paper",
 } = process.env;
 
 if (!DATABASE_URL) throw new Error("DATABASE_URL is required");
 if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is required");
 if (!GEMINI_API_SECRET) throw new Error("GEMINI_API_SECRET is required");
 if (!TRADING_SERVICE_KEY) throw new Error("TRADING_SERVICE_KEY is required");
+if (COPY_TRADE_MODE !== "paper" && COPY_TRADE_MODE !== "live") {
+  throw new Error(`COPY_TRADE_MODE must be "paper" or "live", got "${COPY_TRADE_MODE}"`);
+}
 
 const sql = postgres(DATABASE_URL, { max: 10 });
 const store = createPostgresStore(sql);
@@ -29,7 +35,12 @@ const gemini = new GeminiClient({
   orderBaseUrl: GEMINI_ORDER_BASE_URL,
 });
 
-const app = createApp({ store, gemini, serviceKey: TRADING_SERVICE_KEY });
+const app = createApp({
+  store,
+  gemini,
+  serviceKey: TRADING_SERVICE_KEY,
+  copyTradeMode: COPY_TRADE_MODE,
+});
 
 const SYNC_INTERVAL_MS = 5 * 60 * 1000;
 

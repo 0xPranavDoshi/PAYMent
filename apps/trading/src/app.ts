@@ -18,10 +18,19 @@ import { syncMarkets } from "./sync.js";
 /** Max allowed price movement between quotedOdds and live price before rejecting. */
 const MAX_SLIPPAGE = 0.05;
 
+export type CopyTradeMode = "paper" | "live";
+
 export interface AppDeps {
   store: TradingStore;
   gemini: GeminiClient;
   serviceKey: string;
+  /**
+   * How copy trades are executed when a pick arrives. "paper" simulates at the
+   * follower's configured size (the only option that works where the order venue
+   * has no market, e.g. the Gemini sandbox has no sports). "live" places a real
+   * order. Defaults to "paper".
+   */
+  copyTradeMode?: CopyTradeMode;
 }
 
 /** Middleware that guards service-only routes with a static key header. */
@@ -37,7 +46,7 @@ function requireServiceKey(key: string) {
   };
 }
 
-export function createApp({ store, gemini, serviceKey }: AppDeps) {
+export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }: AppDeps) {
   const app = new Hono();
 
   // ── Health ────────────────────────────────────────────────────────────────
@@ -363,7 +372,8 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
 
   /**
    * Called by the ingest worker when a new call is recorded. Auto-places $1
-   * paper tails for watchers and configurable live orders for copy-traders.
+   * paper tails for watchers and copy tails for copy-traders at their configured
+   * size — simulated (paper) by default, or real orders when copyTradeMode is "live".
    */
   app.post("/v1/calls/notify", requireServiceKey(serviceKey), async (c) => {
     let body: unknown;
@@ -439,10 +449,33 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
       else alreadyNotified += 1;
     }
 
-    // Copy traders: live orders (needs a side)
+    // Copy traders: paper simulation at the configured size by default; real orders only when
+    // copyTradeMode is "live" (which needs a side and an order venue that has the market).
     let copyTails = 0;
     const copyTraders = await store.getActiveCopyTraders(call.userXHandle);
-    if (call.side) {
+    if (copyTraders.length > 0 && copyTradeMode === "paper") {
+      const copyResults = await Promise.allSettled(
+        copyTraders.map(async ({ followerId, amountUsdc }) => {
+          const tail = await store.claimAutoTail({
+            followerId,
+            callId: call.id,
+            mode: "paper",
+            amountUsdc,
+            entryOdds,
+            geminiOrderId: null,
+            status: "open",
+            pnlUsdc: null,
+            source: "copy",
+          });
+          return tail !== null;
+        }),
+      );
+      for (const r of copyResults) {
+        if (r.status === "rejected") errors.push(`copy: ${String(r.reason)}`);
+        else if (r.value) copyTails += 1;
+        else alreadyNotified += 1;
+      }
+    } else if (copyTraders.length > 0 && call.side) {
       const side = call.side;
       const qtyIncrement = outcome.quantityIncrement ?? 0.01;
       const qtyMinimum = outcome.quantityMinimum ?? qtyIncrement;
