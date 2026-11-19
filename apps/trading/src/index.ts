@@ -3,6 +3,7 @@ import postgres from "postgres";
 import { createApp } from "./app.js";
 import { createPostgresStore } from "./store.postgres.js";
 import { GeminiClient } from "./gemini.js";
+import { syncMarkets } from "./sync.js";
 
 const {
   DATABASE_URL,
@@ -29,6 +30,26 @@ const gemini = new GeminiClient({
 });
 
 const app = createApp({ store, gemini, serviceKey: TRADING_SERVICE_KEY });
+
+const SYNC_INTERVAL_MS = 5 * 60 * 1000;
+
+async function runSync() {
+  console.log("[sync] starting market sync");
+  try {
+    const result = await syncMarkets(gemini, store);
+    console.log(`[sync] upserted ${result.upserted} markets, ${result.errors.length} errors`);
+    if (result.errors.length > 0) console.warn("[sync] errors:", result.errors);
+  } catch (err) {
+    console.error("[sync] market sync crashed:", err);
+  }
+}
+
+setTimeout(() => {
+  void runSync();
+  setInterval(() => {
+    void runSync();
+  }, SYNC_INTERVAL_MS);
+}, 15_000);
 
 const port = parseInt(TRADING_PORT, 10);
 console.log(`trading service listening on :${port}`);

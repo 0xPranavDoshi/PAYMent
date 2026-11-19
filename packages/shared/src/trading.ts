@@ -51,3 +51,24 @@ export const MarketSummary = z.object({
   winningOutcome: z.string().nullable(),
 });
 export type MarketSummary = z.infer<typeof MarketSummary>;
+
+// ── Watch / Copy Trade ───────────────────────────────────────────────────────
+
+export const WatchItem = z.object({
+  traderHandle: z.string(),
+  watchedAt: z.string().datetime(),
+  nPicks: z.number().int().nonnegative(),
+  paperPnlUsdc: z.number().nullable(),
+  activePicks: z.number().int().nonnegative(),
+});
+export type WatchItem = z.infer<typeof WatchItem>;
+
+export const CopyTradeConfig = z.object({
+  traderHandle: z.string(),
+  amountUsdc: z.number().positive(),
+  active: z.boolean(),
+  createdAt: z.string().datetime(),
+  nTrades: z.number().int().nonnegative(),
+  livePnlUsdc: z.number().nullable(),
+});
+export type CopyTradeConfig = z.infer<typeof CopyTradeConfig>;

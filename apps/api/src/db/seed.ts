@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import {
   callPoints,
   computeUserScore,
@@ -6,6 +6,7 @@ import {
   type ResolvedCall,
 } from "@copayme/shared";
 import type postgres from "postgres";
+import { inputsHash } from "../worker.js";
 
 /**
  * Demo users for local development and the demo. Handles start with demo_ so they can
@@ -42,11 +43,6 @@ function makeCalls(user: DemoUser): ResolvedCall[] {
     oddsAtCall: user.oddsPool[i % user.oddsPool.length]!,
     won: ((i * 7) % 10) / 10 < user.winRate,
   }));
-}
-
-function inputsHash(entries: { id: string; points: number }[]): string {
-  const lines = entries.map((e) => `${e.id}:${e.points}`).sort();
-  return createHash("sha256").update(lines.join("\n")).digest("hex");
 }
 
 export async function seedDemoData(sql: postgres.Sql, now: Date = new Date()) {
