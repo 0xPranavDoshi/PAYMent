@@ -23,14 +23,11 @@ export default async function Home() {
   const calls = at >= 0 ? found[at]! : [];
   const profile = lead ? await fetchTraderProfile(lead.handle).catch(() => null) : null;
   const movers = [...scored].filter((e) => formatChange(e.change14d)).sort((a, b) => Math.abs(b.change14d ?? 0) - Math.abs(a.change14d ?? 0)).slice(0, 5);
-  const picks = board.reduce((s, e) => s + e.nResolved, 0);
 
   return (
     <Page>
       <div className="strap">
         <h1>Every pick on X, scored against the market.</h1>
-        <p>{board.length > 0 ? `${board.length} traders and ${picks} settled picks, ` : ""}each priced at the moment it was tweeted.</p>
-        <Link href="/how-scoring" className="btn sm" style={{ marginTop: 16 }}>How scoring works →</Link>
       </div>
 
       {board.length === 0 ? (

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
-import Link from "next/link";
 import "./globals.css";
 import Nav from "@/components/Nav";
 
@@ -21,7 +20,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="container">
             <span>coPAYMe</span>
             <span className="muted">Scores are measured against market odds. Copy trades are simulated.</span>
-            <Link href="/how-scoring" className="muted">How scoring works</Link>
           </div>
         </footer>
       </body>
