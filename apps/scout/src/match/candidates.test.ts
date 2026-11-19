@@ -143,11 +143,17 @@ describe("pickGame", () => {
     expect(pick([lakersGame(at(1000))], pred(["Laker"]))).toBeNull();
   });
 
-  it("requires both teams when an opponent is named", () => {
+  it("prefers the game with the named opponent over an earlier one without it", () => {
+    const vsCeltics = game({ ticker: "EARLY", startTime: at(100), home: ["Los Angeles Lakers", "LAL"], away: ["Boston Celtics", "BOS"] });
+    const vsHornets = lakersGame(at(1000), "LATER");
+    expect(pick([vsCeltics, vsHornets], pred(["Lakers"], ["Hornets"]))?.ticker).toBe("LATER");
+  });
+
+  it("treats the opponent as a hint: with no game against it, falls back to the team alone (parlay legs)", () => {
+    // Grok named another parlay leg's team (Celtics) as the opponent; the Lakers' real game is vs Hornets.
     const g = lakersGame(at(1000));
-    expect(pick([g], pred(["Lakers"], ["Hornets"]))).not.toBeNull();
-    expect(pick([g], pred(["Lakers"], ["Celtics"]))).toBeNull();
-    expect(pick([g], pred(["Lakers"], ["Lakers"]))).toBeNull();
+    expect(pick([g], pred(["Lakers"], ["Celtics"]))?.ticker).toBe("G1");
+    expect(pick([g], pred(["Lakers"], ["Lakers"]))?.ticker).toBe("G1");
   });
 
   it("ignores events whose template is not sports-game", () => {

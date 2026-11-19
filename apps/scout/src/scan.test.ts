@@ -148,7 +148,7 @@ describe("runScan", () => {
     await t.run();
     const [row] = await t.store.listPosts("bob");
     expect(row).toMatchObject({ matches: [], pipelineVersion: PIPELINE_VERSION, tweetId: "1" });
-    expect(PIPELINE_VERSION).toBe(3);
+    expect(PIPELINE_VERSION).toBe(4);
   });
 
   it("stores one PickMatch per prediction", async () => {

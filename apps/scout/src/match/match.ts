@@ -32,7 +32,9 @@ export async function matchPrediction(
   if (p.betType === "team_total") return noMarket(index, TEAM_TOTAL_REASON);
   const pick = await findGame(p, tweetedAt, deps.gemini);
   if (!pick.game) return noMarket(index, pick.reason);
-  const game = pick.game;
+  let game = pick.game;
+  // Gemini occasionally returns a game without its child markets; ask once more before giving up.
+  if (p.betType !== "win" && !(game.events?.length)) game = await deps.gemini.getEvent(game.ticker);
   const sub = subEventFor(game, p);
   if (!sub && p.betType !== "win" && (game.events ?? []).length === 0) return noMarket(index, NO_SUB_MARKETS_REASON);
   if (!sub) return noMarket(index, "no sub-event for bet type");

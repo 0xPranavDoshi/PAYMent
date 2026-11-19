@@ -50,6 +50,31 @@ function teamContracts(contracts: GeminiContract[], team: TeamRef): GeminiContra
   return bestMatches(team, contracts, contractAsParticipant);
 }
 
+/** The game participant that is this team, when exactly one matches. */
+function participantFor(game: GeminiEvent, team: TeamRef): Participant | null {
+  const own = bestMatches(team, game.participants ?? [], (part) => part);
+  return own.length === 1 ? (own[0] as Participant) : null;
+}
+
+/**
+ * Gemini's short name for a participant, from the game title "Away vs Home" ("San Antonio",
+ * "Los Angeles L"). Contracts are labelled with these short names, which Grok's aliases often miss.
+ */
+function titleName(game: GeminiEvent, part: Participant): string | null {
+  const sides = game.title.split(/\s+vs\.?\s+/i);
+  if (sides.length !== 2) return null;
+  const name = part.side === "away" ? sides[0] : part.side === "home" ? sides[1] : undefined;
+  return name?.trim() || null;
+}
+
+/** The team plus the game's own names for it (participant name, abbreviation, title short name). */
+function withGameNames(game: GeminiEvent, team: TeamRef): TeamRef {
+  const part = participantFor(game, team);
+  if (!part) return team;
+  const short = titleName(game, part);
+  return { name: team.name, aliases: [...team.aliases, part.name, part.abbreviation, ...(short ? [short] : [])] };
+}
+
 /** True when the contracts name more than one team or player (judged by abbreviatedName / target.name when present). */
 function spansSubjects(contracts: GeminiContract[]): boolean {
   const distinct = (vals: (string | undefined)[]) =>
@@ -67,7 +92,7 @@ function contractMatchesPlayer(c: GeminiContract, player: string): boolean {
 
 export function chooseWin(game: GeminiEvent, p: Prediction): Choice | null {
   if (p.claim !== "wins" && p.claim !== "loses") return null;
-  const matches = teamContracts(game.contracts, p.team);
+  const matches = teamContracts(game.contracts, withGameNames(game, p.team));
   // none, or more than one at the best rank (ambiguous): no match
   if (matches.length !== 1) return null;
   const contract = matches[0] as GeminiContract;
@@ -75,17 +100,23 @@ export function chooseWin(game: GeminiEvent, p: Prediction): Choice | null {
 }
 
 function opponentOf(game: GeminiEvent, p: Prediction): TeamRef | null {
-  if (p.opponent) return p.opponent;
   const participants = game.participants ?? [];
-  const own = bestMatches(p.team, participants, (part) => part);
-  if (own.length !== 1) return null;
-  const other = participants.find((part) => part !== own[0]);
+  // A named opponent is only a hint: Grok sometimes names another parlay leg's team. Use it only when
+  // it really is in this game.
+  if (p.opponent && participantFor(game, p.opponent)) return withGameNames(game, p.opponent);
+  const own = participantFor(game, p.team);
+  if (!own) return null;
+  const other = participants.find((part) => part !== own);
   if (!other) return null;
   // Contracts use short names ("Lakers"), participants full ones ("Los Angeles Lakers"): also try the
-  // name's words, minus any the team itself shares (e.g. "Los Angeles" for two LA teams).
+  // title's short name and the name's words, minus any the team itself shares (e.g. "Los Angeles").
   const words = (s: string) => norm(s).split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3);
   const ownWords = new Set([p.team.name, ...p.team.aliases].flatMap(words));
-  return { name: other.name, aliases: [other.abbreviation, ...words(other.name).filter((w) => !ownWords.has(w))] };
+  const short = titleName(game, other);
+  return {
+    name: other.name,
+    aliases: [other.abbreviation, ...(short ? [short] : []), ...words(other.name).filter((w) => !ownWords.has(w))],
+  };
 }
 
 /** The strike value, or null when missing, non-numeric, or not of the expected strike type. */
@@ -192,7 +223,7 @@ export async function chooseLine(
     if (claim === "covers" || claim === "wins" || claim === "over") {
       mode = "atMost";
       side = "yes";
-      team = p.team;
+      team = withGameNames(game, p.team);
     } else if (claim === "loses") {
       mode = "atLeast";
       side = "no";

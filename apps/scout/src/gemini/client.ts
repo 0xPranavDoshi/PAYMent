@@ -116,7 +116,10 @@ export function createGeminiClient(
       if (hit) return hit;
       const parsed = GeminiEvent.safeParse(await getJson(url));
       if (!parsed.success) throw new GeminiError(`Unexpected Gemini event response for ${url}`);
-      store(url, parsed.data, parsed.data.status === "settled" ? null : ACTIVE_TTL_MS);
+      // Gemini sometimes returns a game without its child markets. Don't cache that (and never
+      // forever), so the next lookup can get the full game.
+      const incompleteGame = parsed.data.template === "sports-game" && !(parsed.data.events?.length);
+      if (!incompleteGame) store(url, parsed.data, parsed.data.status === "settled" ? null : ACTIVE_TTL_MS);
       return parsed.data;
     },
   };

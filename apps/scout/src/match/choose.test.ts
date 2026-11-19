@@ -471,6 +471,44 @@ describe("validateChoice", () => {
   });
 });
 
+describe("matching contracts by the game's own short names (no Grok fallback)", () => {
+  // Real shape: title "Detroit vs San Antonio", contracts labelled "San Antonio wins by more than 9.5 points".
+  const spursGame = ev({
+    ticker: "NBA-2611180100-DET-SAS-M",
+    title: "Detroit vs San Antonio",
+    template: "sports-game",
+    startTime: "2026-11-18T01:00:00.000Z",
+    participants: [
+      { name: "San Antonio Spurs", abbreviation: "SAS", side: "home" },
+      { name: "Detroit Pistons", abbreviation: "DET", side: "away" },
+    ],
+  });
+  const spursSpread = ev({
+    ticker: "NBA-2611180100-DET-SAS-S",
+    template: "sports-spread",
+    contracts: [spreadC("San Antonio", "8.5"), spreadC("San Antonio", "9.5"), spreadC("Detroit", "9.5")],
+  });
+  const spurs = { name: "San Antonio Spurs", aliases: ["San Antonio Spurs", "Spurs", "SAS"] };
+
+  it('"Spurs -9.5" finds "San Antonio wins by more than 9.5" without calling Grok', async () => {
+    const p = pred({ team: spurs, claim: "covers", line: 9.5, lineAsWritten: "-9.5" });
+    const r = await chooseLine(spursSpread, spursGame, p, noGrok());
+    expect(r?.contract.label).toBe("San Antonio wins by more than 9.5 points");
+    expect(r?.side).toBe("yes");
+    expect(r?.detail).not.toContain("via grok");
+  });
+
+  it("ignores a named opponent that isn't in the game (another parlay leg) for an underdog pick", async () => {
+    // "Detroit +9.5" in a parlay, where Grok named another leg's team as Detroit's opponent.
+    const detroit = { name: "Detroit Pistons", aliases: ["Detroit Pistons", "Pistons", "DET"] };
+    const hornets = { name: "Charlotte Hornets", aliases: ["Charlotte Hornets", "Hornets", "CHA"] };
+    const p = pred({ team: detroit, opponent: hornets, claim: "covers", line: 9.5, lineAsWritten: "+9.5" });
+    const r = await chooseLine(spursSpread, spursGame, p, noGrok());
+    expect(r?.contract.label).toBe("San Antonio wins by more than 9.5 points");
+    expect(r?.side).toBe("no");
+  });
+});
+
 describe("spreadClaim", () => {
   it("reads direction from the written sign, falling back to Grok's claim without one", () => {
     expect(spreadClaim(pred({ claim: "covers", lineAsWritten: "+3.5" }))).toBe("loses");

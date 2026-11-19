@@ -142,6 +142,17 @@ describe("getEvent", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("never caches a game that came back without its child markets", async () => {
+    let calls = 0;
+    // First response is missing `events` (Gemini does this occasionally); the second is complete.
+    const fetchMock = vi.fn(async () => json(calls++ === 0 ? { ...game, status: "settled", events: [] } : { ...game, status: "settled" }));
+    const client = createGeminiClient({ fetch: asFetch(fetchMock) });
+    expect((await client.getEvent("X-1")).events).toEqual([]);
+    expect((await client.getEvent("X-1")).events?.length).toBeGreaterThan(0);
+    await client.getEvent("X-1");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("throws GeminiError on 404", async () => {
     const client = createGeminiClient({ fetch: asFetch(async () => json({}, 404)) });
     await expect(client.getEvent("nope")).rejects.toMatchObject({ name: "GeminiError", status: 404 });

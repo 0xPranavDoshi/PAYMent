@@ -82,8 +82,13 @@ export function pickGame(events: GeminiEvent[], p: Prediction, tweetedAt: Date):
     if (games.some((e) => e.ticker.startsWith(prefix))) games = games.filter((e) => e.ticker.startsWith(prefix));
   }
 
+  // A named opponent narrows the search, but Grok sometimes names another parlay leg's team: when no
+  // game has both, fall back to the team alone.
+  let matches = matchingEvents(games, p);
+  if (matches.length === 0 && p.opponent) matches = matchingEvents(games, { ...p, opponent: null });
+
   let best: { event: GeminiEvent; start: number } | null = null;
-  for (const e of matchingEvents(games, p)) {
+  for (const e of matches) {
     const start = startOf(e);
     if (start <= from) return { game: null, reason: IN_GAME_REASON };
     if (!best || start < best.start) best = { event: e, start };
