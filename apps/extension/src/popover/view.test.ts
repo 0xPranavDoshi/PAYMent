@@ -1,6 +1,6 @@
 import type { CallEntry, UserProfile } from "@copayme/shared";
 import { describe, expect, it } from "vitest";
-import { callRowView, formatCents, formatTweetTime, profileView, timeAgo } from "./view.js";
+import { callRowView, formatCents, formatPct, formatTweetTime, formatUsd, formatAmount, parseAmount, profileView, timeAgo, watchView } from "./view.js";
 
 const call = (over: Partial<CallEntry> = {}): CallEntry => ({
   callId: "11111111-1111-4111-8111-111111111111",
@@ -134,5 +134,77 @@ describe("formatTweetTime", () => {
     expect(short).toBe(new Date("2026-11-19T19:03:00.000Z").toLocaleDateString("en-US", { month: "short", day: "numeric" }));
     expect(full).toMatch(/^\d{1,2}:\d{2} (AM|PM) · [A-Z][a-z]{2} \d{1,2}, 2026$/);
     expect(full).toContain(short);
+  });
+});
+
+describe("parseAmount", () => {
+  it("accepts any positive dollar amount with at most two decimals, with or without $ and commas", () => {
+    expect(parseAmount("7")).toBe(7);
+    expect(parseAmount("7.5")).toBe(7.5);
+    expect(parseAmount("12.50")).toBe(12.5);
+    expect(parseAmount("$12.50")).toBe(12.5);
+    expect(parseAmount(" 1,000 ")).toBe(1000);
+    expect(parseAmount("0.01")).toBe(0.01);
+    expect(parseAmount("250")).toBe(250);
+  });
+
+  it("rejects everything else", () => {
+    for (const bad of ["", " ", "0", "0.00", "-5", "abc", "1.234", "1e3", "5 dollars", "$", "1..5", ".5", "∞"]) {
+      expect(parseAmount(bad), bad).toBeNull();
+    }
+  });
+});
+
+describe("formatUsd and formatPct", () => {
+  it("sign dollars and percentages with a real minus sign", () => {
+    expect(formatUsd(0.42)).toBe("+$0.42");
+    expect(formatUsd(-1.1)).toBe("−$1.10");
+    expect(formatUsd(0)).toBe("$0.00");
+    expect(formatUsd(0.004)).toBe("$0.00");
+    expect(formatPct(6)).toBe("+6.0%");
+    expect(formatPct(-12.54)).toBe("−12.5%");
+    expect(formatPct(0)).toBe("0.0%");
+  });
+});
+
+describe("watchView", () => {
+  const watch = { since: "2026-11-17T12:00:00.000Z", picks: 9, openPicks: 2, paperPnlUsdc: 0.42, scoreThen: 68 };
+
+  it("shows the score then and now, the P&L on settled $1 bets, and the pick counts", () => {
+    expect(watchView(watch, 72)).toMatchObject({
+      score: { then: "68", now: "72", delta: { direction: "up", text: "+4" } },
+      pnl: { text: "+$0.42 · +6.0%", tone: "up" }, // $0.42 over 7 settled $1 bets
+      picks: "7 settled · 2 open",
+    });
+  });
+
+  it("shows a falling score and a losing P&L the other way", () => {
+    expect(watchView({ ...watch, paperPnlUsdc: -2.1, scoreThen: 80 }, 72)).toMatchObject({
+      score: { delta: { direction: "down", text: "−8" } },
+      pnl: { text: "−$2.10 · −30.0%", tone: "down" },
+    });
+  });
+
+  it("has no change to show when the score is unchanged, or either end is unknown", () => {
+    expect(watchView(watch, 68).score.delta).toBeNull();
+    expect(watchView({ ...watch, scoreThen: null }, 72).score).toEqual({ then: "—", now: "72", delta: null });
+    expect(watchView(watch, null).score).toEqual({ then: "68", now: "—", delta: null });
+  });
+
+  it("says so before any bet has settled, and does not divide by zero", () => {
+    expect(watchView({ ...watch, picks: 2, openPicks: 2, paperPnlUsdc: null }, 72)).toMatchObject({
+      pnl: { text: "No settled picks yet", tone: "none" },
+      picks: "0 settled · 2 open",
+    });
+    expect(watchView({ ...watch, picks: 2, openPicks: 2, paperPnlUsdc: 0 }, 72).pnl).toEqual({ text: "$0.00", tone: "none" });
+  });
+});
+
+describe("formatAmount", () => {
+  it("writes whole dollars plainly and anything else to the cent", () => {
+    expect(formatAmount(25)).toBe("$25");
+    expect(formatAmount(7.5)).toBe("$7.50");
+    expect(formatAmount(0.01)).toBe("$0.01");
+    expect(formatAmount(1000)).toBe("$1000");
   });
 });

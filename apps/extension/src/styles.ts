@@ -119,11 +119,36 @@ export const POPOVER_CSS = `
   .btn:hover { border-color: var(--ink-3); }
   .btn.primary { background: var(--ember); color: var(--ember-ink); border-color: var(--ember); }
   .btn.primary:hover { filter: brightness(1.06); }
+  .btn.sm { padding: 7px 12px; font-size: 12px; border-radius: 10px; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .status { margin: 10px 16px 0; padding: 10px 12px; border-radius: 12px; background: var(--raised); border: 1px solid var(--card-line); }
+  .shead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .shead b { font: 700 12px/1 var(--font); letter-spacing: .1em; text-transform: uppercase; color: var(--win); }
+  .shead span { color: var(--ink-2); font-size: 12px; }
+  .srows { margin: 0; display: grid; gap: 4px; }
+  .srows div { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; }
+  .srows dt { color: var(--ink-3); }
+  .srows dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; display: inline-flex; gap: 6px; align-items: baseline; }
+  .srows dd em { font-style: normal; font-weight: 700; }
+  .srows .up, .srows dd em.up { color: var(--win); }
+  .srows .down, .srows dd em.down { color: var(--coral); }
+  .srows .none { color: var(--ink-2); font-weight: 500; }
+  .sdesc { margin: 0 0 8px; color: var(--ink-2); font-size: 12px; }
+  .sacts { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
+  .stopbtn { all: unset; cursor: pointer; margin-left: auto; font: 600 12px/1 var(--font); color: var(--coral); padding: 6px 2px; }
+  .stopbtn:hover { text-decoration: underline; }
+  .stopbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .amount { flex: 1.3; display: flex; align-items: center; gap: 2px; padding: 0 8px; border-radius: 9px; border: 1px solid var(--chip-line); color: var(--ink-2); font: 700 12px/1 var(--font); }
+  .amount.active { border-color: var(--ember); color: var(--ember); }
+  .amount.bad { border-color: var(--coral); color: var(--coral); }
+  .amount input { all: unset; width: 100%; min-width: 0; padding: 7px 0; color: var(--ink); font: 700 12px/1 var(--font); font-variant-numeric: tabular-nums; }
+  .amount input::placeholder { color: var(--ink-3); font-weight: 500; }
+  .hint { margin: -4px 0 10px; color: var(--coral); font-size: 11.5px; }
   .panel { margin: 10px 16px 0; padding: 12px; border-radius: 12px; background: var(--raised); border: 1px solid var(--card-line); }
   .panel p { margin: 0 0 10px; color: var(--ink-2); font-size: 12px; }
   .panel p b { color: var(--ink); }
   .chips { display: flex; gap: 6px; margin-bottom: 10px; }
-  .chip { all: unset; cursor: pointer; flex: 1; text-align: center; padding: 7px 0; border-radius: 9px; font: 700 12px/1 var(--font); border: 1px solid var(--chip-line); color: var(--ink); font-variant-numeric: tabular-nums; }
+  .chip { all: unset; cursor: pointer; flex: 1; box-sizing: border-box; text-align: center; padding: 7px 0; border-radius: 9px; font: 700 12px/1 var(--font); border: 1px solid var(--chip-line); color: var(--ink); font-variant-numeric: tabular-nums; }
   .chip[aria-pressed="true"] { border-color: var(--ember); color: var(--ember); }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
   .toast { margin: 10px 16px 0; padding: 9px 12px; border-radius: 10px; font-size: 12px; background: var(--chip); border: 1px solid var(--chip-line); color: var(--ink-2); }

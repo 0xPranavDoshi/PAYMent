@@ -1,4 +1,4 @@
-import { BadgesResponse, CallsResponse, MAX_BADGE_HANDLES, UserProfile } from "@copayme/shared";
+import { BadgesResponse, CallsResponse, MAX_BADGE_HANDLES, ScoreAt, UserProfile } from "@copayme/shared";
 import { API_URL, MOCK } from "./config.js";
 import type { ProfileData } from "./messages.js";
 import { mockBadges, mockProfileData } from "./mock.js";
@@ -45,4 +45,14 @@ export async function fetchProfileData(handle: string, limit = 5, fetcher: typeo
   if (MOCK) return mockProfileData(handle);
   const [profile, calls] = await Promise.all([fetchProfile(handle, fetcher), fetchCalls(handle, limit, fetcher)]);
   return { profile, calls };
+}
+
+/** The trader's score as of a past moment (ISO), or null if they had none yet then. */
+export async function fetchScoreAt(handle: string, atIso: string, fetcher: typeof fetch = fetch): Promise<number | null> {
+  const url = new URL(`/v1/users/${encodeURIComponent(handle)}/score-at`, API_URL);
+  url.searchParams.set("at", atIso);
+  const res = await fetcher(url);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`score history request failed: ${res.status}`);
+  return ScoreAt.parse(await res.json()).score;
 }

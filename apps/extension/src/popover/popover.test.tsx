@@ -3,7 +3,7 @@ import type { BadgesResponse, CallEntry, UserProfile } from "@copayme/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProfileData } from "../messages.js";
 import { startBadges } from "../page.js";
-import type { TradingActions, TradingState } from "../trading.js";
+import type { TradingActions, TradingState, WatchInfo } from "../trading.js";
 
 const WEB = "https://copayme.example";
 
@@ -363,16 +363,18 @@ describe("the popover", () => {
 
   describe("the trade buttons", () => {
     const buttons = () => [...popoverHosts()[0]!.shadowRoot!.querySelectorAll<HTMLButtonElement>(".actions .tbtn")];
-    const paper = () => buttons()[0]!;
-    const copy = () => buttons()[1]!;
+    const watchBtn = () => buttons()[0]!;
+    const copyBtn = () => buttons()[1]!;
     const card = () => popoverHosts()[0]!.shadowRoot!;
     const toast = () => card().querySelector(".toast")?.textContent ?? null;
+    const byText = (text: string) => [...card().querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent === text);
+    const SAMPLE_WATCH: WatchInfo = { since: "2026-11-17T12:00:00.000Z", picks: 9, openPicks: 2, paperPnlUsdc: 0.42, scoreThen: 68 };
 
     function fakeTrading(initial: Partial<TradingState> = {}, over: Partial<TradingActions> = {}) {
-      let state: TradingState = { signedIn: true, watching: false, copy: null, ...initial };
+      let state: TradingState = { signedIn: true, watch: null, copy: null, copyMode: "paper", ...initial };
       const actions = {
         state: vi.fn(async () => state),
-        setWatch: vi.fn(async (_h: string, on: boolean) => void (state = { ...state, watching: on })),
+        setWatch: vi.fn(async (_h: string, on: boolean) => void (state = { ...state, watch: on ? SAMPLE_WATCH : null })),
         startCopy: vi.fn(async (_h: string, amountUsdc: number) => void (state = { ...state, copy: { active: true, amountUsdc } })),
         stopCopy: vi.fn(async () => void (state = { ...state, copy: state.copy && { ...state.copy, active: false } })),
         ...over,
@@ -386,12 +388,16 @@ describe("the popover", () => {
       await vi.waitFor(() => expect(buttons()).toHaveLength(2));
     }
     const loaded = () => new Promise((r) => setTimeout(r, 20)); // let the trading state arrive
+    const openCopyPanel = async () => {
+      click(copyBtn());
+      await vi.waitFor(() => expect(card().querySelector(".panel")).not.toBeNull());
+    };
 
     it("shows both buttons even when trading is not connected, and says so when one is pressed", async () => {
       await openCard(undefined);
-      expect(paper().textContent).toBe("Watch");
-      expect(copy().textContent).toContain("Copy trade");
-      click(paper());
+      expect(watchBtn().textContent).toBe("Watch");
+      expect(copyBtn().textContent).toContain("Copy trade");
+      click(watchBtn());
       await vi.waitFor(() => expect(toast()).toBe("Trading isn't available yet."));
     });
 
@@ -399,105 +405,205 @@ describe("the popover", () => {
       const trading = fakeTrading({ signedIn: false });
       await openCard(trading);
       await loaded();
-      click(paper());
+      click(watchBtn());
       await vi.waitFor(() => expect(toast()).toBe("Sign in with X to trade. Coming soon."));
-      click(copy());
+      click(copyBtn());
       expect(trading.setWatch).not.toHaveBeenCalled();
-      expect(card().querySelector(".panel")).toBeNull(); // no confirmation to start real orders
+      expect(card().querySelector(".panel")).toBeNull(); // no confirmation to start copying
     });
 
-    it("toggles paper trading on and off", async () => {
-      const trading = fakeTrading();
-      await openCard(trading);
-      await loaded();
-      click(paper());
-      await vi.waitFor(() => expect(paper().textContent).toContain("Watching"));
-      expect(trading.setWatch).toHaveBeenLastCalledWith("alice", true);
-      expect(paper().getAttribute("aria-pressed")).toBe("true");
+    describe("watching", () => {
+      it("starts a watch, and the watchlist panel shows how the trader has done since", async () => {
+        const trading = fakeTrading();
+        await openCard(trading);
+        await loaded();
+        click(watchBtn());
+        await vi.waitFor(() => expect(watchBtn().textContent).toBe("Watching"));
+        expect(trading.setWatch).toHaveBeenLastCalledWith("alice", true);
+        expect(watchBtn().getAttribute("aria-pressed")).toBe("true");
+        expect(toast()).toContain("Watching @alice");
 
-      click(paper());
-      await vi.waitFor(() => expect(paper().textContent).toBe("Watch"));
-      expect(trading.setWatch).toHaveBeenLastCalledWith("alice", false);
+        const status = card().querySelector('[aria-label="Watching"]')!.textContent!;
+        expect(status).toContain("since Nov 17");
+        await vi.waitFor(() => expect(card().querySelector('[aria-label="Watching"] .srows')!.textContent).toContain("68 → 72")); // then → now (72 is alice's score)
+        expect(card().querySelector('[aria-label="Watching"] dd em.up')!.textContent).toBe("+4");
+        expect(status).toContain("+$0.42 · +6.0%"); // $0.42 over the 7 settled $1 bets
+        expect(status).toContain("7 settled · 2 open");
+      });
+
+      it("shows what it can when there is not much to show yet", async () => {
+        await openCard(fakeTrading({ watch: { since: "2026-11-18T00:00:00.000Z", picks: 0, openPicks: 0, paperPnlUsdc: null, scoreThen: null } }));
+        await vi.waitFor(() => expect(card().querySelector('[aria-label="Watching"]')).not.toBeNull());
+        const status = card().querySelector('[aria-label="Watching"]')!.textContent!;
+        expect(status).toContain("— → 72"); // they had no score when watching started
+        expect(status).toContain("No settled picks yet");
+        expect(status).toContain("0 settled · 0 open");
+      });
+
+      it("has a clearly labelled way to stop, which says what happened", async () => {
+        const trading = fakeTrading({ watch: SAMPLE_WATCH });
+        await openCard(trading);
+        await vi.waitFor(() => expect(byText("Stop watching")).toBeDefined());
+        click(byText("Stop watching")!);
+        await vi.waitFor(() => expect(card().querySelector('[aria-label="Watching"]')).toBeNull());
+        expect(trading.setWatch).toHaveBeenCalledWith("alice", false);
+        expect(toast()).toBe("Stopped watching @alice.");
+        expect(watchBtn().textContent).toBe("Watch");
+      });
+
+      it("lets a watcher move to copy trading, from the panel", async () => {
+        const trading = fakeTrading({ watch: SAMPLE_WATCH });
+        await openCard(trading);
+        await vi.waitFor(() => expect(byText("Start copying")).toBeDefined());
+        click(byText("Start copying")!);
+        await vi.waitFor(() => expect(card().querySelector(".panel")).not.toBeNull());
+        expect(trading.startCopy).not.toHaveBeenCalled(); // opening the panel places nothing
+      });
     });
 
-    it("shows the current state when it opens", async () => {
-      await openCard(fakeTrading({ watching: true, copy: { active: true, amountUsdc: 25 } }));
-      await vi.waitFor(() => expect(paper().textContent).toContain("Watching"));
-      expect(copy().textContent).toContain("Copying · $25");
-    });
+    describe("copy trading", () => {
+      it("asks for an amount before copying, and nothing happens until it is confirmed", async () => {
+        const trading = fakeTrading();
+        await openCard(trading);
+        await loaded();
+        await openCopyPanel();
+        expect(trading.startCopy).not.toHaveBeenCalled();
+        const chips = [...card().querySelectorAll<HTMLButtonElement>(".chip")];
+        expect(chips.map((c) => c.textContent)).toEqual(["$5", "$10", "$25"]);
+        expect(chips[1]!.getAttribute("aria-pressed")).toBe("true"); // $10 by default
+        click(chips[2]!);
+        await vi.waitFor(() => expect(card().querySelector(".panel")!.textContent).toContain("$25"));
 
-    it("asks for confirmation before copy trading, then starts it for the chosen amount", async () => {
-      const trading = fakeTrading();
-      await openCard(trading);
-      await loaded();
-      click(copy());
-      await vi.waitFor(() => expect(card().querySelector(".panel")).not.toBeNull());
-      expect(card().querySelector(".panel")!.textContent).toContain("This places real orders");
-      expect(trading.startCopy).not.toHaveBeenCalled(); // nothing happens until it is confirmed
+        click(byText("Start copying")!);
+        await vi.waitFor(() => expect(copyBtn().textContent).toContain("Copying · $25"));
+        expect(trading.startCopy).toHaveBeenCalledWith("alice", 25);
+        expect(card().querySelector(".panel")).toBeNull();
+        expect(toast()).toBe("Copying @alice at $25 per pick.");
+      });
 
-      const chips = [...card().querySelectorAll<HTMLButtonElement>(".chip")];
-      expect(chips.map((c) => c.textContent)).toEqual(["$5", "$10", "$25"]);
-      expect(chips[1]!.getAttribute("aria-pressed")).toBe("true"); // $10 by default
-      click(chips[2]!);
-      await vi.waitFor(() => expect(card().querySelector(".panel")!.textContent).toContain("buy $25"));
+      it("accepts any amount the user types, not just the presets", async () => {
+        const trading = fakeTrading();
+        await openCard(trading);
+        await loaded();
+        await openCopyPanel();
+        const input = card().querySelector<HTMLInputElement>(".amount input")!;
+        const type = (text: string) => {
+          const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+          set.call(input, text);
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+        };
+        type("7.50");
+        await vi.waitFor(() => expect(card().querySelector(".panel")!.textContent).toContain("$7.50"));
+        expect([...card().querySelectorAll(".chip")].every((c) => c.getAttribute("aria-pressed") === "false")).toBe(true); // presets deselected
+        click(byText("Start copying")!);
+        await vi.waitFor(() => expect(trading.startCopy).toHaveBeenCalledWith("alice", 7.5));
+      });
 
-      click([...card().querySelectorAll<HTMLButtonElement>(".panel .btn")].find((b) => b.textContent === "Start copying")!);
-      await vi.waitFor(() => expect(copy().textContent).toContain("Copying · $25"));
-      expect(trading.startCopy).toHaveBeenCalledWith("alice", 25);
-      expect(card().querySelector(".panel")).toBeNull();
-    });
+      it("will not start with an amount that is not a positive dollar amount, and says why", async () => {
+        const trading = fakeTrading();
+        await openCard(trading);
+        await loaded();
+        await openCopyPanel();
+        const input = card().querySelector<HTMLInputElement>(".amount input")!;
+        const type = (text: string) => {
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, text);
+          input.dispatchEvent(new Event("input", { bubbles: true }));
+        };
+        for (const bad of ["0", "-5", "abc", "1.234", "1e3"]) {
+          type(bad);
+          await vi.waitFor(() => expect(card().querySelector(".hint")?.textContent).toContain("above $0"));
+          expect(byText("Start copying")!.disabled).toBe(true);
+        }
+        expect(trading.startCopy).not.toHaveBeenCalled();
+        type("$1,000");
+        await vi.waitFor(() => expect(byText("Start copying")!.disabled).toBe(false));
+        expect(card().querySelector(".hint")).toBeNull();
+      });
 
-    it("cancel closes the confirmation without placing anything, and copy trading can be stopped", async () => {
-      const trading = fakeTrading();
-      await openCard(trading);
-      await loaded();
-      click(copy());
-      await vi.waitFor(() => expect(card().querySelector(".panel")).not.toBeNull());
-      click([...card().querySelectorAll<HTMLButtonElement>(".panel .btn")].find((b) => b.textContent === "Cancel")!);
-      await vi.waitFor(() => expect(card().querySelector(".panel")).toBeNull());
-      expect(trading.startCopy).not.toHaveBeenCalled();
+      it("says plainly whether it is simulated or places real orders", async () => {
+        await openCard(fakeTrading({ copyMode: "paper" }));
+        await loaded();
+        await openCopyPanel();
+        expect(card().querySelector(".panel")!.textContent).toContain("This is simulated");
+        expect(card().querySelector(".panel")!.textContent).toContain("No real money moves");
+        expect(card().querySelector(".panel")!.textContent).not.toContain("real orders");
 
-      const active = fakeTrading({ copy: { active: true, amountUsdc: 10 } });
-      stop();
-      await openCard(active);
-      await vi.waitFor(() => expect(copy().textContent).toContain("Copying"));
-      click(copy());
-      await vi.waitFor(() => expect(copy().textContent).toContain("Copy trade"));
-      expect(active.stopCopy).toHaveBeenCalledWith("alice");
+        stop();
+        await openCard(fakeTrading({ copyMode: "live" }));
+        await loaded();
+        await openCopyPanel();
+        expect(card().querySelector(".panel")!.textContent).toContain("This places real orders");
+      });
+
+      it("shows what is running, with clearly labelled ways to change or stop it", async () => {
+        const trading = fakeTrading({ copy: { active: true, amountUsdc: 25 } });
+        await openCard(trading);
+        await vi.waitFor(() => expect(card().querySelector('[aria-label="Copying"]')).not.toBeNull());
+        const status = card().querySelector('[aria-label="Copying"]')!.textContent!;
+        expect(status).toContain("$25 per new pick");
+        expect(status).toContain("simulated");
+        expect(status).toContain("Stopping doesn't close picks already copied");
+
+        click(byText("Stop copying")!);
+        await vi.waitFor(() => expect(card().querySelector('[aria-label="Copying"]')).toBeNull());
+        expect(trading.stopCopy).toHaveBeenCalledWith("alice");
+        expect(toast()).toBe("Stopped copying @alice. Picks already copied stay open.");
+        expect(copyBtn().textContent).toContain("Copy trade");
+      });
+
+      it("changes the amount from where it is now, rather than starting over", async () => {
+        const trading = fakeTrading({ copy: { active: true, amountUsdc: 40 } }); // not a preset
+        await openCard(trading);
+        await vi.waitFor(() => expect(byText("Change amount")).toBeDefined());
+        click(byText("Change amount")!);
+        await vi.waitFor(() => expect(card().querySelector(".panel")).not.toBeNull());
+        expect(card().querySelector<HTMLInputElement>(".amount input")!.value).toBe("40"); // starts from the current amount
+        click(byText("Update amount")!);
+        await vi.waitFor(() => expect(trading.startCopy).toHaveBeenCalledWith("alice", 40));
+        await vi.waitFor(() => expect(toast()).toBe("Now copying @alice at $40 per pick."));
+      });
+
+      it("cancel closes the panel without placing anything", async () => {
+        const trading = fakeTrading();
+        await openCard(trading);
+        await loaded();
+        await openCopyPanel();
+        click(byText("Cancel")!);
+        await vi.waitFor(() => expect(card().querySelector(".panel")).toBeNull());
+        expect(trading.startCopy).not.toHaveBeenCalled();
+      });
     });
 
     it("shows the error and changes nothing when the trading service refuses", async () => {
       const trading = fakeTrading({}, { setWatch: vi.fn(async () => { throw new Error("market is closed"); }) });
       await openCard(trading);
       await loaded();
-      click(paper());
+      click(watchBtn());
       await vi.waitFor(() => expect(toast()).toBe("market is closed"));
       expect(card().querySelector(".toast")!.classList.contains("error")).toBe(true);
-      expect(paper().getAttribute("aria-pressed")).toBe("false");
+      expect(watchBtn().getAttribute("aria-pressed")).toBe("false");
     });
 
-    it("ignores a second press while the first is still running", async () => {
+    it("ignores a second press while the first is still running, and a double-click cannot start copying twice", async () => {
       let release!: () => void;
       const trading = fakeTrading({}, { setWatch: vi.fn(() => new Promise<void>((r) => (release = r))) });
       await openCard(trading);
       await loaded();
-      click(paper());
-      click(paper());
-      click(paper());
+      click(watchBtn());
+      click(watchBtn());
+      click(watchBtn());
       expect(trading.setWatch).toHaveBeenCalledTimes(1);
       release();
-      await vi.waitFor(() => expect(paper().textContent).toContain("Watching"));
+      await vi.waitFor(() => expect(trading.state).toHaveBeenCalledTimes(2)); // re-read after the action
       expect(trading.setWatch).toHaveBeenCalledTimes(1);
 
-      // and a double-click on "Start copying" must not place two orders either
       let releaseCopy!: () => void;
       const copyTrading = fakeTrading({}, { startCopy: vi.fn(() => new Promise<void>((r) => (releaseCopy = r))) });
       stop();
       await openCard(copyTrading);
       await loaded();
-      click(copy());
-      await vi.waitFor(() => expect(card().querySelector(".panel")).not.toBeNull());
-      const start = [...card().querySelectorAll<HTMLButtonElement>(".panel .btn")].find((b) => b.textContent === "Start copying")!;
+      await openCopyPanel();
+      const start = byText("Start copying")!;
       click(start);
       click(start);
       expect(copyTrading.startCopy).toHaveBeenCalledTimes(1);
@@ -583,7 +689,7 @@ describe("when the extension was reloaded under the page", () => {
   it("says the same on a trade button, instead of showing the raw error", async () => {
     document.body.innerHTML = `<main>${tweetHtml("alice")}</main>`;
     const trading: TradingActions = {
-      state: async () => ({ signedIn: true, watching: false, copy: null }),
+      state: async () => ({ signedIn: true, watch: null, copy: null, copyMode: "paper" as const }),
       setWatch: async () => {
         throw new Error("Extension context invalidated.");
       },

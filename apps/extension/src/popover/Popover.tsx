@@ -4,7 +4,7 @@ import { Gauge, Mark } from "../brand.js";
 import { REFRESH_MESSAGE, isContextInvalidated } from "../context.js";
 import { ArrowUpRightIcon, CheckIcon, CopyIcon, EyeIcon } from "../icons.js";
 import { SIGNED_OUT, type TradingActions, type TradingState } from "../trading.js";
-import { callRowView, formatTweetTime, profileView } from "./view.js";
+import { callRowView, formatAmount, formatTweetTime, parseAmount, profileView, watchView } from "./view.js";
 
 export type PopoverState =
   | { status: "loading" }
@@ -118,7 +118,7 @@ function Summary({
         </div>
       </div>
 
-      <TradeActions handle={profile.handle} trading={trading} />
+      <TradeActions handle={profile.handle} trading={trading} score={view.gauge} />
 
       <div className="sec">Recent picks</div>
       {calls.length === 0 ? (
@@ -134,17 +134,19 @@ function Summary({
   );
 }
 
-const COPY_AMOUNTS = [5, 10, 25];
+const COPY_PRESETS = [5, 10, 25];
+const DEFAULT_COPY_AMOUNT = 10;
 
-/** Watch (follow with $1 paper bets) and Copy trade (mirror each new pick). */
-function TradeActions({ handle, trading }: { handle: string; trading?: TradingActions }) {
+/** Watch (a watchlist that shows how a trader does from now on) and Copy trade (mirror each new pick). */
+function TradeActions({ handle, trading, score }: { handle: string; trading?: TradingActions; score: number | null }) {
   const [state, setState] = useState<TradingState | null>(null);
   const [busy, setBusy] = useState<"watch" | "copy" | null>(null);
   // State updates land after the next render, so rapid clicks would all see "not busy". The ref is
   // set immediately, which is what stops a double-click from submitting twice.
   const working = useRef(false);
-  const [confirming, setConfirming] = useState(false);
-  const [amount, setAmount] = useState(10);
+  const [panel, setPanel] = useState<"copy" | null>(null);
+  const [preset, setPreset] = useState<number | "custom">(DEFAULT_COPY_AMOUNT);
+  const [custom, setCustom] = useState("");
   const [notice, setNotice] = useState<{ kind: "info" | "error"; text: string } | null>(null);
 
   useEffect(() => {
@@ -172,14 +174,17 @@ function TradeActions({ handle, trading }: { handle: string; trading?: TradingAc
     return true;
   }
 
-  async function run(which: "watch" | "copy", action: () => Promise<void>, after: () => void) {
+  /** Runs one action, then re-reads the truth from the service so what is shown is what is saved. */
+  async function run(which: "watch" | "copy", action: () => Promise<void>, done: string, after?: () => void) {
     if (working.current) return;
     working.current = true;
     setBusy(which);
     setNotice(null);
     try {
       await action();
-      after();
+      after?.();
+      setNotice({ kind: "info", text: done });
+      setState(await trading!.state(handle).catch(() => state));
     } catch (err) {
       setNotice({
         kind: "error",
@@ -191,86 +196,190 @@ function TradeActions({ handle, trading }: { handle: string; trading?: TradingAc
     }
   }
 
-  const watching = state?.watching === true;
+  const watch = state?.watch ?? null;
   const copying = state?.copy?.active === true;
+  const paperMode = state?.copyMode === "paper";
+  const amount = preset === "custom" ? parseAmount(custom) : preset;
+  const customInvalid = preset === "custom" && custom.trim() !== "" && amount === null;
+
+  function openCopyPanel() {
+    // Editing an existing copy starts from its current amount.
+    const current = state?.copy?.active ? state.copy.amountUsdc : DEFAULT_COPY_AMOUNT;
+    if (COPY_PRESETS.includes(current)) {
+      setPreset(current);
+      setCustom("");
+    } else {
+      setPreset("custom");
+      setCustom(String(current));
+    }
+    setNotice(null);
+    setPanel("copy");
+  }
+
+  const stopWatching = () =>
+    void run("watch", () => trading!.setWatch(handle, false), `Stopped watching @${handle}.`);
+  const stopCopying = () =>
+    void run("copy", () => trading!.stopCopy(handle), `Stopped copying @${handle}. Picks already copied stay open.`);
+
+  const view = watch ? watchView(watch, score) : null;
 
   return (
     <>
       <div className="actions">
         <button
           type="button"
-          className={`tbtn ${watching ? "on" : ""}`}
-          title={watching ? "Watching: a $1 paper bet on each new pick. Press to stop." : "Watch: follow with $1 paper bets on each new pick"}
-          aria-pressed={watching}
+          className={`tbtn ${watch ? "on" : ""}`}
+          title={
+            watch
+              ? "Watching. Press to stop."
+              : "Watch: add to your watchlist and see how their score and a $1-per-pick paper P&L move from now on"
+          }
+          aria-pressed={watch !== null}
           aria-busy={busy === "watch"}
           onClick={() => {
-            setConfirming(false);
+            setPanel(null);
             if (!ready() || working.current) return;
-            void run("watch", () => trading!.setWatch(handle, !watching), () =>
-              setState((s) => (s ? { ...s, watching: !watching } : s)),
+            void run(
+              "watch",
+              () => trading!.setWatch(handle, !watch),
+              watch ? `Stopped watching @${handle}.` : `Watching @${handle}. You'll see how they do from now on.`,
             );
           }}
         >
-          {watching ? <CheckIcon /> : <EyeIcon />}
-          {watching ? "Watching" : "Watch"}
+          {watch ? <CheckIcon /> : <EyeIcon />}
+          {watch ? "Watching" : "Watch"}
         </button>
 
         <button
           type="button"
           className={`tbtn solid ${copying ? "on" : ""}`}
-          title={copying ? `Copying: a $${state?.copy?.amountUsdc} real order on each new pick. Press to stop.` : "Mirror each new pick with a real order"}
+          title={copying ? `Copying at ${formatAmount(state?.copy?.amountUsdc ?? 0)} per pick. Press to stop.` : "Copy trade: mirror each new pick"}
           aria-pressed={copying}
           aria-busy={busy === "copy"}
           onClick={() => {
             if (!ready() || working.current) return;
-            if (copying) {
-              void run("copy", () => trading!.stopCopy(handle), () =>
-                setState((s) => (s ? { ...s, copy: s.copy && { ...s.copy, active: false } } : s)),
-              );
-            } else {
-              setNotice(null);
-              setConfirming((open) => !open);
-            }
+            if (copying) stopCopying();
+            else if (panel === "copy") setPanel(null);
+            else openCopyPanel();
           }}
         >
           {copying ? <CheckIcon /> : <CopyIcon />}
-          {copying ? `Copying · $${state?.copy?.amountUsdc}` : "Copy trade"}
+          {copying ? `Copying · ${formatAmount(state?.copy?.amountUsdc ?? 0)}` : "Copy trade"}
         </button>
       </div>
 
-      {confirming && (
-        <div className="panel" role="group" aria-label="Confirm copy trading">
+      {view && (
+        <div className="status" role="group" aria-label="Watching">
+          <div className="shead">
+            <b>Watching</b>
+            <span>since {view.since}</span>
+          </div>
+          <dl className="srows">
+            <div>
+              <dt>Score</dt>
+              <dd>
+                {view.score.then} → {view.score.now}
+                {view.score.delta && <em className={view.score.delta.direction}>{view.score.delta.text}</em>}
+              </dd>
+            </div>
+            <div>
+              <dt>Paper P&L</dt>
+              <dd className={view.pnl.tone}>{view.pnl.text}</dd>
+            </div>
+            <div>
+              <dt>Picks</dt>
+              <dd>{view.picks}</dd>
+            </div>
+          </dl>
+          <div className="sacts">
+            {!copying && (
+              <button type="button" className="btn sm primary" onClick={openCopyPanel}>
+                Start copying
+              </button>
+            )}
+            <button type="button" className="stopbtn" onClick={stopWatching}>
+              Stop watching
+            </button>
+          </div>
+        </div>
+      )}
+
+      {copying && (
+        <div className="status" role="group" aria-label="Copying">
+          <div className="shead">
+            <b>Copying</b>
+            <span>
+              {formatAmount(state?.copy?.amountUsdc ?? 0)} per new pick · {paperMode ? "simulated" : "real orders"}
+            </span>
+          </div>
+          <p className="sdesc">Every new pick from @{handle} is copied automatically. Stopping doesn't close picks already copied.</p>
+          <div className="sacts">
+            <button type="button" className="btn sm" onClick={openCopyPanel}>
+              Change amount
+            </button>
+            <button type="button" className="stopbtn" onClick={stopCopying}>
+              Stop copying
+            </button>
+          </div>
+        </div>
+      )}
+
+      {panel === "copy" && (
+        <div className="panel" role="group" aria-label="Copy trade amount">
           <p>
-            <b>This places real orders.</b> coPAYMe will buy ${amount} on every new pick from @{handle}, as it is
-            tweeted. You can stop any time.
+            {paperMode ? (
+              <>
+                <b>This is simulated.</b> coPAYMe will place a paper trade of {amount !== null ? formatAmount(amount) : "your amount"} on every new
+                pick from @{handle}, as it is tweeted. No real money moves.
+              </>
+            ) : (
+              <>
+                <b>This places real orders.</b> coPAYMe will buy {amount !== null ? formatAmount(amount) : "your amount"} on every new pick from @{handle},
+                as it is tweeted.
+              </>
+            )}{" "}
+            You can stop any time.
           </p>
           <div className="chips">
-            {COPY_AMOUNTS.map((value) => (
-              <button
-                key={value}
-                type="button"
-                className="chip"
-                aria-pressed={amount === value}
-                onClick={() => setAmount(value)}
-              >
+            {COPY_PRESETS.map((value) => (
+              <button key={value} type="button" className="chip" aria-pressed={preset === value} onClick={() => setPreset(value)}>
                 ${value}
               </button>
             ))}
+            <label className={`amount ${preset === "custom" ? "active" : ""} ${customInvalid ? "bad" : ""}`}>
+              <span>$</span>
+              <input
+                inputMode="decimal"
+                placeholder="Other"
+                aria-label="Other amount in dollars"
+                value={custom}
+                onFocus={() => setPreset("custom")}
+                onChange={(event) => {
+                  setPreset("custom");
+                  setCustom(event.target.value);
+                }}
+              />
+            </label>
           </div>
+          {customInvalid && <div className="hint">Enter an amount above $0, with at most two decimals.</div>}
           <div className="row2">
             <button
               type="button"
               className="btn primary"
+              disabled={amount === null}
               onClick={() =>
-                void run("copy", () => trading!.startCopy(handle, amount), () => {
-                  setConfirming(false);
-                  setState((s) => (s ? { ...s, copy: { active: true, amountUsdc: amount } } : s));
-                })
+                amount !== null &&
+                void run(
+                  "copy",
+                  () => trading!.startCopy(handle, amount),
+                  copying ? `Now copying @${handle} at ${formatAmount(amount)} per pick.` : `Copying @${handle} at ${formatAmount(amount)} per pick.`,
+                  () => setPanel(null),
+                )
               }
             >
-              Start copying
+              {copying ? "Update amount" : "Start copying"}
             </button>
-            <button type="button" className="btn" onClick={() => setConfirming(false)}>
+            <button type="button" className="btn" onClick={() => setPanel(null)}>
               Cancel
             </button>
           </div>

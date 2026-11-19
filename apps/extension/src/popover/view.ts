@@ -1,5 +1,6 @@
 import { NEW_BADGE_MIN_RESOLVED, type CallEntry, type UserProfile } from "@copayme/shared";
 import { badgeView, type BadgeView } from "../badgeView.js";
+import type { WatchInfo } from "../trading.js";
 
 export interface CallRowView {
   event: string;
@@ -99,4 +100,69 @@ export function formatTweetTime(iso: string): { short: string; full: string } {
   const time = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
   const year = date.toLocaleDateString("en-US", { year: "numeric" });
   return { short: day, full: `${time} · ${day}, ${year}` };
+}
+
+/**
+ * An amount a user typed, in dollars: "7", "7.5", "$12.50" and "1,000" are fine. Anything that is not
+ * a positive number with at most two decimals (empty, zero, negative, letters, "1e3") is null.
+ */
+export function parseAmount(text: string): number | null {
+  const cleaned = text.trim().replace(/^\$/, "").replace(/,/g, "");
+  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
+  const value = Number(cleaned);
+  return value > 0 ? value : null;
+}
+
+/** Dollars, signed, with a real minus sign: "+$0.42", "−$1.10", "$0.00". */
+export function formatUsd(dollars: number): string {
+  const cents = Math.round(dollars * 100);
+  if (cents === 0) return "$0.00";
+  return `${cents > 0 ? "+" : "−"}$${(Math.abs(cents) / 100).toFixed(2)}`;
+}
+
+/** A signed percentage to one decimal: "+6.0%", "−12.5%". */
+export function formatPct(pct: number): string {
+  const tenths = Math.round(pct * 10);
+  if (tenths === 0) return "0.0%";
+  return `${tenths > 0 ? "+" : "−"}${(Math.abs(tenths) / 10).toFixed(1)}%`;
+}
+
+export interface WatchView {
+  since: string;
+  /** The trader's score when watching started and now, with the change between them. */
+  score: { then: string; now: string; delta: { direction: "up" | "down"; text: string } | null };
+  /** Paper P&L on the $1 bets that have settled. */
+  pnl: { text: string; tone: "up" | "down" | "none" };
+  picks: string;
+}
+
+/**
+ * What a watch has shown since it started. The P&L percentage is the return on the settled $1 paper
+ * bets (each watch bet is $1), so +$0.42 over 7 settled bets is +6.0%.
+ */
+export function watchView(watch: WatchInfo, scoreNow: number | null): WatchView {
+  const settled = Math.max(0, watch.picks - watch.openPicks);
+  const diff = watch.scoreThen !== null && scoreNow !== null ? scoreNow - watch.scoreThen : null;
+  const pnl = watch.paperPnlUsdc;
+  return {
+    since: new Date(watch.since).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    score: {
+      then: watch.scoreThen === null ? "—" : String(watch.scoreThen),
+      now: scoreNow === null ? "—" : String(scoreNow),
+      delta: diff === null || diff === 0 ? null : { direction: diff > 0 ? "up" : "down", text: `${diff > 0 ? "+" : "−"}${Math.abs(diff)}` },
+    },
+    pnl:
+      pnl === null
+        ? { text: "No settled picks yet", tone: "none" }
+        : {
+            text: settled > 0 ? `${formatUsd(pnl)} · ${formatPct((pnl / settled) * 100)}` : formatUsd(pnl),
+            tone: pnl > 0 ? "up" : pnl < 0 ? "down" : "none",
+          },
+    picks: `${settled} settled · ${watch.openPicks} open`,
+  };
+}
+
+/** A dollar amount the way a person writes it: "$25", "$7.50". */
+export function formatAmount(dollars: number): string {
+  return Number.isInteger(dollars) ? `$${dollars}` : `$${dollars.toFixed(2)}`;
 }

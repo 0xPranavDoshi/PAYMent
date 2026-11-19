@@ -53,6 +53,9 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
 
   app.get("/health", (c) => c.json({ ok: true }));
 
+  /** How copy trades run here, so clients can word their confirmation truthfully: "paper" simulates, "live" places real orders. */
+  app.get("/v1/config", (c) => c.json({ copyTradeMode }));
+
   // ── Markets ───────────────────────────────────────────────────────────────
 
   /** List open sports markets (used by extension to show tradeable calls). */
