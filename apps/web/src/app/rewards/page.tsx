@@ -34,8 +34,8 @@ export default async function Rewards() {
   }
 
   return (
-    <Page><div className="narrow">
+    <Page>
       <RewardsPanel user={user} earnings={earnings} />
-    </div></Page>
+    </Page>
   );
 }
