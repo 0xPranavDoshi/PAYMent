@@ -14,8 +14,8 @@ export default async function LeaderboardPage() {
   }
   return (
     <Page>
-      <h1 style={{ fontSize: 32 }}>Leaderboard</h1>
-      <p className="muted" style={{ marginTop: 8 }}>Traders ranked by score, which measures how far their picks beat the market&apos;s odds.</p>
+      <h1 className="ptitle">Leaderboard</h1>
+      <p className="psub">Traders ranked by score, which measures how far their picks beat the market&apos;s odds.</p>
       {error ? <p className="down" style={{ marginTop: 20 }}>{error}</p> : <LeaderboardTable entries={entries} />}
     </Page>
   );

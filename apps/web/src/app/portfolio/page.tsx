@@ -41,8 +41,8 @@ export default async function PortfolioPage() {
 
   return (
     <Page>
-      <h1 style={{ fontSize: 32 }}>Portfolio</h1>
-      <p className="muted" style={{ marginTop: 8 }}>
+      <h1 className="ptitle">Portfolio</h1>
+      <p className="psub">
         {paper ? "Simulated trades from the traders you copy and watch. No real money moves." : "Trades from the traders you copy and watch."}
       </p>
 
@@ -59,7 +59,7 @@ export default async function PortfolioPage() {
 
           {points.length > 1 && (
             <section className="section">
-              <h2>Profit and loss</h2>
+              <h2 className="sect">Profit and loss</h2>
               <div className="card" style={{ marginTop: 14 }}>
                 <PnlChart points={points} />
               </div>
@@ -67,7 +67,7 @@ export default async function PortfolioPage() {
           )}
 
           <section className="section">
-            <h2>Copy trading</h2>
+            <h2 className="sect">Copy trading</h2>
             <div className="board">
               {copies.length === 0 ? (
                 <div className="empty">You are not copying anyone yet. Pick a trader from the <Link href="/leaderboard" className="u">leaderboard</Link>.</div>
@@ -92,7 +92,7 @@ export default async function PortfolioPage() {
           </section>
 
           <section className="section">
-            <h2>Trades</h2>
+            <h2 className="sect">Trades</h2>
             <div className="board">
               {tails.length === 0 ? (
                 <div className="empty">No trades yet. They appear when a trader you copy or watch posts a new pick.</div>

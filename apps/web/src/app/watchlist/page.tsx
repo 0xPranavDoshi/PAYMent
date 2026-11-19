@@ -31,8 +31,8 @@ export default async function WatchlistPage() {
 
   return (
     <Page>
-      <h1 style={{ fontSize: 32 }}>Watchlist</h1>
-      <p className="muted" style={{ marginTop: 8 }}>
+      <h1 className="ptitle">Watchlist</h1>
+      <p className="psub">
         How each trader has done since you started watching, as if you had put $1 on every pick.
       </p>
 

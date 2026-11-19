@@ -18,7 +18,7 @@ export default async function Home() {
   const scored = board.filter((e) => e.tier === "scored");
   // Feature the best-scored trader who has real recorded picks, so the card shows a real record.
   const candidates = scored.slice(0, 5);
-  const found = await Promise.all(candidates.map((e) => fetchTraderCalls(e.handle, 4).catch(() => [])));
+  const found = await Promise.all(candidates.map((e) => fetchTraderCalls(e.handle, 5).catch(() => [])));
   const at = found.findIndex((f) => f.length > 0);
   const lead = at >= 0 ? candidates[at]! : (scored[0] ?? board[0] ?? null);
   const calls = at >= 0 ? found[at]! : [];

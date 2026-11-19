@@ -16,7 +16,7 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
     return (
       <Page>
         <div className="narrow" style={{ marginTop: 40 }}>
-          <h1 style={{ fontSize: 30 }}>We haven&apos;t scored @{handle.replace(/^@/, "")} yet</h1>
+          <h1 className="ptitle">We haven&apos;t scored @{handle.replace(/^@/, "")} yet</h1>
           <p className="muted" style={{ marginTop: 10 }}>
             A trader shows up here once they tweet a pick on a market we track. Check the spelling, or find someone from the board.
           </p>
@@ -87,7 +87,7 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
       </div>
 
       <section className="section">
-        <h2>Picks</h2>
+        <h2 className="sect">Picks</h2>
         <p className="sub">Price is what the market charged for the pick when it was tweeted. Results are cents per $1 contract.</p>
         <div className="board">
           {calls.length === 0 ? (

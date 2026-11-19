@@ -8,8 +8,8 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
   const demoConfigured = Boolean(process.env.DEFAULT_FOLLOWER_ID);
   return (
     <Page><div className="narrow">
-      <h1 style={{ fontSize: 32 }}>Sign in</h1>
-      <p className="muted" style={{ marginTop: 8 }}>Sign in to keep a watchlist and copy traders.</p>
+      <h1 className="ptitle">Sign in</h1>
+      <p className="psub">Sign in to keep a watchlist and copy traders.</p>
 
       <div className="card" style={{ marginTop: 24 }}>
         <button className="btn" disabled style={{ width: "100%", justifyContent: "center" }}>

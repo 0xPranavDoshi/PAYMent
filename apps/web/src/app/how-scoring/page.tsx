@@ -4,7 +4,7 @@ export const metadata = { title: "How scoring works · coPAYMe" };
 export default function HowScoring() {
   return (
     <Page><div className="prose">
-      <h1 style={{ fontSize: 32 }}>How scoring works</h1>
+      <h1 className="ptitle">How scoring works</h1>
       <p>The score answers one question: does this person beat the market, or just pick favourites?</p>
 
       <h2>Points per pick</h2>
