@@ -25,10 +25,13 @@ function setup(rows: ScoreRow[]) {
   const findByHandles = vi.fn(async (handles: readonly string[]) =>
     rows.filter((r) => handles.includes(r.handle)),
   );
-  const store: ScoreStore = { findByHandles };
+  const leaderboard = vi.fn(async (limit: number, minResolved: number) =>
+    rows.filter((r) => r.nResolved >= minResolved).slice(0, limit),
+  );
+  const store: ScoreStore = { findByHandles, leaderboard };
   let t = 0;
   const app = createApp({ store, now: () => t });
-  return { app, findByHandles, advance: (ms: number) => (t += ms) };
+  return { app, findByHandles, leaderboard, advance: (ms: number) => (t += ms) };
 }
 
 describe("GET /v1/badges", () => {
@@ -136,5 +139,34 @@ describe("GET /v1/users/:handle", () => {
     const { app } = setup([]);
     expect((await app.request("/v1/users/nobody")).status).toBe(404);
     expect((await app.request("/v1/users/not%20valid")).status).toBe(400);
+  });
+});
+
+describe("GET /v1/leaderboard", () => {
+  it("returns badge fields plus the handle, and only users the badge would show a score for", async () => {
+    const { app, leaderboard } = setup([row("alice"), row("bob", { score: 40, scoreChange14d: null })]);
+    const res = await app.request("/v1/leaderboard");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([
+      { handle: "alice", score: 72, change14d: 8, tier: "scored", nResolved: 30, hitRate: 19 / 30 },
+      { handle: "bob", score: 40, change14d: null, tier: "scored", nResolved: 30, hitRate: 19 / 30 },
+    ]);
+    expect(leaderboard).toHaveBeenCalledWith(50, 5); // default limit; New threshold
+  });
+
+  it("clamps the limit to 1 through 100 and rejects anything that is not a whole number", async () => {
+    const { app, leaderboard } = setup([row("alice")]);
+    await app.request("/v1/leaderboard?limit=10");
+    await app.request("/v1/leaderboard?limit=0");
+    await app.request("/v1/leaderboard?limit=5000");
+    expect(leaderboard.mock.calls.map((c) => c[0])).toEqual([10, 1, 100]);
+    for (const bad of ["abc", "-3", "2.5", ""]) {
+      expect((await app.request(`/v1/leaderboard?limit=${bad}`)).status).toBe(400);
+    }
+  });
+
+  it("returns an empty list when nobody qualifies", async () => {
+    const { app } = setup([row("rookie", { nResolved: 3 })]);
+    expect(await (await app.request("/v1/leaderboard")).json()).toEqual([]);
   });
 });

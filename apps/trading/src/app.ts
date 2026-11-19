@@ -1,5 +1,13 @@
 import { Hono } from "hono";
-import { TailRequest, TailResponse, MarketSummary, WatchItem, CopyTradeConfig } from "@copayme/shared";
+import {
+  TailRequest,
+  TailResponse,
+  MarketSummary,
+  WatchItem,
+  CopyTradeConfig,
+  MAX_COPY_PICK_AGE_S,
+  isFreshForCopy,
+} from "@copayme/shared";
 import { z } from "zod";
 import type { TradingStore } from "./store.js";
 import type { GeminiClient } from "./gemini.js";
@@ -352,6 +360,13 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
 
     const call = await store.getCall(parsed.data.callId);
     if (!call) return c.json({ error: "call not found" }, 404);
+
+    // Watching and copy trading follow a pick at about the price its author saw. A pick that is
+    // older than that (for example, an old tweet found by a profile scan) is never copied
+    // automatically, whoever calls this endpoint.
+    if (!isFreshForCopy(call.tweetedAt)) {
+      return c.json({ error: `pick is too old to copy (limit ${MAX_COPY_PICK_AGE_S} s)` }, 409);
+    }
 
     const market = await store.getMarketById(call.marketId);
     if (!market) return c.json({ error: "market not found" }, 404);

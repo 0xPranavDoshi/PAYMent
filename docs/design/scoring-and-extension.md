@@ -139,7 +139,17 @@ A Hono app on Node, versioned under `/v1`. Read routes are public and cached. Wr
 | `GET /v1/users/:handle/calls?cursor=` | Paged call ledger, newest first | Extension popover |
 | `GET /v1/calls/by-tweet/:tweetId` | The calls parsed from that tweet and their markets, if any exist | Extension tail card |
 | `POST /v1/posts` (header `x-service-key`; one post or up to 50) | `201` with `{ results }`, one per post: the post id and an outcome per pick. `created` or `updated`, or `skipped` with a reason: `no_market`, `unknown_contract`, `market_void`, `after_lock` or `duplicate_pick`. A post that fails to store comes back with an `error` and can be re-sent. Re-sending a post is safe | Pranav's scout service |
+| `GET /v1/leaderboard?limit=` (default 50, at most 100) | `[{ handle, score, change14d, tier, nResolved, hitRate }]`, best score first (ties: more resolved picks, then handle). Only users with at least 5 resolved picks, so the board never shows a number the badge hides behind New | Website (Yash) |
 | `GET /v1/users/:handle/snapshot` | Latest `score_snapshots` row | Mugdha's on-chain minter |
+
+### Telling the trading service about new picks
+
+When ingest creates a call, the scoring API calls `POST /v1/calls/notify` on the trading service (header `x-service-key`, body `{ callId }`), which opens a $1 paper tail for each watcher and a live order for each copy trader. This happens in ingest, not in the worker, because calls are created at ingest; the worker only settles them.
+
+- **Fresh picks only.** A pick is notified only if it was tweeted within 600 s (`MAX_COPY_PICK_AGE_S` in `packages/shared`). A scan of an old tweet still creates and scores the call, but must never place orders. The trading service enforces the same limit, so a wrong caller cannot get around it.
+- **At most once.** Only newly created calls are notified. A re-sent post, or a pick replaced by an earlier tweet, is not.
+- **Never blocks ingest.** The notification runs after the response is built. If the trading service is down or refuses, the error is logged and the ingest result is unchanged. A missed notification is not retried.
+- **Configuration.** `TRADING_URL` and `TRADING_SERVICE_KEY`. Without them nothing is notified, and the API says so at startup.
 
 ### Scoring worker
 
@@ -272,6 +282,7 @@ The biggest risk to the demo is having too few resolved sports calls to show rea
 | Users delete losing tweets before the first scan | Backfilled history is curated by its owner | Say so in the README; capture picks live for handles we expect to be looked up |
 | Market odds go stale between syncs | Scores, the slippage check and live order prices use old odds | Run the sync every 5 minutes, or have ingest read the live price from Gemini |
 | Follower id is a plain header and live orders use one shared Gemini key | Anyone can place tails as anyone, all live trades hit the team's account | Sandbox only for the demo; replace the header with Mugdha's X login before anything real |
+| Notify is called twice for one call (a retry, or a second caller) | Duplicate paper tails, and duplicate live orders for copy traders: `tails` has no uniqueness on follower, call and source, and the live order is placed before the tail row is saved | The scoring API notifies at most once per call. Still open for the trading service: a unique index on automatic tails, and saving the tail row before placing the order |
 | The sync takes `lock_time` from `expiryDate`, two days after tip-off | A pick tweeted after the game started passes the lock check | Use `startTime` (see Fixes needed before integration) |
 | The sandbox has no sports markets | No markets, no calls, no tails | Read market data from production |
 | X changes its page markup | Badges vanish mid-demo | All selectors in one file; fallback match on the profile link in the tweet header; re-test the morning of Nov 20 |

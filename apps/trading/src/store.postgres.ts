@@ -13,6 +13,7 @@ interface DbCall {
   side: string | null;
   odds_at_call: number | null;
   status: string;
+  tweeted_at: Date;
 }
 
 interface DbMarket {
@@ -75,6 +76,7 @@ function toCall(r: DbCall): CallRow {
     side: (r.side as "yes" | "no") ?? null,
     oddsAtCall: r.odds_at_call,
     status: r.status,
+    tweetedAt: r.tweeted_at,
   };
 }
 
@@ -129,7 +131,7 @@ export function createPostgresStore(sql: postgres.Sql): TradingStore {
     async getCall(callId) {
       const [row] = await sql<DbCall[]>`
         select c.id, c.user_id, u.x_handle as user_x_handle, c.market_id,
-               c.picked_outcome, c.side, c.odds_at_call, c.status
+               c.picked_outcome, c.side, c.odds_at_call, c.status, c.tweeted_at
         from calls c
         join users u on u.id = c.user_id
         where c.id = ${callId}

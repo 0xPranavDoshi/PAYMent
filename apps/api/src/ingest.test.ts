@@ -1,4 +1,4 @@
-import { IngestResponse, MAX_POSTS_PER_REQUEST, type NewPost, type Pick } from "@copayme/shared";
+import { IngestResponse, MAX_COPY_PICK_AGE_S, MAX_POSTS_PER_REQUEST, type NewPost, type Pick } from "@copayme/shared";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { createApp } from "./app.js";
@@ -53,7 +53,9 @@ const post = (over: Partial<NewPost> = {}): NewPost => ({
 });
 
 /** In-memory stand-in for the database, recording what ingest asks it to do. */
-function fakeStore(opts: { markets?: Record<string, MarketRow>; postOwnerConflict?: boolean } = {}) {
+function fakeStore(
+  opts: { markets?: Record<string, MarketRow>; postOwnerConflict?: boolean; inserted?: boolean } = {},
+) {
   const markets = opts.markets ?? { "NCAAM-UCONN-ARI-M": market() };
   const saved: CallInput[] = [];
   const users: { xUserId: string; handle: string }[] = [];
@@ -71,7 +73,7 @@ function fakeStore(opts: { markets?: Record<string, MarketRow>; postOwnerConflic
     findMarket: async (ticker) => markets[ticker] ?? null,
     upsertCall: async (input) => {
       saved.push(input);
-      return { callId: randomUUID(), inserted: true };
+      return { callId: randomUUID(), inserted: opts.inserted ?? true };
     },
   };
   const store: IngestStore = { transaction: (fn) => fn(db) };
@@ -215,12 +217,19 @@ describe("ingestPosts", () => {
 
 describe("POST /v1/posts", () => {
   const KEY = "secret-key";
-  const build = (opts: { serviceKey?: string | null; ingest?: IngestStore | null } = {}) => {
+  const build = (
+    opts: {
+      serviceKey?: string | null;
+      ingest?: IngestStore | null;
+      notify?: (callId: string) => Promise<void>;
+    } = {},
+  ) => {
     const { store } = fakeStore();
     return createApp({
-      store: { findByHandles: async () => [] },
+      store: { findByHandles: async () => [], leaderboard: async () => [] },
       ingest: opts.ingest === null ? undefined : (opts.ingest ?? store),
       serviceKey: opts.serviceKey === null ? undefined : (opts.serviceKey ?? KEY),
+      notifyNewCall: opts.notify,
       now: () => NOW.getTime(),
     });
   };
@@ -277,5 +286,81 @@ describe("POST /v1/posts", () => {
     const many = (n: number) => Array.from({ length: n }, (_, i) => post({ tweetId: `t${i}` }));
     expect((await send(build(), many(MAX_POSTS_PER_REQUEST))).status).toBe(201);
     expect((await send(build(), many(MAX_POSTS_PER_REQUEST + 1))).status).toBe(400);
+  });
+});
+
+describe("telling the trading service about new picks", () => {
+  const KEY = "k";
+  const send = (app: ReturnType<typeof createApp>, body: unknown) =>
+    app.request("/v1/posts", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-service-key": KEY },
+      body: JSON.stringify(body),
+    });
+  const appWith = (notify: (id: string) => Promise<void>, store: IngestStore) =>
+    createApp({
+      store: { findByHandles: async () => [], leaderboard: async () => [] },
+      ingest: store,
+      serviceKey: KEY,
+      notifyNewCall: notify,
+      now: () => NOW.getTime(),
+    });
+
+  it("notifies once for each newly created call on a fresh tweet", async () => {
+    const notify = vi.fn(async (_id: string) => {});
+    const { store } = fakeStore();
+    const res = await send(
+      appWith(notify, store),
+      post({ picks: [pick(), pick({ instrumentSymbol: "GEMI-ARI", side: "no" })] }), // tweeted 2 min ago
+    );
+    const ids = (await res.json()).results[0].picks.map((p: { callId: string }) => p.callId);
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(2));
+    expect(notify.mock.calls.map((c) => c[0]).sort()).toEqual([...ids].sort());
+  });
+
+  it("never notifies for an old tweet, even though its call is created", async () => {
+    const notify = vi.fn(async (_id: string) => {});
+    const { store } = fakeStore();
+    const res = await send(appWith(notify, store), post({ tweetedAt: "2026-11-16T12:00:00Z" }));
+    expect((await res.json()).results[0].picks[0].status).toBe("created");
+    await new Promise((r) => setTimeout(r, 20));
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it("does not notify on the edge: just past the freshness limit", async () => {
+    const notify = vi.fn(async (_id: string) => {});
+    const { store } = fakeStore();
+    const stale = new Date(NOW.getTime() - (MAX_COPY_PICK_AGE_S + 1) * 1000).toISOString();
+    const fresh = new Date(NOW.getTime() - MAX_COPY_PICK_AGE_S * 1000).toISOString();
+    await send(appWith(notify, store), [
+      post({ tweetId: "stale", tweetedAt: stale, picks: [pick({ geminiEventTicker: "NCAAM-UCONN-ARI-M" })] }),
+      post({ tweetId: "fresh", tweetedAt: fresh, picks: [pick({ geminiEventTicker: "NCAAM-UCONN-ARI-M" })] }),
+    ]);
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledTimes(1));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(notify).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not notify for a re-sent or replaced pick, or one that was skipped", async () => {
+    const notify = vi.fn(async (_id: string) => {});
+    const updated = fakeStore({ inserted: false }).store; // the call already existed
+    await send(appWith(notify, updated), post());
+    const skipped = fakeStore({ markets: {} }).store; // no such market
+    await send(appWith(notify, skipped), post());
+    await new Promise((r) => setTimeout(r, 20));
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it("still answers 201 and reports the calls when the trading service is down", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const notify = vi.fn(async (_id: string) => {
+      throw new Error("connection refused");
+    });
+    const { store } = fakeStore();
+    const res = await send(appWith(notify, store), post());
+    expect(res.status).toBe(201);
+    expect((await res.json()).results[0].picks[0].status).toBe("created");
+    await vi.waitFor(() => expect(errors).toHaveBeenCalled());
+    errors.mockRestore();
   });
 });

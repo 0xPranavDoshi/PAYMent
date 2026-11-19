@@ -1,8 +1,13 @@
 import {
+  DEFAULT_LEADERBOARD_LIMIT,
   IngestRequest,
   MAX_BADGE_HANDLES,
+  MAX_LEADERBOARD_LIMIT,
+  NEW_BADGE_MIN_RESOLVED,
   XHandle,
+  isFreshForCopy,
   tierFor,
+  type LeaderboardEntry,
   type Badge,
   type BadgesResponse,
   type UserProfile,
@@ -22,6 +27,11 @@ export interface AppDeps {
   ingest?: IngestStore;
   /** Shared secret for write routes (header x-service-key). Without it, write routes are switched off. */
   serviceKey?: string;
+  /**
+   * Tells the trading service that a new pick is ready to watch or copy. Called at most once per
+   * created call, and only for picks tweeted recently. Without it, nothing is notified.
+   */
+  notifyNewCall?: (callId: string) => Promise<void>;
   now?: () => number;
 }
 
@@ -58,7 +68,7 @@ function toProfile(row: ScoreRow): UserProfile {
   };
 }
 
-export function createApp({ store, ingest, serviceKey, now = Date.now }: AppDeps) {
+export function createApp({ store, ingest, serviceKey, notifyNewCall, now = Date.now }: AppDeps) {
   const app = new Hono();
   // Badge per lowercase handle. Unknown handles are cached as null so a busy
   // timeline does not hit the database for the same unknown handle every time.
@@ -140,7 +150,35 @@ export function createApp({ store, ingest, serviceKey, now = Date.now }: AppDeps
     const results = await ingestPosts(ingest, posts, new Date(now()), (err, post) =>
       console.error(`[ingest] failed to store tweet ${post.tweetId}`, err),
     );
+
+    // Copy trading follows fresh picks only; a scan of an old tweet must never place orders.
+    // Only newly created calls count: a re-sent or replaced pick was already notified, or is not new.
+    if (notifyNewCall) {
+      const when = new Date(now());
+      results.forEach((result, i) => {
+        if (!isFreshForCopy(posts[i]!.tweetedAt, when)) return;
+        for (const pick of result.picks) {
+          if (pick.status !== "created" || !pick.callId) continue;
+          notifyNewCall(pick.callId).catch((err: unknown) =>
+            console.error(`[notify] could not notify call ${pick.callId}`, err),
+          );
+        }
+      });
+    }
+
     return c.json({ results }, 201);
+  });
+
+  app.get("/v1/leaderboard", async (c) => {
+    const raw = c.req.query("limit");
+    let limit = DEFAULT_LEADERBOARD_LIMIT;
+    if (raw !== undefined) {
+      if (!/^\d+$/.test(raw)) return c.json({ error: "limit must be a whole number" }, 400);
+      limit = Math.min(Math.max(Number(raw), 1), MAX_LEADERBOARD_LIMIT);
+    }
+    const rows = await store.leaderboard(limit, NEW_BADGE_MIN_RESOLVED);
+    const board: LeaderboardEntry[] = rows.map((row) => ({ handle: row.handle, ...toBadge(row) }));
+    return c.json(board);
   });
 
   return Object.assign(app, {

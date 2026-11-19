@@ -9,6 +9,8 @@ export interface CallRow {
   side: "yes" | "no" | null;
   oddsAtCall: number | null;
   status: string;
+  /** When the user tweeted the pick. */
+  tweetedAt: Date;
 }
 
 export interface MarketRow {
