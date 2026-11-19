@@ -6,8 +6,10 @@ import {
   contractToOutcome,
   decimalPlaces,
   formatToIncrement,
+  sidePriceFromEvent,
   snapDown,
   type GeminiContract,
+  type GeminiEvent,
 } from "./gemini.js";
 
 const CFG = {
@@ -184,6 +186,46 @@ describe("contractToOutcome", () => {
     expect(out.priceIncrement).toBeNull();
     expect(out.quantityIncrement).toBeNull();
     expect(out.quantityMinimum).toBeNull();
+  });
+});
+
+describe("sidePriceFromEvent", () => {
+  function event(...contracts: GeminiContract[]): GeminiEvent {
+    return {
+      id: "e1",
+      title: "Chiefs vs Eagles",
+      ticker: "NFL-KC-PHI",
+      status: "active",
+      effectiveDate: null,
+      expiryDate: null,
+      resolvedAt: null,
+      contracts,
+    };
+  }
+
+  it("reads the buy price of the bought side for the matched contract", () => {
+    const e = event(contract());
+    expect(sidePriceFromEvent(e, { instrumentSymbol: "GEMI-NFL-KC" }, "yes")).toBe(0.54);
+    expect(sidePriceFromEvent(e, { instrumentSymbol: "GEMI-NFL-KC" }, "no")).toBe(0.47);
+    expect(sidePriceFromEvent(e, { instrumentSymbol: "GEMI-NFL-KC" }, null)).toBe(0.54); // null -> yes
+  });
+
+  it("falls back to matching by label when there is no instrument symbol", () => {
+    const e = event(contract());
+    expect(sidePriceFromEvent(e, { label: "Chiefs -3.5" }, "yes")).toBe(0.54);
+  });
+
+  it("returns null when no contract matches", () => {
+    const e = event(contract());
+    expect(sidePriceFromEvent(e, { instrumentSymbol: "NOPE" }, "yes")).toBeNull();
+    expect(sidePriceFromEvent(e, {}, "yes")).toBeNull();
+  });
+
+  it("returns null for an unusable price (0, missing, or out of range)", () => {
+    const zero = event(contract({ prices: { ...contract().prices, buy: { yes: "0", no: "0" } } }));
+    expect(sidePriceFromEvent(zero, { instrumentSymbol: "GEMI-NFL-KC" }, "yes")).toBeNull();
+    const high = event(contract({ prices: { ...contract().prices, buy: { yes: "1.5", no: "0.5" } } }));
+    expect(sidePriceFromEvent(high, { instrumentSymbol: "GEMI-NFL-KC" }, "yes")).toBeNull();
   });
 });
 

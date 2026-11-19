@@ -18,6 +18,9 @@ function fmtPnl(v: number | null): string {
 }
 
 export default function TailRow({ tail }: { tail: TailResponse }) {
+  // Realized pnl once settled, otherwise the live mark-to-market (shown with a "live" hint).
+  const realized = tail.pnlUsdc !== null && tail.pnlUsdc !== undefined;
+  const pnl = realized ? tail.pnlUsdc! : tail.unrealizedPnlUsdc ?? null;
   return (
     <tr>
       <td style={{ ...td, fontFamily: "monospace", color: "#9a9a9a" }}>
@@ -26,8 +29,11 @@ export default function TailRow({ tail }: { tail: TailResponse }) {
       <td style={td}>{tail.status}</td>
       <td style={td}>{(tail.entryOdds * 100).toFixed(0)}%</td>
       <td style={td}>{tail.amountUsdc.toFixed(2)} USDC</td>
-      <td style={{ ...td, color: pnlColor(tail.pnlUsdc), fontWeight: 600 }}>
-        {fmtPnl(tail.pnlUsdc)}
+      <td style={{ ...td, color: pnlColor(pnl), fontWeight: 600 }}>
+        {fmtPnl(pnl)}
+        {!realized && pnl !== null && (
+          <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 400, color: "#9a9a9a" }}>live</span>
+        )}
       </td>
     </tr>
   );

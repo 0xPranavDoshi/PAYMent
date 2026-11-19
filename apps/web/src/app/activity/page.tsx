@@ -95,7 +95,8 @@ export default function ActivityPage() {
   }
 
   const filled = tails.filter((t) => t.status === "filled" || t.status === "settled");
-  const livePnl = tails.reduce((sum, t) => sum + (t.pnlUsdc ?? 0), 0);
+  // Realized pnl once settled, otherwise the live mark-to-market from the trading service.
+  const livePnl = tails.reduce((sum, t) => sum + (t.pnlUsdc ?? t.unrealizedPnlUsdc ?? 0), 0);
 
   return (
     <div>
