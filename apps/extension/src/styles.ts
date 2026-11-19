@@ -19,7 +19,7 @@ export const TOKENS_CSS = `
     --focus: #c8461a;
     /* X's own colours, so a tweet shown here looks like the ones on the page. --tw-bg is replaced
        with the page's exact background by the extension. */
-    --tw-bg: #ffffff; --tw-ink: #0f1419; --tw-ink-2: #536471; --tw-line: #eff3f4; --tw-avatar: #cfd9de; --tw-avatar-ink: #536471;
+    --tw-link: #1d9bf0; --tw-bg: #ffffff; --tw-ink: #0f1419; --tw-ink-2: #536471; --tw-line: #eff3f4; --tw-avatar: #cfd9de; --tw-avatar-ink: #536471;
   }
   :host([data-theme="dark"]) {
     --pill-bg: #131315; --pill-ink: #f6f1e7; --pill-dim: #8b867b; --rim: #6b3f26;
@@ -31,7 +31,7 @@ export const TOKENS_CSS = `
     --raised: #1a1a1d;
     --ring-s: 70%; --ring-l: 56%;
     --focus: #ffb36b;
-    --tw-bg: #000000; --tw-ink: #e7e9ea; --tw-ink-2: #71767b; --tw-line: #2f3336; --tw-avatar: #2f3336; --tw-avatar-ink: #e7e9ea;
+    --tw-link: #1d9bf0; --tw-bg: #000000; --tw-ink: #e7e9ea; --tw-ink-2: #71767b; --tw-line: #2f3336; --tw-avatar: #2f3336; --tw-avatar-ink: #e7e9ea;
   }
 `;
 
@@ -209,6 +209,8 @@ export const POPOVER_CSS = `
   .thead { display: flex; gap: 4px; align-items: baseline; font: 15px/20px var(--font); color: var(--tw-ink-2); min-width: 0; }
   .thead b { font-weight: 700; color: var(--tw-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ttext { margin: 2px 0 0; font: 15px/20px var(--font); color: var(--tw-ink); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; max-height: 200px; overflow-y: auto; overscroll-behavior: contain; }
+  .ttext a { color: var(--tw-link); text-decoration: none; }
+  .ttext a:hover { text-decoration: underline; }
   .tmeta { margin-top: 10px; font: 13px/16px var(--font); color: var(--tw-ink-2); }
   .tfoot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--tw-line); font-size: 12px; color: var(--tw-ink-2); }
   .tfoot .link, .tfoot .flipbtn { color: var(--tw-ink-2); }

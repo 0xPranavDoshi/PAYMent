@@ -373,6 +373,33 @@ describe("the popover", () => {
       expect(back.querySelector("img")).toBeNull();
       expect(back.querySelector(".ttext")!.textContent).toBe(hostile);
     });
+    it("draws the tweet the way X does: escapes decoded, the trailing t.co link dropped, links and mentions clickable", async () => {
+      const raw = "21+ (18+ WY). T&amp;Cs apply. Gambling problem? Call 1-800-GAMBLER.\nVia @ActionNetworkHQ #NBA https://example.com/picks.\n  https://t.co/VXTYrphI6W";
+      await start(async () => ({ profile: profile("alice"), calls: [call(1, { tweetText: raw }), call(2)] }));
+      click(badgeButton());
+      await vi.waitFor(() => expect(rows()).toHaveLength(2));
+      click(flipButton(0));
+      await vi.waitFor(() => expect(rows()[0]!.classList.contains("flipped")).toBe(true));
+      const text = rows()[0]!.querySelector(".ttext")!;
+      expect(text.textContent).toContain("T&Cs apply."); // not "T&amp;Cs"
+      expect(text.textContent).not.toContain("&amp;");
+      expect(text.textContent).not.toContain("t.co"); // the trailing short link is hidden
+      const hrefs = [...text.querySelectorAll("a")].map((a) => a.getAttribute("href"));
+      expect(hrefs).toEqual(["https://x.com/ActionNetworkHQ", "https://x.com/hashtag/NBA", "https://example.com/picks"]);
+      expect([...text.querySelectorAll("a")].every((a) => a.getAttribute("rel") === "noopener noreferrer" && a.getAttribute("target") === "_blank")).toBe(true);
+    });
+
+    it("keeps the card flipped when a link in the tweet is clicked", async () => {
+      await start(async () => ({ profile: profile("alice"), calls: [call(1, { tweetText: "see https://example.com/x" }), call(2)] }));
+      click(badgeButton());
+      await vi.waitFor(() => expect(rows()).toHaveLength(2));
+      click(flipButton(0));
+      await vi.waitFor(() => expect(rows()[0]!.classList.contains("flipped")).toBe(true));
+      const link = rows()[0]!.querySelector<HTMLAnchorElement>(".ttext a")!;
+      link.addEventListener("click", (e) => e.preventDefault()); // do not navigate in the test
+      link.click();
+      expect(rows()[0]!.classList.contains("flipped")).toBe(true);
+    });
   });
 
   describe("the trade buttons", () => {

@@ -4,6 +4,7 @@ import { Gauge, Mark } from "../brand.js";
 import { REFRESH_MESSAGE, isContextInvalidated } from "../context.js";
 import { ArrowUpRightIcon, CheckIcon, ChevronDownIcon, CopyIcon, EyeIcon } from "../icons.js";
 import { SIGNED_OUT, type TradingActions, type TradingState } from "../trading.js";
+import { TweetText } from "./TweetText.js";
 import { callRowView, formatAmount, formatTweetTime, parseAmount, profileView } from "./view.js";
 
 export type PopoverState =
@@ -428,7 +429,7 @@ function PickRow({ call, handle }: { call: CallEntry; handle: string }) {
                 <b>@{handle}</b>
                 <span>· {when.short}</span>
               </div>
-              <p className="ttext">{call.tweetText}</p>
+              <p className="ttext"><TweetText text={call.tweetText} /></p>
               <div className="tmeta">{when.full}</div>
             </div>
           </div>

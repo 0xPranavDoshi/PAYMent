@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import TweetText from "./TweetText";
 
 export interface PickRowProps {
   handle: string;
@@ -38,7 +39,7 @@ export default function PickRow(p: PickRowProps) {
               <b>@{p.handle}</b>
               <span>· {p.short}</span>
             </div>
-            <p>{p.tweetText}</p>
+            <p><TweetText text={p.tweetText} /></p>
             <div className="xt-time">{p.full}</div>
             <a href={`https://x.com/i/status/${encodeURIComponent(p.tweetId)}`} target="_blank" rel="noopener noreferrer">
               Open on X ↗
