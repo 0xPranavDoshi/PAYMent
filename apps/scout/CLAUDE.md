@@ -152,6 +152,18 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
   - 10 matched games had already settled (backfill) and 5 were open (tailing).
   - no_market: 3 "no contract guaranteed", 2 "no sub-event", 1 team total (correct), 1 "game returned without sub-markets" (left pending for retry, along with 2 others).
 
+- **Speed and matching runs (Nov 18, Supabase, forwarding off, clean first scans of @ActionNetworkHQ).**
+  - The timing line is now logged per scan.
+  - **Run A (concurrency 8 read / 6 match):** 72.1 s. Fetch 18.0 s, read 30.5 s, match 18.3 s, save 5.3 s. 11 matched, all correct, but 4 picks regressed (below).
+  - **Fixes after run A:**
+    - (1) Grok named another parlay leg's team as the opponent (Spurs vs Hornets), so no game had both teams. The opponent is now a hint, with a fallback to the team alone.
+    - (2) Spread contracts are labelled with the game title's short names ("San Antonio wins by more than 9.5"), which Grok's aliases miss. These are now added from the title ("Detroit vs San Antonio"), so no Grok fallback is needed.
+    - (3) Gemini sometimes returns a game without its child markets, and settled games were cached forever. Incomplete games are now never cached and are refetched once.
+  - **Run B (after the fixes, `PIPELINE_VERSION` 4):** 98.8 s. Fetch 18.3 s, **read 56.8 s** (Grok latency varies: same 71 posts as run A's 30.5 s), match 17.7 s, save 6.0 s.
+    - **18 matched, 18 correct, 0 via the Grok fallback.** That includes the parlay (Spurs −8.5 YES, Charlotte +8.5 → "Los Angeles L by more than 8.5" NO), Spurs −9.5, Florida −15.5, Nets −2.5, and both underdog +3.5 spreads.
+    - 2 pending retry: "Vice City −12.5" (a Heat nickname), and the Sensabaugh over, which has no line.
+  - **Still over 90 s on some first scans.** Next: read all batches at once (15 for 71 posts, about one Grok round trip), and save posts in one database round trip instead of 71.
+
 ## Changes in progress / next
 - [x] **Underdog spreads:** fixed in the prompt (sign decides), verified 8 of 8 on a live test. The fallback, if errors come back, is a code check on a verbatim signed line from Grok.
 - [ ] **Speed up Gemini lookups** (smoke test: 12.5 min):
