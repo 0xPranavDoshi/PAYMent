@@ -37,6 +37,11 @@ export const OutcomeInfo = z.object({
   currentOdds: z.number().min(0).max(1),
   noOdds: z.number().min(0).max(1).nullable(),
   resolutionSide: z.enum(["yes", "no"]).nullable(),
+  // Order sizing increments from Gemini. Optional: only the trading service's own
+  // sync populates them, so other workstreams can build markets without them.
+  priceIncrement: z.number().positive().nullish(),
+  quantityIncrement: z.number().positive().nullish(),
+  quantityMinimum: z.number().positive().nullish(),
 });
 export type OutcomeInfo = z.infer<typeof OutcomeInfo>;
 

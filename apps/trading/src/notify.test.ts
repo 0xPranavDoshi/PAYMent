@@ -14,7 +14,7 @@ const market: MarketRow = {
   sport: "basketball",
   eventName: "UConn vs Arizona",
   outcomes: [
-    { label: "UConn", instrumentSymbol: "GEMI-UCONN", currentOdds: 0.62, noOdds: 0.4, resolutionSide: null },
+    { label: "UConn", instrumentSymbol: "GEMI-UCONN", currentOdds: 0.62, noOdds: 0.4, resolutionSide: null, priceIncrement: 0.01, quantityIncrement: 0.01, quantityMinimum: 0.01 },
   ],
   lockTime: new Date("2026-11-20T02:00:00Z"),
   status: "open",
@@ -172,9 +172,10 @@ describe("POST /v1/calls/notify", () => {
       expect(gemini.placeOrder).toHaveBeenCalledTimes(1); // the failed attempt only
     });
 
-    it("cancels without ordering when the amount is too small for one contract", async () => {
+    it("cancels without ordering when the amount is below the minimum quantity", async () => {
       const { notify, gemini, tails, store } = setup();
-      store.getActiveCopyTraders.mockResolvedValue([{ followerId: "copier-1", amountUsdc: 0.1 }]);
+      // 0.004 / 0.62 ≈ 0.006 contracts, below the 0.01 quantity minimum.
+      store.getActiveCopyTraders.mockResolvedValue([{ followerId: "copier-1", amountUsdc: 0.004 }]);
       const body = await (await notify()).json();
       expect(body.errors[0]).toContain("too small");
       expect(gemini.placeOrder).not.toHaveBeenCalled();
