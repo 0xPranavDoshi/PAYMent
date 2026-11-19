@@ -172,6 +172,15 @@ Adi's first scan of @Pickswise: 98 posts, 18 predictions, 15 picks forwarded, sc
     - 3 picks that used to miss now match (Lakers −12.5, Western Michigan −14.5, Avalanche–Leafs over 6.5).
     - Grok called the Chargers recap a prediction in run 1 and not in run 2, so the prompt alone isn't reliable for it; the opponent check in code stopped it from matching both times.
     - West Virginia +9.5 and Florida −1.5 still came back without sub-markets after 5 tries; they stay pending and are retried each scan.
+  - **Team decisions (Pranav):**
+    - Markets that never come back don't count: a leg with no contract isn't forwarded.
+    - Parlay legs each count as their own pick.
+  - **Cleanup in Supabase (approved, Nov 19):** for @Pickswise and @ActionNetworkHQ, deleted calls/posts/scores, reset the scout's readings, then re-read with Grok (no Apify), re-matched, priced, forwarded and scored through a local API. Users rows kept; no tails, copy trades or rewards referenced these calls.
+    - **@Pickswise:** score **64 → 39** (15 resolved, 7 wins), 15 calls, all priced.
+    - **@ActionNetworkHQ:** score **31 → 20** (11 resolved, 3 wins), 15 calls, all priced.
+    - The Chargers recap and the "44 winning picks" brag have 0 calls; 0 calls remain on the 7 known-wrong contracts.
+    - Gemini twice returned an unparseable body mid-search; a no-fetch retry matched those posts.
+    - Wild–Canadiens under 6.5 (one leg of a 3-leg tweet), West Virginia +9.5 and Florida −1.5 came back without markets and don't count.
   - **Brags are recaps too:** "44 winning picks on Saturday ✅ Indiana -8.5, Iowa State -3, Heat +4.5, Sharks ML" had become two picks, Heat +4.5 on Miami's next game and Sharks ML. The Heat pick was unpriced because that market opened on Kalshi 6.4 h after the tweet. The prompt now names lists of past winners; real Grok rejects 3/3 brags and keeps 2/2 picks.
   - Stored rows made under the old rule: 4 of 27 line picks used a different line, all forwarded: Booker u23.5 → 24.5, total 44 → 44.5, Adebayo o17.5 → 14.5, Grambling +37.5 → 40.5.
 
