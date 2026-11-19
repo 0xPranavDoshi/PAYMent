@@ -1,5 +1,7 @@
 import type { BadgesResponse } from "@copayme/shared";
 import { createRoot, type Root } from "react-dom/client";
+import type { ProfileData } from "./messages.js";
+import { createPopoverManager } from "./popover/manager.js";
 import { Badge, BADGE_CSS } from "./Badge.js";
 import { createBadgeStore } from "./badgeStore.js";
 import { createBatcher } from "./batcher.js";
@@ -8,16 +10,22 @@ import { TWEET_SELECTOR, extractHandle, findMountPoint } from "./selectors.js";
 export interface StartOptions {
   /** Fetches badges for these handles (in the extension, via the background worker). */
   lookup: (handles: string[]) => Promise<BadgesResponse>;
+  /** Fetches the popover's data for one handle. Without it, badges are not clickable. */
+  loadProfile?: (handle: string) => Promise<ProfileData>;
+  /** Base URL of the coPAYMe website, for the popover's link. */
+  webUrl?: string;
   doc?: Document;
   /** Quiet period before a batch is sent. */
   delayMs?: number;
 }
 
 /** Puts a badge next to the author of every tweet on the page, including ones added later. Returns a stop function. */
-export function startBadges({ lookup, doc = document, delayMs = 150 }: StartOptions): () => void {
+export function startBadges({ lookup, loadProfile, webUrl = "", doc = document, delayMs = 150 }: StartOptions): () => void {
   const store = createBadgeStore();
   const requested = new Set<string>();
   const mounted = new WeakMap<Element, { host: HTMLElement; root: Root }>();
+
+  const popover = loadProfile ? createPopoverManager({ load: loadProfile, webUrl, doc }) : null;
 
   const batcher = createBatcher(async (handles) => {
     try {
@@ -46,7 +54,7 @@ export function startBadges({ lookup, doc = document, delayMs = 150 }: StartOpti
     anchor.appendChild(host);
 
     const root = createRoot(container);
-    root.render(<Badge handle={handle} store={store} />);
+    root.render(<Badge handle={handle} store={store} onOpen={popover ? (h, el) => popover.toggle(h, el) : undefined} />);
     mounted.set(article, { host, root });
 
     if (store.get(handle) === undefined && !requested.has(handle)) {
@@ -79,5 +87,8 @@ export function startBadges({ lookup, doc = document, delayMs = 150 }: StartOpti
   doc.querySelectorAll(TWEET_SELECTOR).forEach(mount);
   observer.observe(doc.body, { childList: true, subtree: true });
 
-  return () => observer.disconnect();
+  return () => {
+    observer.disconnect();
+    popover?.close();
+  };
 }
