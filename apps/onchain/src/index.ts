@@ -5,6 +5,7 @@ import { createMemoryStore } from "./store.memory.js";
 import { createPostgresStore } from "./store.postgres.js";
 import { createPaymentProviderFromEnv } from "./payments.js";
 import type { OnchainStore } from "./store.js";
+import { dbPoolMax } from "@copayme/shared";
 
 const {
   DATABASE_URL,
@@ -19,7 +20,7 @@ let store: OnchainStore;
 if (STORE === "postgres") {
   if (!DATABASE_URL) throw new Error("STORE=postgres requires DATABASE_URL");
   const ssl = /localhost|127\.0\.0\.1/.test(DATABASE_URL) ? false : "require";
-  store = createPostgresStore(postgres(DATABASE_URL, { max: 10, ssl }));
+  store = createPostgresStore(postgres(DATABASE_URL, { max: dbPoolMax(process.env.DB_POOL_MAX), ssl }));
 } else {
   console.warn("[onchain] STORE=memory — data is not durable. Set DATABASE_URL for Postgres.");
   store = createMemoryStore();
