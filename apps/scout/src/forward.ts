@@ -1,6 +1,7 @@
 import { IngestResponse, MAX_POSTS_PER_REQUEST, type NewPost, type Pick, type PickMatch } from "@copayme/shared";
 import type { GeminiClient } from "./gemini/client.js";
-import type { GeminiEvent } from "./gemini/types.js";
+import type { GeminiContract, GeminiEvent } from "./gemini/types.js";
+import type { KalshiClient } from "./kalshi/client.js";
 import type { MarketRow, ScoutPostRow, ScoutStore } from "./store.js";
 
 export interface Forwarder {
@@ -48,20 +49,66 @@ export function toMarketRow(sub: GeminiEvent, gameStartTime: string | null): Mar
   };
 }
 
+export type PriceSource = "gemini" | "kalshi";
+
 /**
- * The pick for ingest, priced at the tweet's time from Gemini's candles. Without that price ingest
- * stores the pick but can't score it (points = won - price), so backfilled picks would never count.
+ * The YES price of the picked contract when the tweet was sent: Gemini's own candles first (the
+ * venue picks are tailed on), else the Kalshi market Gemini mirrors (same game, same strike,
+ * agreeing result) when Gemini hasn't traded it. Null when neither has a price; ingest then stores
+ * the pick unpriced, and it doesn't count toward the score.
  */
-async function toPick(m: PickMatch, sub: GeminiEvent, tweetedAt: Date, gemini: GeminiClient): Promise<Pick | null> {
+export async function yesPriceAtTweet(
+  m: PickMatch,
+  sub: GeminiEvent,
+  contract: GeminiContract,
+  tweetedAt: Date,
+  deps: { gemini: GeminiClient; kalshi?: KalshiClient; log: (msg: string) => void },
+): Promise<{ yes: number; source: PriceSource; ref: string } | null> {
+  const symbol = contract.instrumentSymbol;
+  try {
+    const yes = await deps.gemini.getYesPriceAt(symbol, tweetedAt);
+    if (yes !== null) return { yes, source: "gemini", ref: symbol };
+  } catch {
+    // fall through to Kalshi
+  }
+  if (!deps.kalshi || !m.gameTicker) return null;
+  try {
+    const game = m.gameTicker === sub.ticker ? sub : await deps.gemini.getEvent(m.gameTicker);
+    const found = await deps.kalshi.findMarket(game, sub, contract);
+    if (found.series === null) {
+      deps.log(`[scout] no Kalshi price for ${symbol}: ${found.reason}`);
+      return null;
+    }
+    const yes = await deps.kalshi.getYesPriceAt(found.series, found.market, tweetedAt);
+    if (yes === null) {
+      deps.log(`[scout] no Kalshi price for ${symbol}: ${found.market.ticker} had no quote at the tweet`);
+      return null;
+    }
+    return { yes, source: "kalshi", ref: found.market.ticker };
+  } catch (err) {
+    deps.log(`[scout] Kalshi lookup failed for ${symbol}: ${(err as Error).message}`);
+    return null;
+  }
+}
+
+/**
+ * The pick for ingest, priced at the tweet's time. Without that price ingest stores the pick but
+ * can't score it (points = won - price), so backfilled picks would never count.
+ */
+async function toPick(
+  m: PickMatch,
+  sub: GeminiEvent,
+  tweetedAt: Date,
+  deps: { gemini: GeminiClient; kalshi?: KalshiClient; log: (msg: string) => void },
+): Promise<Pick | null> {
   if (!m.instrumentSymbol || !m.side || !m.gameStartTime) return null;
   const contract = sub.contracts.find((c) => c.instrumentSymbol === m.instrumentSymbol);
   if (!contract) return null;
   let oddsAtTweet: number | null = null;
-  try {
-    const yes = await gemini.getYesPriceAt(m.instrumentSymbol, tweetedAt);
-    if (yes !== null) oddsAtTweet = Math.round((m.side === "yes" ? yes : 1 - yes) * 10000) / 10000;
-  } catch {
-    // No price is fine: ingest stores the pick unpriced.
+  const priced = await yesPriceAtTweet(m, sub, contract, tweetedAt, deps);
+  if (priced) {
+    oddsAtTweet = Math.round((m.side === "yes" ? priced.yes : 1 - priced.yes) * 10000) / 10000;
+    deps.log(`[scout] priced ${m.instrumentSymbol} ${m.side} at ${oddsAtTweet} via ${priced.source} (${priced.ref})`);
   }
   return {
     geminiEventTicker: sub.ticker,
@@ -79,6 +126,8 @@ export function createForwarder(opts: {
   serviceKey: string;
   store: ScoutStore;
   gemini: GeminiClient;
+  /** Prices picks Gemini has no trade history for, from the Kalshi market Gemini mirrors. */
+  kalshi?: KalshiClient;
   fetch?: typeof fetch;
   log?: (msg: string) => void;
 }): Forwarder {
@@ -135,7 +184,7 @@ export function createForwarder(opts: {
           if (m.status !== "matched" || !m.geminiEventTicker) continue;
           try {
             const sub = await opts.gemini.getEvent(m.geminiEventTicker);
-            const pick = await toPick(m, sub, post.tweetedAt, opts.gemini);
+            const pick = await toPick(m, sub, post.tweetedAt, { gemini: opts.gemini, kalshi: opts.kalshi, log });
             const market = toMarketRow(sub, m.gameStartTime);
             if (pick && market && (await ensureMarket(market))) picks.push(pick);
           } catch (err) {

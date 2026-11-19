@@ -5,6 +5,7 @@ import { positiveIntOr } from "./env.js";
 import { createForwarder, noopForwarder } from "./forward.js";
 import { createGeminiClient } from "./gemini/client.js";
 import { createGrok } from "./grok/client.js";
+import { createKalshiClient } from "./kalshi/client.js";
 import { createApifySource } from "./posts/apify.js";
 import { refreshMarkets } from "./refresh.js";
 import { runScan, type ScanDeps } from "./scan.js";
@@ -27,7 +28,9 @@ if (env.SCOUT_FORWARD_ENABLED === "true") {
     console.error("SCOUT_FORWARD_ENABLED=true requires INGEST_URL and INGEST_SERVICE_KEY.");
     process.exit(1);
   }
-  forwarder = createForwarder({ url: env.INGEST_URL, serviceKey: env.INGEST_SERVICE_KEY, store, gemini, log: console.warn });
+  // Price picks Gemini has no trades for from the Kalshi market Gemini mirrors (SCOUT_KALSHI_PRICING=false turns it off).
+  const kalshi = env.SCOUT_KALSHI_PRICING === "false" ? undefined : createKalshiClient();
+  forwarder = createForwarder({ url: env.INGEST_URL, serviceKey: env.INGEST_SERVICE_KEY, store, gemini, kalshi, log: console.warn });
 }
 
 const scanDeps: ScanDeps = {

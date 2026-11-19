@@ -105,6 +105,22 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
   "UConn +3.5" is priced at 0.49 and still pending.
 - **Still unpriced: 8 of 14** (contracts Gemini has no trades for: some spreads and props, Nets −2.5). These are excluded by Aditya's scoring, including a winning "Tennessee +3.5". Whether to count unpriced picks at an even 0.50 is a **team decision about scoring policy**.
 
+### Pricing unpriced picks from Kalshi (Nov 18, Pranav's idea)
+- **Why:** Gemini's price history (candles) only starts at a contract's first trade. In the Michigan State–Tennessee spread ladder, 15 of 20 lines had never traded, and our pick's line first traded 2.5 h *after* the tweet. A fair value existed, but Gemini keeps no quote history.
+- **Kalshi mirrors Gemini's sports markets:** the same games, the same ladders and strikes (that game: 20 lines on both), and the same results. Kalshi is far more liquid, and its public 1-minute candles carry the **bid/ask even when nothing trades**.
+- **Matching (`src/kalshi/match.ts`).** Kalshi tickers are never built from Gemini codes alone, because the codes differ (UConn: `UCONN` vs `CONN`, Arizona: `ARI` vs `ARIZ`, Ohio: `OHI` vs `OHIO`), home and away are sometimes swapped (`ND-FLA` vs "Florida vs Notre Dame"), and spellings differ ("Michigan State" vs "Michigan St.").
+  - **Series** comes from the league and Gemini's bet classification: game / spread / total for NBA, NCAAM, NFL, NCAAF and NHL; NBA points, rebounds, assists and threes props; soccer game markets.
+  - **Event:** first a guess from Gemini's codes, accepted only if the title's two teams match. Otherwise list the series (`min_close_ts` set to the game day, paged) and require the **same US-Eastern date plus the same two team names** (normalized, order-insensitive), with exactly one match.
+  - **Market:** for spreads and props, the same team or player **and** the exact strike (`floor_strike`); for totals, the strike plus "over"; for winners, the team. Exactly one candidate, or no match.
+  - **Safety net:** for settled markets, Kalshi's `result` must equal Gemini's `resolutionSide`, or the match is rejected.
+- **Price (`src/kalshi/client.ts`):** the last 1-minute candle **ending at or before the tweet**, within the hour before it. Bid/ask midpoint if the spread is ≤ 0.10, else that minute's trade. Fallback: hourly candles over 6 h. Markets settled before `/historical/cutoff` (Sep 19) are read from `/historical/...`. 429s are retried with backoff (limit 20 reads/s per IP), and events and markets are cached for 5 minutes.
+- **Order:** Gemini's own price first (the venue picks are tailed on), then Kalshi, then unpriced. Each pick's source is logged: `priced <symbol> <side> at <p> via gemini|kalshi (<ref>)`.
+- **Live verification on the 14 e2e picks: 14 of 14 matched, 14 of 14 priced, 0 result disagreements.**
+  - The 6 Gemini-code misses (UConn ×2, Florida–Notre Dame, Ohio, the Adebayo and Booker props) all match by name.
+  - Where both exchanges have a price, Kalshi is within ~2¢ of Gemini (0.505/0.51, 0.385/0.39, 0.475/0.46, 0.275/0.27, 0.465/0.47, 0.495/0.47).
+  - Neighbouring lines are never confused (MSU 3.5 → `MSU4`, not `MSU3`).
+  - "Tennessee +3.5" is now priced at 0.535 (it won).
+
 ## Open questions for the team (block turning forwarding on)
 - ~~**Gemini environment**~~ **resolved on main:** market data reads production (`GEMINI_READ_BASE_URL`), and orders go to the sandbox.
 - **Lock time: decided (Pranav, Nov 18). `markets.lock_time` = the market's `expiryDate`**, written the same way by the scout's upsert and by the trading sync (`apps/trading/src/sync.ts` `lockTimeFor`, changed in this branch).
