@@ -99,6 +99,23 @@ export function extractProfileHandle(header: Element, pathname: string): string 
   return (header.textContent ?? "").toLowerCase().includes(`@${handle}`) ? handle : null;
 }
 
+/**
+ * Where a profile header's badge goes: at the end of the display-name row (after the name and the
+ * verified check), not under the @handle. X nests the name row and the handle row in wrappers that
+ * change, so find the "@handle" text and take the row just before the one that holds it. Falls back
+ * to the header's first child when the handle text can't be found.
+ */
+export function findProfileMountPoint(header: Element, handle: string): Element {
+  const handleText = [...header.querySelectorAll("span")].find((s) => s.textContent?.trim().toLowerCase() === `@${handle}`);
+  let node: Element | null = handleText ?? null;
+  while (node && node !== header) {
+    const before = node.previousElementSibling;
+    if (before) return before;
+    node = node.parentElement;
+  }
+  return header.firstElementChild ?? header;
+}
+
 /** What a badge belongs to: the handle, and where on the page it goes. Null if the element is not a target. */
 export function resolveTarget(element: Element, pathname: string): { handle: string; anchor: Element } | null {
   if (element.matches(TWEET_SELECTOR)) {
@@ -108,7 +125,7 @@ export function resolveTarget(element: Element, pathname: string): { handle: str
   }
   if (element.matches(PROFILE_SELECTOR)) {
     const handle = extractProfileHandle(element, pathname);
-    return handle ? { handle, anchor: element.firstElementChild ?? element } : null;
+    return handle ? { handle, anchor: findProfileMountPoint(element, handle) } : null;
   }
   return null;
 }
