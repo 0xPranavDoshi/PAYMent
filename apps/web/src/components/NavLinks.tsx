@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/watchlist", label: "Watchlist" },
   { href: "/portfolio", label: "Portfolio" },
+  { href: "/rewards", label: "Rewards" },
   { href: "/how-scoring", label: "How it works", hideSm: true },
 ];
 
