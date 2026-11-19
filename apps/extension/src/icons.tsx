@@ -15,6 +15,12 @@ export const CopyIcon = () => (
   </svg>
 );
 
+export const ArrowUpRightIcon = () => (
+  <svg {...base}>
+    <path d="M5 11l6-6M6 5h5v5" />
+  </svg>
+);
+
 export const CheckIcon = () => (
   <svg {...base}>
     <path d="M3.5 8.4l3 3 6-6.8" />

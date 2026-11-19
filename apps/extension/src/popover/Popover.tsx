@@ -1,7 +1,7 @@
 import type { CallEntry, UserProfile } from "@copayme/shared";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Gauge, Mark } from "../brand.js";
-import { CheckIcon, CopyIcon, PaperIcon } from "../icons.js";
+import { ArrowUpRightIcon, CheckIcon, CopyIcon, PaperIcon } from "../icons.js";
 import { SIGNED_OUT, type TradingActions, type TradingState } from "../trading.js";
 import { callRowView, formatTweetTime, profileView } from "./view.js";
 
@@ -60,8 +60,9 @@ export function Popover(props: {
       )}
 
       <div className="foot">
-        <a className="link" href={site} target="_blank" rel="noopener noreferrer">
-          Open coPAYMe ↗
+        <a className="site" href={site} target="_blank" rel="noopener noreferrer">
+          View full profile on coPAYMe
+          <ArrowUpRightIcon />
         </a>
       </div>
     </div>
@@ -101,7 +102,7 @@ function Summary({
           <b>{view.hitRate}</b>
           <span>Hit rate</span>
         </div>
-        <div title="Average points per pick beyond the market price, shrunk for small samples">
+        <div title="Average cents per $1 contract beyond the market price, shrunk for small samples">
           <b>{view.edge}</b>
           <span>Edge</span>
         </div>

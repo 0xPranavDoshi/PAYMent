@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { scoreHue } from "./scoreColor.js";
 
 /**
  * The coPAYMe mark: a "C" with a bright point in its opening, a coin lit from one side.
@@ -50,7 +51,12 @@ export function Gauge({ score }: { score: number | null }) {
   const shown = useCountUp(score);
   const dash = score === null ? 0 : (CIRCUMFERENCE * Math.min(Math.max(score, 0), 100)) / 100;
   return (
-    <div className="gauge" role="img" aria-label={score === null ? "No score yet" : `Score ${score} out of 100`}>
+    <div
+      className="gauge"
+      role="img"
+      aria-label={score === null ? "No score yet" : `Score ${score} out of 100`}
+      style={score === null ? undefined : ({ "--ring-h": scoreHue(score) } as React.CSSProperties)}
+    >
       <svg viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden="true">
         <circle className="track" cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" strokeWidth={STROKE} />
         {score !== null && (

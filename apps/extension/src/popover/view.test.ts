@@ -1,6 +1,6 @@
 import type { CallEntry, UserProfile } from "@copayme/shared";
 import { describe, expect, it } from "vitest";
-import { callRowView, formatPoints, formatTweetTime, profileView, timeAgo } from "./view.js";
+import { callRowView, formatCents, formatTweetTime, profileView, timeAgo } from "./view.js";
 
 const call = (over: Partial<CallEntry> = {}): CallEntry => ({
   callId: "11111111-1111-4111-8111-111111111111",
@@ -18,14 +18,20 @@ const call = (over: Partial<CallEntry> = {}): CallEntry => ({
   ...over,
 });
 
-describe("formatPoints", () => {
-  it("signs the number, with a real minus sign, to two places", () => {
-    expect(formatPoints(0.38)).toBe("+0.38");
-    expect(formatPoints(-0.6)).toBe("−0.60");
-    expect(formatPoints(1)).toBe("+1.00");
-    expect(formatPoints(0)).toBe("0.00");
-    expect(formatPoints(0.004)).toBe("0.00");
-    expect(formatPoints(-0.0004)).toBe("0.00");
+describe("formatCents", () => {
+  it("writes points as signed cents per $1 contract, with a real minus sign", () => {
+    expect(formatCents(0.38)).toBe("+38¢");
+    expect(formatCents(-0.62)).toBe("−62¢");
+    expect(formatCents(1)).toBe("+100¢");
+    expect(formatCents(-1)).toBe("−100¢");
+    expect(formatCents(0)).toBe("0¢");
+    expect(formatCents(0.004)).toBe("0¢");
+    expect(formatCents(-0.0004)).toBe("0¢");
+  });
+
+  it("matches the price shown beside it: bought at 62¢, a win makes 38¢ and a loss costs 62¢", () => {
+    expect(formatCents(1 - 0.62)).toBe("+38¢");
+    expect(formatCents(0 - 0.62)).toBe("−62¢");
   });
 });
 
@@ -36,14 +42,14 @@ describe("callRowView", () => {
       pick: "UConn · YES",
       price: "62¢",
       outcome: { kind: "won", text: "Won" },
-      points: "+0.38",
+      points: "+38¢",
       tweetUrl: "https://x.com/i/status/1001",
     });
   });
 
   it("shows a lost NO pick with negative points", () => {
     const row = callRowView(call({ side: "no", result: "lost", points: -0.4, oddsAtCall: 0.4 }));
-    expect(row).toMatchObject({ pick: "UConn · NO", price: "40¢", points: "−0.40", outcome: { kind: "lost", text: "Lost" } });
+    expect(row).toMatchObject({ pick: "UConn · NO", price: "40¢", points: "−40¢", outcome: { kind: "lost", text: "Lost" } });
   });
 
   it("shows pending, void and rejected picks with no points", () => {
@@ -99,7 +105,7 @@ describe("profileView", () => {
       record: "29–13",
       hitRate: "69%",
       picks: "42",
-      edge: "+0.11",
+      edge: "+11¢",
       delta: { direction: "up", text: "▲ 8 in 14 days" },
       lastPick: "Last pick 3h ago",
       note: null,
