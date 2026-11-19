@@ -128,8 +128,9 @@ function strikeOf(c: GeminiContract, type: string): number | null {
 
 /**
  * The line rule: only the contract at exactly the tweet's line, since any other line is a different bet
- * (team decision, Nov 19: +37.5 must not become +40.5). No such contract: no match. Spreads use only
- * "spread" strikes; totals and props only "over" strikes.
+ * (team decision, Nov 19: +37.5 must not become +40.5), except a whole-number line, which takes the
+ * half-point line next to it (below). No such contract: no match. Spreads use only "spread" strikes;
+ * totals and props only "over" strikes.
  */
 function applyLine(
   sub: GeminiEvent,
@@ -139,13 +140,26 @@ function applyLine(
   L: number,
 ): Choice | null {
   const strikeType = kind === "spread" ? "spread" : "over";
-  const exact = contracts.filter((c) => {
-    const v = strikeOf(c, strikeType);
-    return v !== null && Math.abs(v - L) < 1e-9;
-  });
-  // two contracts at one line would be ambiguous
-  if (exact.length !== 1) return null;
-  return { subEvent: sub, contract: exact[0]!, side, detail: `${kind} ${L}` };
+  const at = (line: number) =>
+    contracts.filter((c) => {
+      const v = strikeOf(c, strikeType);
+      return v !== null && Math.abs(v - line) < 1e-9;
+    });
+  // Gemini lists half-point lines only, so a whole-number line (team decision, Nov 19) takes the line
+  // 0.5 away. Of the two, first the one whose contract wins only when the bet wins (the bet's push
+  // counts as a loss): +0.5 on the YES side ("-7" -> 7.5, "over 220" -> 220.5), -0.5 on the NO side
+  // ("+7" -> the favorite's 6.5, "under 220" -> 219.5); else the other one.
+  const whole = Number.isInteger(L);
+  const strict = side === "yes" ? L + 0.5 : L - 0.5;
+  const lines = whole ? [strict, side === "yes" ? L - 0.5 : L + 0.5] : [L];
+  for (const line of lines) {
+    const found = at(line);
+    if (found.length > 1) return null; // two contracts at one line would be ambiguous
+    if (found.length === 1) {
+      return { subEvent: sub, contract: found[0]!, side, detail: whole ? `${kind} ${line} for ${L}` : `${kind} ${L}` };
+    }
+  }
+  return null;
 }
 
 async function grokSubject(sub: GeminiEvent, subject: string, grok: Grok): Promise<GeminiContract[]> {
