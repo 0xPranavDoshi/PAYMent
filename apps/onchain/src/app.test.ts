@@ -52,7 +52,7 @@ describe("rewards/accrue", () => {
     const body = await res.json();
     expect(body.credited).toBe(true);
     expect(body.amountUsdc).toBe(0.02);
-    expect(body.txHash).toMatch(/^0x/);
+    expect(body.txHash).toBeNull(); // accrual is ledger-only; the tx happens at redeem
     expect(body.reason).toBe("tail_reward");
   });
 

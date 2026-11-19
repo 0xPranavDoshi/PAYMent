@@ -132,14 +132,16 @@ export function createApp({ store, payments, serviceKey }: AppDeps) {
 
     const amount = rewardAmount(amountUsdc);
     const reason = mode === "live" ? "copy_reward" : "tail_reward";
+    // Rewards accrue to the ledger only — gas-free and instant. The single real
+    // on-chain USDC transfer happens once at redeem (cash-out), so creators never
+    // pay gas per micro-reward.
     try {
-      const { txHash } = await payments.payCreator(creator.walletAddress, amount, sourceRef);
-      await store.addLedgerEntry({ userId: creator.id, amountUsdc: amount, reason, txHash, sourceRef });
-      const res: RewardAccrueResponse = { credited: true, amountUsdc: amount, txHash, reason };
+      await store.addLedgerEntry({ userId: creator.id, amountUsdc: amount, reason, txHash: null, sourceRef });
+      const res: RewardAccrueResponse = { credited: true, amountUsdc: amount, txHash: null, reason };
       return c.json(res, 201);
     } catch (err) {
-      console.error(`[rewards] payout failed for ${creator.handle} (${sourceRef}):`, err);
-      return c.json(notCredited("payout_failed"));
+      console.error(`[rewards] accrual failed for ${creator.handle} (${sourceRef}):`, err);
+      return c.json(notCredited("accrual_failed"));
     }
   });
 
