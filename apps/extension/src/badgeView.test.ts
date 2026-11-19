@@ -46,3 +46,17 @@ describe("badgeView", () => {
     expect(badgeView({ ...scored, hitRate: null })?.title).toBe("Score 72 of 100 · 30 resolved picks");
   });
 });
+
+describe("badgeView: scan states", () => {
+  it("offers Scan picks only on a profile page, for a handle we know nothing about", () => {
+    expect(badgeView(null, { canScan: true })).toMatchObject({ kind: "offer", text: "Scan picks" });
+    expect(badgeView(null, { canScan: false })).toBeNull();
+    expect(badgeView(null)).toBeNull();
+    expect(badgeView(undefined, { canScan: true })).toBeNull(); // not looked up yet: nothing to offer
+  });
+
+  it("says when a scan found no picks, and when it failed", () => {
+    expect(badgeView("empty")).toMatchObject({ kind: "empty", text: "No picks found" });
+    expect(badgeView("failed", { canScan: true })).toMatchObject({ kind: "failed", text: "Scan failed · Retry" });
+  });
+});

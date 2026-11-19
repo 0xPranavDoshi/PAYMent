@@ -1,15 +1,14 @@
 import Page from "@/components/Page";
-import { signInDemo, signInWithId } from "@/lib/actions";
+import { signInWithId } from "@/lib/actions";
 
 export const metadata = { title: "Sign in · coPAYMe" };
 
 export default async function SignIn({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
-  const demoConfigured = Boolean(process.env.DEFAULT_FOLLOWER_ID);
   return (
     <Page><div className="narrow">
       <h1 className="ptitle">Sign in</h1>
-      <p className="psub">Sign in to keep a watchlist and copy traders.</p>
+      <p className="psub">Sign in with X to track your calls and cash out your rewards.</p>
 
       <div className="card" style={{ marginTop: 24 }}>
         <a className="btn primary" href="/api/auth/x/login" style={{ width: "100%", justifyContent: "center" }}>
@@ -17,18 +16,8 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
         </a>
         {error === "x" && <p className="fine bad" style={{ marginTop: 10 }}>X sign-in didn&apos;t complete. Try again.</p>}
         {error === "x_unconfigured" && (
-          <p className="fine" style={{ marginTop: 10 }}>X login isn&apos;t set up on this server yet — use the demo account below.</p>
+          <p className="fine bad" style={{ marginTop: 10 }}>X login isn&apos;t configured on this server yet.</p>
         )}
-      </div>
-
-      <div className="card" style={{ marginTop: 14 }}>
-        <form action={signInDemo}>
-          <button className="btn" type="submit" disabled={!demoConfigured} style={{ width: "100%", justifyContent: "center" }}>
-            Continue as demo user
-          </button>
-        </form>
-        {!demoConfigured && <p className="fine" style={{ marginTop: 10 }}>No demo user is set up on this server (DEFAULT_FOLLOWER_ID).</p>}
-        {error === "demo" && <p className="fine bad" style={{ marginTop: 10 }}>The demo user is not configured correctly.</p>}
       </div>
 
       <details style={{ marginTop: 18 }}>

@@ -1,9 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createHash, randomBytes } from "node:crypto";
+import { saveOauth } from "@/lib/oauth-store";
 
 const b64url = (b: Buffer) => b.toString("base64url");
 
-/** Start X OAuth 2.0 (Authorization Code + PKCE). Redirects the user to X to approve. */
+/** Start X OAuth 2.0 (Authorization Code + PKCE). Redirects the user to X to approve.
+ *  The PKCE verifier is kept server-side keyed by `state` (not a cookie), so the flow
+ *  survives browsers that drop cookies on the cross-site redirect back. */
 export async function GET(req: NextRequest) {
   const clientId = process.env.X_CLIENT_ID;
   const redirectUri = process.env.X_REDIRECT_URI ?? new URL("/api/auth/x/callback", req.url).toString();
@@ -12,6 +15,7 @@ export async function GET(req: NextRequest) {
   const verifier = b64url(randomBytes(32));
   const challenge = b64url(createHash("sha256").update(verifier).digest());
   const state = b64url(randomBytes(16));
+  saveOauth(state, verifier);
 
   const authUrl = new URL("https://x.com/i/oauth2/authorize");
   authUrl.searchParams.set("response_type", "code");
@@ -22,9 +26,5 @@ export async function GET(req: NextRequest) {
   authUrl.searchParams.set("code_challenge", challenge);
   authUrl.searchParams.set("code_challenge_method", "S256");
 
-  const res = NextResponse.redirect(authUrl.toString());
-  const opts = { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" as const, path: "/", maxAge: 600 };
-  res.cookies.set("x_pkce", verifier, opts);
-  res.cookies.set("x_state", state, opts);
-  return res;
+  return NextResponse.redirect(authUrl.toString());
 }
