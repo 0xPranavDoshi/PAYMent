@@ -8,7 +8,8 @@ const {
   DATABASE_URL,
   GEMINI_API_KEY,
   GEMINI_API_SECRET,
-  GEMINI_BASE_URL = "https://api.sandbox.gemini.com",
+  GEMINI_READ_BASE_URL = "https://api.gemini.com",
+  GEMINI_ORDER_BASE_URL = "https://api.sandbox.gemini.com",
   TRADING_SERVICE_KEY,
   TRADING_PORT = "8788",
 } = process.env;
@@ -23,7 +24,8 @@ const store = createPostgresStore(sql);
 const gemini = new GeminiClient({
   apiKey: GEMINI_API_KEY,
   apiSecret: GEMINI_API_SECRET,
-  baseUrl: GEMINI_BASE_URL,
+  readBaseUrl: GEMINI_READ_BASE_URL,
+  orderBaseUrl: GEMINI_ORDER_BASE_URL,
 });
 
 const app = createApp({ store, gemini, serviceKey: TRADING_SERVICE_KEY });

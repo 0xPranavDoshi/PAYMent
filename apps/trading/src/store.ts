@@ -5,7 +5,8 @@ export interface CallRow {
   userId: string;
   marketId: string;
   pickedOutcome: string;
-  oddsAtCall: number;
+  side: "yes" | "no" | null;
+  oddsAtCall: number | null;
   status: string;
 }
 

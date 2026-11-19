@@ -20,9 +20,9 @@ function geminiStatusToLocal(
 }
 
 function lockTimeFor(event: GeminiEvent): Date {
-  // expiryDate is when the market closes for new orders
+  // effectiveDate is game start — no picks accepted after tip-off
+  if (event.effectiveDate) return new Date(event.effectiveDate);
   if (event.expiryDate) return new Date(event.expiryDate);
-  // Fall back to resolved time, or 1 year from now as a placeholder
   if (event.resolvedAt) return new Date(event.resolvedAt);
   const d = new Date();
   d.setFullYear(d.getFullYear() + 1);
@@ -45,28 +45,31 @@ export async function syncMarkets(
   const errors: string[] = [];
 
   for (const sport of SPORTS) {
-    let events: GeminiEvent[] = [];
-    try {
-      events = await gemini.listSportsEvents({ sport, limit: 200 });
-    } catch (err) {
-      errors.push(`listSportsEvents(${sport}): ${String(err)}`);
-      continue;
-    }
-
-    for (const event of events) {
+    // Fetch active and settled separately — unfiltered listing returns only active
+    for (const qStatus of ["active", "settled"] as const) {
+      let events: GeminiEvent[] = [];
       try {
-        await store.upsertMarket({
-          geminiMarketId: event.id,
-          sport: event.sportsMarket?.sport ?? sport,
-          eventName: event.title,
-          outcomes: event.contracts.map(contractToOutcome),
-          lockTime: lockTimeFor(event),
-          status: geminiStatusToLocal(event),
-          winningOutcome: winningOutcomeFor(event),
-        });
-        upserted++;
+        events = await gemini.listSportsEvents({ sport, limit: 200, status: qStatus });
       } catch (err) {
-        errors.push(`upsertMarket(${event.id}): ${String(err)}`);
+        errors.push(`listSportsEvents(${sport}, ${qStatus}): ${String(err)}`);
+        continue;
+      }
+
+      for (const event of events) {
+        try {
+          await store.upsertMarket({
+            geminiMarketId: event.ticker,
+            sport: event.sportsMarket?.sport ?? sport,
+            eventName: event.title,
+            outcomes: event.contracts.map(contractToOutcome),
+            lockTime: lockTimeFor(event),
+            status: geminiStatusToLocal(event),
+            winningOutcome: winningOutcomeFor(event),
+          });
+          upserted++;
+        } catch (err) {
+          errors.push(`upsertMarket(${event.ticker}): ${String(err)}`);
+        }
       }
     }
   }
