@@ -135,6 +135,19 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
   - "Hawaii Team Total u17.5" → `team_total` (no market), with no game total extracted.
   - The recap → not a prediction.
 
+- **Supabase smoke test (Nov 18, a full first scan of @ActionNetworkHQ, forwarding off).**
+  - The scout migration was applied through the team runner (`pnpm --filter @copayme/api db:migrate`), renamed `20261120120000_scout.sql` so it sorts after teammates' applied migrations. It only adds `scout_handles` and `scout_posts`.
+  - **Duration 187 s** for 100 fetched → 71 kept. Still over the 90 s target. The likely cause is 15 Grok batches of the reasoning model (4 at a time) plus the Apify run; per-stage timing isn't logged yet.
+  - **15 matched, all 15 correct when checked by hand.** Both underdog spreads are now right: "UConn +3.5" → "Arizona wins by more than 3.5" NO, and "Tennessee +3.5" → "Michigan State wins by more than 3.5" NO.
+  - Also right:
+    - "Charlotte +8.5" → "Los Angeles L wins by more than 8.5" NO.
+    - "Booker Under 23.5" → "Booker 25+" NO.
+    - "Adebayo o17.5" → "15+" YES.
+    - Favourite spreads: Nets, Florida, Ohio, Spurs ×2.
+    - Moneylines: Duke, Toronto, Charlotte, Edmonton.
+  - 10 matched games had already settled (backfill) and 5 were open (tailing).
+  - no_market: 3 "no contract guaranteed", 2 "no sub-event", 1 team total (correct), 1 "game returned without sub-markets" (left pending for retry, along with 2 others).
+
 ## Changes in progress / next
 - [x] **Underdog spreads:** fixed in the prompt (sign decides), verified 8 of 8 on a live test. The fallback, if errors come back, is a code check on a verbatim signed line from Grok.
 - [ ] **Speed up Gemini lookups** (smoke test: 12.5 min):
