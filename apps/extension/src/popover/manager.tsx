@@ -53,7 +53,11 @@ export function createPopoverManager(opts: {
     const rect = anchor.getBoundingClientRect();
     host.style.left = `${Math.max(MARGIN, Math.min(rect.left, win.innerWidth - WIDTH - MARGIN))}px`;
     const below = win.innerHeight - rect.bottom;
-    const chosen = side ?? (below < ESTIMATED_HEIGHT && rect.top > below ? "above" : "below");
+    // Below unless there is clearly more room above; never above if that would run off the top.
+    const chosen = side ?? (below >= ESTIMATED_HEIGHT || below >= rect.top ? "below" : "above");
+    // The card shrinks (and scrolls inside itself) to the room on its side, so it is never cut off.
+    const room = (chosen === "above" ? rect.top : below) - GAP - MARGIN;
+    host.style.setProperty("--avail", `${Math.max(160, room)}px`);
     if (chosen === "above") {
       host.style.top = "auto";
       host.style.bottom = `${win.innerHeight - rect.top + GAP}px`;

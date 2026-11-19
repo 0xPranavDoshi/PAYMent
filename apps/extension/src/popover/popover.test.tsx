@@ -222,6 +222,20 @@ describe("the popover", () => {
     expect(popoverHosts()).toHaveLength(0);
   });
 
+  it("shrinks the card to the room on its side, so it is never cut off", async () => {
+    await start(async () => ready());
+    const button = badgeButton();
+    window.innerHeight = 700;
+    window.innerWidth = 1200;
+    // A badge at 400px in a 700px window: 282 below, 400 above. Above is roomier, but the card is
+    // taller than 400, so it must shrink (and scroll inside itself) rather than run off the top.
+    button.getBoundingClientRect = () => ({ left: 100, right: 140, top: 400, bottom: 418, width: 40, height: 18, x: 100, y: 400, toJSON: () => ({}) });
+    click(button);
+    await vi.waitFor(() => expect(popoverHosts()).toHaveLength(1));
+    expect(popoverHosts()[0]!.style.bottom).toBe("306px"); // 700 - 400 + 6
+    expect(popoverHosts()[0]!.style.getPropertyValue("--avail")).toBe("386px"); // 400 - 6 - 8
+  });
+
   it("opens below the badge, or above it when there is no room below", async () => {
     await start(async () => ready());
     const button = badgeButton();

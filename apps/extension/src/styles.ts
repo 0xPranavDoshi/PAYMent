@@ -67,7 +67,7 @@ export const POPOVER_CSS = `
   :host { all: initial; }
   * { box-sizing: border-box; }
   .card {
-    width: 344px; max-height: min(82vh, 700px); overflow-y: auto; overflow-x: hidden; border-radius: 16px;
+    width: 344px; max-height: min(82vh, 700px, var(--avail, 700px)); overflow-y: auto; overflow-x: hidden; border-radius: 16px;
     font: 13px/1.4 var(--font); color: var(--ink); background: var(--card-bg);
     border: 1px solid var(--card-line); box-shadow: var(--card-shadow); scrollbar-width: thin;
   }
@@ -99,7 +99,9 @@ export const POPOVER_CSS = `
   .stats div { padding: 10px 0; }
   .stats div + div { padding-left: 12px; border-left: 1px solid var(--card-line); }
   .stats b { display: block; font: 700 15px/1.1 var(--font); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
-  .stats span { color: var(--ink-3); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+  .stats b .w, .stats b.w { color: var(--win); }
+  .stats b .l, .stats b.l { color: var(--coral); }
+  .stats > div > span { color: var(--ink-3); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 
   .actions { display: flex; gap: 8px; padding: 12px 16px 0; }
   .tbtn {
@@ -166,7 +168,7 @@ export const POPOVER_CSS = `
   .tmain { min-width: 0; flex: 1; }
   .thead { display: flex; gap: 4px; align-items: baseline; font: 15px/20px var(--font); color: var(--tw-ink-2); min-width: 0; }
   .thead b { font-weight: 700; color: var(--tw-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ttext { margin: 2px 0 0; font: 15px/20px var(--font); color: var(--tw-ink); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+  .ttext { margin: 2px 0 0; font: 15px/20px var(--font); color: var(--tw-ink); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; max-height: 200px; overflow-y: auto; overscroll-behavior: contain; }
   .tmeta { margin-top: 10px; font: 13px/16px var(--font); color: var(--tw-ink-2); }
   .tfoot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--tw-line); font-size: 12px; color: var(--tw-ink-2); }
   .tfoot .link, .tfoot .flipbtn { color: var(--tw-ink-2); }
