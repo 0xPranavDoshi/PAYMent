@@ -43,12 +43,15 @@ interface DbTail {
   created_at: Date;
 }
 
-interface DbWatchItem {
+interface DbWatchBase {
   trader_x_handle: string;
-  created_at: Date;
+  watched_at: Date;
   n_picks: string;
-  paper_pnl_usdc: string | null;
   active_picks: string;
+  staked_usdc: string;
+  realized_pnl_usdc: string | null;
+  score_now: number | null;
+  score_at_watch: number | null;
 }
 
 interface DbCopyTrade {
@@ -327,30 +330,95 @@ export function createPostgresStore(sql: postgres.Sql): TradingStore {
     },
 
     async listWatches(followerId) {
-      const rows = await sql<DbWatchItem[]>`
-        select w.trader_x_handle, w.created_at,
+      const rows = await sql<DbWatchBase[]>`
+        select
+          w.trader_x_handle,
+          w.created_at as watched_at,
           count(t.id) as n_picks,
-          sum(t.pnl_usdc) filter (where t.pnl_usdc is not null) as paper_pnl_usdc,
-          count(t.id) filter (where t.status = 'open') as active_picks
+          count(t.id) filter (where t.status = 'open') as active_picks,
+          coalesce(sum(t.amount_usdc), 0) as staked_usdc,
+          sum(t.pnl_usdc) filter (where t.pnl_usdc is not null) as realized_pnl_usdc,
+          us.score as score_now,
+          (
+            select ss.score from score_snapshots ss
+            where ss.user_id = u.id and ss.computed_at <= w.created_at
+            order by ss.computed_at desc limit 1
+          ) as score_at_watch
         from watches w
+        left join users u on lower(u.x_handle) = lower(w.trader_x_handle)
+        left join user_scores us on us.user_id = u.id
         left join tails t on t.follower_id = w.follower_id
           and t.source = 'watch'
           and t.mode = 'paper'
           and exists (
-            select 1 from calls c join users u on u.id = c.user_id
-            where c.id = t.call_id and lower(u.x_handle) = lower(w.trader_x_handle)
+            select 1 from calls c join users cu on cu.id = c.user_id
+            where c.id = t.call_id and lower(cu.x_handle) = lower(w.trader_x_handle)
           )
         where w.follower_id = ${followerId}
-        group by w.trader_x_handle, w.created_at
+        group by w.trader_x_handle, w.created_at, us.score, u.id
         order by w.created_at desc
       `;
       return rows.map((r) => ({
         traderHandle: r.trader_x_handle,
-        watchedAt: r.created_at.toISOString(),
+        watchedAt: r.watched_at,
         nPicks: Number(r.n_picks),
-        paperPnlUsdc: r.paper_pnl_usdc !== null ? parseFloat(r.paper_pnl_usdc) : null,
         activePicks: Number(r.active_picks),
+        stakedUsdc: parseFloat(r.staked_usdc),
+        realizedPnlUsdc: r.realized_pnl_usdc !== null ? parseFloat(r.realized_pnl_usdc) : null,
+        scoreNow: r.score_now,
+        scoreAtWatch: r.score_at_watch,
       }));
+    },
+
+    async listOpenWatchMarks(followerId) {
+      const rows = await sql<
+        {
+          trader_handle: string;
+          amount_usdc: string;
+          entry_odds: number;
+          side: string | null;
+          instrument_symbol: string | null;
+          picked_outcome: string | null;
+          ticker: string;
+          outcomes: OutcomeInfo[];
+        }[]
+      >`
+        select
+          u.x_handle as trader_handle,
+          t.amount_usdc, t.entry_odds, c.side, c.instrument_symbol, c.picked_outcome,
+          m.gemini_market_id as ticker, m.outcomes
+        from tails t
+        join calls c   on c.id = t.call_id
+        join users u   on u.id = c.user_id
+        join markets m on m.id = c.market_id
+        join watches w on w.follower_id = t.follower_id
+          and lower(w.trader_x_handle) = lower(u.x_handle)
+        where t.follower_id = ${followerId}
+          and t.source = 'watch' and t.mode = 'paper' and t.status = 'open'
+      `;
+      return rows.map((r) => {
+        const side = (r.side as "yes" | "no") ?? null;
+        const outcome = (r.outcomes ?? []).find(
+          (o) =>
+            (r.instrument_symbol != null && o.instrumentSymbol === r.instrument_symbol) ||
+            (r.picked_outcome != null && o.label === r.picked_outcome),
+        );
+        const storedMarkPrice = outcome
+          ? side === "no" && outcome.noOdds != null
+            ? outcome.noOdds
+            : outcome.currentOdds
+          : null;
+        return {
+          traderHandle: r.trader_handle,
+          amountUsdc: parseFloat(r.amount_usdc),
+          entryOdds: r.entry_odds,
+          side,
+          instrumentSymbol: r.instrument_symbol,
+          pickedOutcome: r.picked_outcome,
+          ticker: r.ticker,
+          storedMarkPrice,
+        };
+      });
     },
 
     async upsertCopyTrade(followerId, traderHandle, amountUsdc) {
