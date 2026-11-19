@@ -31,7 +31,8 @@ export interface GeminiEvent {
   title: string;
   ticker: string;
   status: string;
-  effectiveDate: string | null;  // game start — use as lock_time
+  effectiveDate: string | null;  // when the market was listed (equals createdAt), NOT game start
+
   expiryDate: string | null;
   resolvedAt: string | null;
   contracts: GeminiContract[];

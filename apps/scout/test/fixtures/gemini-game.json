@@ -1,0 +1,1470 @@
+{
+  "id": "471839",
+  "title": "UConn vs Arizona",
+  "slug": "uconn-vs-arizona",
+  "type": "categorical",
+  "category": "Sports",
+  "ticker": "NCAAM-2611190200-UCONN-ARI-M",
+  "status": "active",
+  "createdAt": "2026-11-17T00:05:37.026Z",
+  "contracts": [
+    {
+      "id": "471839-1181334",
+      "label": "Arizona",
+      "prices": {
+        "buy": {
+          "yes": "0.6",
+          "no": "0.41"
+        },
+        "sell": {
+          "yes": "0.59",
+          "no": "0.4"
+        },
+        "bestBid": "0.59",
+        "bestAsk": "0.6",
+        "lastTradePrice": "0.6"
+      },
+      "status": "active",
+      "createdAt": "2026-11-17T00:05:37.026Z",
+      "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf",
+      "ticker": "ARI",
+      "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-M-ARI",
+      "marketState": "open",
+      "abbreviatedName": "ARI",
+      "color": "#CC0033",
+      "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+      "expiryDate": "2026-11-21T02:00:00.000Z",
+      "effectiveDate": "2026-11-17T00:00:07.000Z",
+      "sortOrder": 2,
+      "sportsSide": "home",
+      "teamId": "9b166a3f-e64b-4825-bb6b-92c6f0418263",
+      "isCombo": false,
+      "quantityIncrement": "0.01",
+      "quantityMinimum": "0.01",
+      "priceIncrement": "0.01",
+      "quoteAssetPrecision": 2,
+      "priceMinimum": "0.01"
+    },
+    {
+      "id": "471839-1181318",
+      "label": "UConn",
+      "prices": {
+        "buy": {
+          "yes": "0.41",
+          "no": "0.6"
+        },
+        "sell": {
+          "yes": "0.4",
+          "no": "0.59"
+        },
+        "bestBid": "0.4",
+        "bestAsk": "0.41",
+        "lastTradePrice": "0.41"
+      },
+      "status": "active",
+      "createdAt": "2026-11-17T00:05:37.026Z",
+      "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf",
+      "ticker": "UCONN",
+      "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-M-UCONN",
+      "marketState": "open",
+      "abbreviatedName": "UCONN",
+      "color": "#000E2F",
+      "imageUrl": "https://assets.gemini.com/predictions/images/UConn_69671e79-82d1-48cd-8bac-058d6e04847d.png",
+      "expiryDate": "2026-11-21T02:00:00.000Z",
+      "effectiveDate": "2026-11-17T00:00:07.000Z",
+      "sortOrder": 1,
+      "sportsSide": "away",
+      "teamId": "efba5350-79bc-47aa-a189-db177b95b491",
+      "isCombo": false,
+      "quantityIncrement": "0.01",
+      "quantityMinimum": "0.01",
+      "priceIncrement": "0.01",
+      "quoteAssetPrecision": 2,
+      "priceMinimum": "0.01"
+    }
+  ],
+  "effectiveDate": "2026-11-17T00:05:37.026Z",
+  "isLive": true,
+  "participants": [
+    {
+      "id": "532",
+      "name": "Arizona Wildcats",
+      "abbreviation": "ARI",
+      "side": "home"
+    },
+    {
+      "id": "815",
+      "name": "UConn Huskies",
+      "abbreviation": "UCONN",
+      "side": "away"
+    }
+  ],
+  "imageUrl": "https://assets.gemini.com/predictions/images/bb_f53a7e9b-c0fc-4a5c-a011-d0bf655f8263.avif",
+  "volume": "372.88",
+  "volume24h": "372.88",
+  "tags": [
+    "College Basketball"
+  ],
+  "expiryDate": "2026-11-21T02:00:00.000Z",
+  "startTime": "2026-11-19T02:00:00.000Z",
+  "termsLink": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf",
+  "subcategory": {
+    "id": 15,
+    "slug": "sports_basketball_college-basketball",
+    "name": "College Basketball",
+    "path": [
+      "Sports",
+      "Basketball",
+      "College Basketball"
+    ]
+  },
+  "socialImageUrl": "https://assets.gemini.com/predictions/images/Card_Carousel__40__b3388226-c9ca-43be-9611-88185341baf0.png",
+  "featuredImageUrl": "https://assets.gemini.com/predictions/images/Card_Carousel__40__b3388226-c9ca-43be-9611-88185341baf0.avif",
+  "events": [
+    {
+      "id": "474538",
+      "title": "UConn vs Arizona: Point Spread",
+      "slug": "uconn-vs-arizona-point-spread",
+      "type": "categorical",
+      "category": "Sports",
+      "ticker": "NCAAM-2611190200-UCONN-ARI-S",
+      "status": "active",
+      "createdAt": "2026-11-17T20:06:51.508Z",
+      "contracts": [
+        {
+          "id": "474538-1192459",
+          "label": "Arizona wins by more than 1.5 points",
+          "prices": {
+            "buy": {
+              "yes": "0.6",
+              "no": "0.43"
+            },
+            "sell": {
+              "yes": "0.57",
+              "no": "0.4"
+            },
+            "bestBid": "0.57",
+            "bestAsk": "0.6"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:06:51.508Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+          "ticker": "ARI1",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-ARI1",
+          "marketState": "open",
+          "abbreviatedName": "Arizona",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 12,
+          "strike": {
+            "type": "spread",
+            "value": "1.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474538-1192446",
+          "label": "Arizona wins by more than 2.5 points",
+          "prices": {
+            "buy": {
+              "yes": "0.56",
+              "no": "0.46"
+            },
+            "sell": {
+              "yes": "0.54",
+              "no": "0.44"
+            },
+            "bestBid": "0.54",
+            "bestAsk": "0.56"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:06:51.508Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+          "ticker": "ARI2",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-ARI2",
+          "marketState": "open",
+          "abbreviatedName": "Arizona",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 1,
+          "strike": {
+            "type": "spread",
+            "value": "2.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474538-1192442",
+          "label": "Arizona wins by more than 3.5 points",
+          "prices": {
+            "buy": {
+              "yes": "0.5",
+              "no": "0.51"
+            },
+            "sell": {
+              "yes": "0.49",
+              "no": "0.5"
+            },
+            "bestBid": "0.49",
+            "bestAsk": "0.5",
+            "lastTradePrice": "0.51"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:06:51.508Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+          "ticker": "ARI3",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-ARI3",
+          "marketState": "open",
+          "abbreviatedName": "Arizona",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 0,
+          "strike": {
+            "type": "spread",
+            "value": "3.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474538-1192452",
+          "label": "Arizona wins by more than 4.5 points",
+          "prices": {
+            "buy": {
+              "yes": "0.45",
+              "no": "0.56"
+            },
+            "sell": {
+              "yes": "0.44",
+              "no": "0.55"
+            },
+            "bestBid": "0.44",
+            "bestAsk": "0.45"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:06:51.508Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+          "ticker": "ARI4",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-ARI4",
+          "marketState": "open",
+          "abbreviatedName": "Arizona",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 5,
+          "strike": {
+            "type": "spread",
+            "value": "4.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474538-1192458",
+          "label": "Arizona wins by more than 6.5 points",
+          "prices": {
+            "buy": {
+              "yes": "0.39",
+              "no": "0.64"
+            },
+            "sell": {
+              "yes": "0.36",
+              "no": "0.61"
+            },
+            "bestBid": "0.36",
+            "bestAsk": "0.39"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:06:51.508Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+          "ticker": "ARI6",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-ARI6",
+          "marketState": "open",
+          "abbreviatedName": "Arizona",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 11,
+          "strike": {
+            "type": "spread",
+            "value": "6.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474538-1192451",
+          "label": "UConn wins by more than 1.5 points",
+          "prices": {
+            "buy": {
+              "yes": "0.37",
+              "no": "0.66"
+            },
+            "sell": {
+              "yes": "0.34",
+              "no": "0.63"
+            },
+            "bestBid": "0.34",
+            "bestAsk": "0.37"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:06:51.508Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+          "ticker": "UCONN1",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-S-UCONN1",
+          "marketState": "open",
+          "abbreviatedName": "UConn",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/UConn_69671e79-82d1-48cd-8bac-058d6e04847d.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 4,
+          "strike": {
+            "type": "spread",
+            "value": "1.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        }
+      ],
+      "effectiveDate": "2026-11-17T20:06:51.508Z",
+      "isLive": true,
+      "participants": [
+        {
+          "id": "532",
+          "name": "Arizona Wildcats",
+          "abbreviation": "ARI",
+          "side": "home"
+        },
+        {
+          "id": "815",
+          "name": "UConn Huskies",
+          "abbreviation": "UCONN",
+          "side": "away"
+        }
+      ],
+      "imageUrl": "https://assets.gemini.com/predictions/images/bb_f53a7e9b-c0fc-4a5c-a011-d0bf655f8263.avif",
+      "tags": [
+        "College Basketball"
+      ],
+      "expiryDate": "2026-11-21T02:00:00.000Z",
+      "startTime": "2026-11-19T02:00:00.000Z",
+      "termsLink": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Margin_Classdocx_0e17934c-24ae-4b91-99e3-4c46d7d5d741.pdf",
+      "subcategory": {
+        "id": 15,
+        "slug": "sports_basketball_college-basketball",
+        "name": "College Basketball",
+        "path": [
+          "Sports",
+          "Basketball",
+          "College Basketball"
+        ]
+      },
+      "socialImageUrl": "https://assets.gemini.com/predictions/images/Card_Carousel__40__b3388226-c9ca-43be-9611-88185341baf0.png",
+      "featuredImageUrl": "https://assets.gemini.com/predictions/images/Card_Carousel__40__b3388226-c9ca-43be-9611-88185341baf0.avif",
+      "template": "sports-spread",
+      "gameId": "a78b847d-636e-4c34-8d1c-c56a4ad480da",
+      "sourceDetails": {
+        "agency": "statscore-rest-api",
+        "index": "Basketball"
+      },
+      "sportsMarket": {
+        "sport": "basketball",
+        "type": "spread",
+        "subject": "team",
+        "scope": {
+          "type": "full_contest"
+        },
+        "metric": "points"
+      }
+    },
+    {
+      "id": "474544",
+      "title": "UConn vs Arizona: Total Points",
+      "slug": "uconn-vs-arizona-total-points",
+      "type": "categorical",
+      "category": "Sports",
+      "ticker": "NCAAM-2611190200-UCONN-ARI-T",
+      "status": "active",
+      "createdAt": "2026-11-17T20:07:54.218Z",
+      "contracts": [
+        {
+          "id": "474544-1192468",
+          "label": "More than 137.5 points scored",
+          "prices": {
+            "buy": {
+              "yes": "0.76",
+              "no": "0.27"
+            },
+            "sell": {
+              "yes": "0.73",
+              "no": "0.24"
+            },
+            "bestBid": "0.73",
+            "bestAsk": "0.76"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:07:54.218Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+          "ticker": "O137",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O137",
+          "marketState": "open",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 1,
+          "strike": {
+            "type": "over",
+            "value": "137.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474544-1192473",
+          "label": "More than 140.5 points scored",
+          "prices": {
+            "buy": {
+              "yes": "0.69",
+              "no": "0.34"
+            },
+            "sell": {
+              "yes": "0.66",
+              "no": "0.31"
+            },
+            "bestBid": "0.66",
+            "bestAsk": "0.69"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:07:54.218Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+          "ticker": "O140",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O140",
+          "marketState": "open",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 6,
+          "strike": {
+            "type": "over",
+            "value": "140.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474544-1192477",
+          "label": "More than 143.5 points scored",
+          "prices": {
+            "buy": {
+              "yes": "0.61",
+              "no": "0.41"
+            },
+            "sell": {
+              "yes": "0.59",
+              "no": "0.39"
+            },
+            "bestBid": "0.59",
+            "bestAsk": "0.61"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:07:54.218Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+          "ticker": "O143",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O143",
+          "marketState": "open",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 10,
+          "strike": {
+            "type": "over",
+            "value": "143.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474544-1192482",
+          "label": "More than 145.5 points scored",
+          "prices": {
+            "buy": {
+              "yes": "0.57",
+              "no": "0.47"
+            },
+            "sell": {
+              "yes": "0.53",
+              "no": "0.43"
+            },
+            "bestBid": "0.53",
+            "bestAsk": "0.57"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:07:54.218Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+          "ticker": "O145",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O145",
+          "marketState": "open",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 15,
+          "strike": {
+            "type": "over",
+            "value": "145.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474544-1192470",
+          "label": "More than 146.5 points scored",
+          "prices": {
+            "buy": {
+              "yes": "0.52",
+              "no": "0.49"
+            },
+            "sell": {
+              "yes": "0.51",
+              "no": "0.48"
+            },
+            "bestBid": "0.51",
+            "bestAsk": "0.52"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:07:54.218Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+          "ticker": "O146",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O146",
+          "marketState": "open",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 3,
+          "strike": {
+            "type": "over",
+            "value": "146.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        },
+        {
+          "id": "474544-1192474",
+          "label": "More than 147.5 points scored",
+          "prices": {
+            "buy": {
+              "yes": "0.51",
+              "no": "0.52"
+            },
+            "sell": {
+              "yes": "0.48",
+              "no": "0.49"
+            },
+            "bestBid": "0.48",
+            "bestAsk": "0.51",
+            "lastTradePrice": "0.51"
+          },
+          "status": "active",
+          "createdAt": "2026-11-17T20:07:54.218Z",
+          "termsAndConditionsUrl": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+          "ticker": "O147",
+          "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-T-O147",
+          "marketState": "open",
+          "color": "#0f9ee7",
+          "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_48baed80-84ab-4004-aba2-ed1eb5c4e2c9.png",
+          "expiryDate": "2026-11-21T02:00:00.000Z",
+          "effectiveDate": "2026-11-17T00:00:07.000Z",
+          "sortOrder": 7,
+          "strike": {
+            "type": "over",
+            "value": "147.5"
+          },
+          "isCombo": false,
+          "quantityIncrement": "0.01",
+          "quantityMinimum": "0.01",
+          "priceIncrement": "0.01",
+          "quoteAssetPrecision": 2,
+          "priceMinimum": "0.01"
+        }
+      ],
+      "effectiveDate": "2026-11-17T20:07:54.218Z",
+      "isLive": true,
+      "participants": [
+        {
+          "id": "532",
+          "name": "Arizona Wildcats",
+          "abbreviation": "ARI",
+          "side": "home"
+        },
+        {
+          "id": "815",
+          "name": "UConn Huskies",
+          "abbreviation": "UCONN",
+          "side": "away"
+        }
+      ],
+      "imageUrl": "https://assets.gemini.com/predictions/images/bb_f53a7e9b-c0fc-4a5c-a011-d0bf655f8263.avif",
+      "tags": [
+        "College Basketball"
+      ],
+      "expiryDate": "2026-11-21T02:00:00.000Z",
+      "startTime": "2026-11-19T02:00:00.000Z",
+      "termsLink": "https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Total_Points_Classdocx_23430a8d-338c-4d9e-95bb-4b68b6a233d1.pdf",
+      "subcategory": {
+        "id": 15,
+        "slug": "sports_basketball_college-basketball",
+        "name": "College Basketball",
+        "path": [
+          "Sports",
+          "Basketball",
+          "College Basketball"
+        ]
+      },
+      "socialImageUrl": "https://assets.gemini.com/predictions/images/Card_Carousel__40__b3388226-c9ca-43be-9611-88185341baf0.png",
+      "featuredImageUrl": "https://assets.gemini.com/predictions/images/Card_Carousel__40__b3388226-c9ca-43be-9611-88185341baf0.avif",
+      "template": "sports-total",
+      "gameId": "a78b847d-636e-4c34-8d1c-c56a4ad480da",
+      "sourceDetails": {
+        "agency": "statscore-rest-api",
+        "index": "Basketball"
+      },
+      "sportsMarket": {
+        "sport": "basketball",
+        "type": "total",
+        "subject": "contest",
+        "scope": {
+          "type": "full_contest"
+        },
+        "metric": "points"
+      }
+    }
+  ],
+  "template": "sports-game",
+  "gameId": "a78b847d-636e-4c34-8d1c-c56a4ad480da",
+  "eventTags": [
+    {
+      "id": 26296,
+      "name": "Arizona Wildcats",
+      "slug": "arizona-wildcats"
+    },
+    {
+      "id": 7353,
+      "name": "Big 12",
+      "slug": "big-12"
+    },
+    {
+      "id": 31224,
+      "name": "Big East",
+      "slug": "big-east"
+    },
+    {
+      "id": 2,
+      "name": "Games",
+      "slug": "games"
+    },
+    {
+      "id": 26260,
+      "name": "UConn Huskies",
+      "slug": "uconn-huskies"
+    }
+  ],
+  "sourceDetails": {
+    "agency": "statscore-rest-api",
+    "index": "Basketball"
+  },
+  "volumeDelta24hPct": "0",
+  "sportsMarket": {
+    "sport": "basketball",
+    "type": "moneyline",
+    "subject": "contest",
+    "scope": {
+      "type": "full_contest"
+    },
+    "team": {
+      "symbol": "ARI",
+      "name": "Arizona Wildcats",
+      "externalIds": {
+        "sportradarId": "9b166a3f-e64b-4825-bb6b-92c6f0418263"
+      }
+    }
+  },
+  "combos": [
+    {
+      "contract": {
+        "contractId": "1211720",
+        "contractName": "Florida Yes + Siena Yes + UConn Yes",
+        "contractTicker": "CMB",
+        "eventTicker": "CMB-261121-77035FE6F90D2871",
+        "eventName": "",
+        "category": "College Basketball",
+        "contractStatus": "Active",
+        "eventType": "binary",
+        "instrumentSymbol": "GEMI-CMB-261121-77035FE6F90D2871-CMB",
+        "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_6c686009-b224-4e06-8686-f5ddafc52ba8.avif",
+        "expiryDate": "2026-11-21T02:00:00.000Z",
+        "description": "Florida-College Basketball-Yes, Siena-College Basketball-Yes, UConn-College Basketball-Yes [terms & conditions](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_-_Combos_Class_c3a4c1f2-a3fe-4d21-976a-2643cabf017f.pdf)"
+      },
+      "legs": [
+        {
+          "comboId": 1211720,
+          "legIndex": 0,
+          "contractId": "1209313",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1209313",
+            "contractName": "Florida",
+            "contractTicker": "FLA",
+            "eventTicker": "NCAAM-2611182130-FLA-HOU-M",
+            "eventName": "Florida vs Houston",
+            "category": "College Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NCAAM-2611182130-FLA-HOU-M-FLA",
+            "imageUrl": "https://assets.gemini.com/predictions/images/Florida_a2280604-5ce0-49e8-8be5-62c0de68fbfc.png",
+            "expiryDate": "2026-11-20T21:30:00.000Z",
+            "description": "This market resolves to Yes if Florida wins the men's college basketball game between Florida and Houston originally scheduled for November 18, 2026 at 4:30 PM ET. Otherwise, it resolves to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing the event, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf)",
+            "sortOrder": 1,
+            "gameId": "5aa7d859-acd3-4cea-be41-075688222b4d",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        },
+        {
+          "comboId": 1211720,
+          "legIndex": 1,
+          "contractId": "1167424",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1167424",
+            "contractName": "Siena",
+            "contractTicker": "SIEN",
+            "eventTicker": "NCAAM-2611190000-SIEN-STJN-M",
+            "eventName": "Siena vs St. John's",
+            "category": "College Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NCAAM-2611190000-SIEN-STJN-M-SIEN",
+            "imageUrl": "https://assets.gemini.com/predictions/images/Siena_SaintsDark_28be027b-12d8-47d4-a614-ba9acab4bc8b.png",
+            "expiryDate": "2026-11-21T00:00:00.000Z",
+            "description": "This market resolves to Yes if Siena wins the men's college basketball game between Siena and St. John's originally scheduled for November 18, 2026 at 7:00 PM ET. Otherwise, it resolves to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing the event, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf)",
+            "sortOrder": 1,
+            "gameId": "a22b6820-0d6f-4d2e-b6df-f78f17579e8e",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        },
+        {
+          "comboId": 1211720,
+          "legIndex": 2,
+          "contractId": "1181318",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1181318",
+            "contractName": "UConn",
+            "contractTicker": "UCONN",
+            "eventTicker": "NCAAM-2611190200-UCONN-ARI-M",
+            "eventName": "UConn vs Arizona",
+            "category": "College Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-M-UCONN",
+            "imageUrl": "https://assets.gemini.com/predictions/images/UConn_69671e79-82d1-48cd-8bac-058d6e04847d.png",
+            "expiryDate": "2026-11-21T02:00:00.000Z",
+            "description": "This market resolves to Yes if UConn wins the men's college basketball game between UConn and Arizona originally scheduled for November 18, 2026 at 9:00 PM ET. Otherwise, it resolves to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing the event, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf)",
+            "sortOrder": 1,
+            "gameId": "a78b847d-636e-4c34-8d1c-c56a4ad480da",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "contract": {
+        "contractId": "1212447",
+        "contractName": "Los Angeles L Yes + Florida Yes + 2 more",
+        "contractTicker": "CMB",
+        "eventTicker": "CMB-261122-9F1A410BD5CA8A4C",
+        "eventName": "",
+        "category": "Basketball",
+        "contractStatus": "Active",
+        "eventType": "binary",
+        "instrumentSymbol": "GEMI-CMB-261122-9F1A410BD5CA8A4C-CMB",
+        "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_6c686009-b224-4e06-8686-f5ddafc52ba8.avif",
+        "expiryDate": "2026-11-22T15:00:00.000Z",
+        "description": "Los Angeles L-Pro Basketball-Yes, Florida-College Basketball-Yes, Detroit-Pro Basketball-Yes, Arizona-College Basketball-Yes [terms & conditions](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_-_Combos_Class_c3a4c1f2-a3fe-4d21-976a-2643cabf017f.pdf)"
+      },
+      "legs": [
+        {
+          "comboId": 1212447,
+          "legIndex": 0,
+          "contractId": "1195326",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1195326",
+            "contractName": "Los Angeles L",
+            "contractTicker": "LAL",
+            "eventTicker": "NBA-2611210300-SAC-LAL-M",
+            "eventName": "Sacramento vs Los Angeles L",
+            "category": "Pro Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NBA-2611210300-SAC-LAL-M-LAL",
+            "imageUrl": "https://assets.gemini.com/predictions/images/LAL_b9eaf22e-3646-42fa-aec4-8f64cfda7f76.png",
+            "expiryDate": "2026-11-22T15:00:00.000Z",
+            "description": "If Los Angeles L wins the Pro Basketball game between Los Angeles L and Sacramento originally scheduled for November 20, 2026 at 10:00 PM ET, this market will resolve to Yes. Otherwise, it will resolve to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing body, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NBA_Win_Lose_Class_925aa13e-b255-4ef8-85e0-534a6f0a9012.pdf)",
+            "sortOrder": 2,
+            "target": {
+              "type": "team",
+              "name": "Los Angeles Lakers",
+              "externalIds": {
+                "sportradar": "583ecae2-fb46-11e1-82cb-f4ce4684ea4c"
+              }
+            },
+            "gameId": "7b06f295-a855-4103-9e2f-29fcef8f8e18",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        },
+        {
+          "comboId": 1212447,
+          "legIndex": 1,
+          "contractId": "1209313",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1209313",
+            "contractName": "Florida",
+            "contractTicker": "FLA",
+            "eventTicker": "NCAAM-2611182130-FLA-HOU-M",
+            "eventName": "Florida vs Houston",
+            "category": "College Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NCAAM-2611182130-FLA-HOU-M-FLA",
+            "imageUrl": "https://assets.gemini.com/predictions/images/Florida_a2280604-5ce0-49e8-8be5-62c0de68fbfc.png",
+            "expiryDate": "2026-11-20T21:30:00.000Z",
+            "description": "This market resolves to Yes if Florida wins the men's college basketball game between Florida and Houston originally scheduled for November 18, 2026 at 4:30 PM ET. Otherwise, it resolves to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing the event, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf)",
+            "sortOrder": 1,
+            "gameId": "5aa7d859-acd3-4cea-be41-075688222b4d",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        },
+        {
+          "comboId": 1212447,
+          "legIndex": 2,
+          "contractId": "1167107",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1167107",
+            "contractName": "Detroit",
+            "contractTicker": "DET",
+            "eventTicker": "NBA-2611190100-DET-NOP-M",
+            "eventName": "Detroit vs New Orleans",
+            "category": "Pro Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NBA-2611190100-DET-NOP-M-DET",
+            "imageUrl": "https://assets.gemini.com/predictions/images/DET_e9740772-1cda-47ef-9008-874e76666b0c.png",
+            "expiryDate": "2026-11-20T13:00:00.000Z",
+            "description": "If Detroit wins the Pro Basketball game between Detroit and New Orleans originally scheduled for November 18, 2026 at 8:00 PM ET, this market will resolve to Yes. Otherwise, it will resolve to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing body, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NBA_Win_Lose_Class_925aa13e-b255-4ef8-85e0-534a6f0a9012.pdf)",
+            "sortOrder": 1,
+            "target": {
+              "type": "team",
+              "name": "Detroit Pistons",
+              "externalIds": {
+                "sportradar": "583ec928-fb46-11e1-82cb-f4ce4684ea4c"
+              }
+            },
+            "gameId": "729ed543-c261-4a32-a52c-d1b99f797666",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        },
+        {
+          "comboId": 1212447,
+          "legIndex": 3,
+          "contractId": "1181334",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1181334",
+            "contractName": "Arizona",
+            "contractTicker": "ARI",
+            "eventTicker": "NCAAM-2611190200-UCONN-ARI-M",
+            "eventName": "UConn vs Arizona",
+            "category": "College Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-M-ARI",
+            "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+            "expiryDate": "2026-11-21T02:00:00.000Z",
+            "description": "This market resolves to Yes if Arizona wins the men's college basketball game between Arizona and UConn originally scheduled for November 18, 2026 at 9:00 PM ET. Otherwise, it resolves to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing the event, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf)",
+            "sortOrder": 2,
+            "gameId": "a78b847d-636e-4c34-8d1c-c56a4ad480da",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "contract": {
+        "contractId": "1212707",
+        "contractName": "Duquesne Yes + NC A&T Yes + 3 more",
+        "contractTicker": "CMB",
+        "eventTicker": "CMB-261121-10A8DEB4615D4975",
+        "eventName": "",
+        "category": "College Basketball",
+        "contractStatus": "Active",
+        "eventType": "binary",
+        "instrumentSymbol": "GEMI-CMB-261121-10A8DEB4615D4975-CMB",
+        "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_6c686009-b224-4e06-8686-f5ddafc52ba8.avif",
+        "expiryDate": "2026-11-21T02:00:00.000Z",
+        "description": "Duquesne-College Basketball-Yes, NC A&T-College Basketball-Yes, Florida Atlantic-College Basketball-Yes, Kansas-College Basketball-Yes, UConn-College Basketball-Yes [terms & conditions](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_-_Combos_Class_c3a4c1f2-a3fe-4d21-976a-2643cabf017f.pdf)"
+      },
+      "legs": [
+        {
+          "comboId": 1212707,
+          "legIndex": 0,
+          "contractId": "1167382",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1167382",
+            "contractName": "Duquesne",
+            "contractTicker": "DUQ",
+            "eventTicker": "NCAAM-2611190000-HOW-DUQ-M",
+            "eventName": "Howard vs Duquesne",
+            "category": "College Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NCAAM-2611190000-HOW-DUQ-M-DUQ",
+            "imageUrl": "https://assets.gemini.com/predictions/images/Duquesne_DukesDark_2851bbe3-34dc-4f59-a90a-0e38ee418a00.png",
+            "expiryDate": "2026-11-21T00:00:00.000Z",
+            "description": "This market resolves to Yes if Duquesne wins the men's college basketball game between Duquesne and Howard originally scheduled for November 18, 2026 at 7:00 PM ET. Otherwise, it resolves to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing the event, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf)",
+            "sortOrder": 2,
+            "gameId": "d1b66a20-f5d1-4fed-a2f2-da7f507fc4e3",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        },
+        {
+          "comboId": 1212707,
+          "legIndex": 1,
+          "contractId": "1167387",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1167387",
+            "contractName": "NC A&T",
+            "contractTicker": "NCAT",
+            "eventTicker": "NCAAM-2611190000-MORG-NCAT-M",
+            "eventName": "Morgan State vs NC A&T",
+            "category": "College Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NCAAM-2611190000-MORG-NCAT-M-NCAT",
+            "imageUrl": "https://assets.gemini.com/predictions/images/North_Carolina_AT_AggiesDark_13d0113b-ed83-4a33-ad09-6e69790b2682.png",
+            "expiryDate": "2026-11-21T00:00:00.000Z",
+            "description": "This market resolves to Yes if NC A&T wins the men's college basketball game between NC A&T and Morgan State originally scheduled for November 18, 2026 at 7:00 PM ET. Otherwise, it resolves to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing the event, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf)",
+            "sortOrder": 2,
+            "gameId": "ccae2c81-da31-4864-bb83-dce1eb9d41d0",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        },
+        {
+          "comboId": 1212707,
+          "legIndex": 2,
+          "contractId": "1167455",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1167455",
+            "contractName": "Florida Atlantic",
+            "contractTicker": "FAU",
+            "eventTicker": "NCAAM-2611190000-FGCU-FAU-M",
+            "eventName": "Florida Gulf Coast vs Florida Atlantic",
+            "category": "College Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NCAAM-2611190000-FGCU-FAU-M-FAU",
+            "imageUrl": "https://assets.gemini.com/predictions/images/Florida_Atlantic_OwlsDark_dd8d6775-06c1-441f-a0ee-771ac44cca4b.png",
+            "expiryDate": "2026-11-21T00:00:00.000Z",
+            "description": "This market resolves to Yes if Florida Atlantic wins the men's college basketball game between Florida Atlantic and Florida Gulf Coast originally scheduled for November 18, 2026 at 7:00 PM ET. Otherwise, it resolves to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing the event, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf)",
+            "sortOrder": 2,
+            "gameId": "4bb40253-4b27-4574-a0b0-3477eca8a704",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        },
+        {
+          "comboId": 1212707,
+          "legIndex": 3,
+          "contractId": "1209316",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1209316",
+            "contractName": "Kansas",
+            "contractTicker": "KU",
+            "eventTicker": "NCAAM-2611190030-WVU-KU-M",
+            "eventName": "West Virginia vs Kansas",
+            "category": "College Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NCAAM-2611190030-WVU-KU-M-KU",
+            "imageUrl": "https://assets.gemini.com/predictions/images/Kansas_df9ea187-6477-45c1-ba0a-b038697a09e6.png",
+            "expiryDate": "2026-11-21T00:30:00.000Z",
+            "description": "This market resolves to Yes if Kansas wins the men's college basketball game between Kansas and West Virginia originally scheduled for November 18, 2026 at 7:30 PM ET. Otherwise, it resolves to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing the event, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf)",
+            "sortOrder": 2,
+            "gameId": "424f0713-5e28-4403-a76b-8410f4eb20fa",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        },
+        {
+          "comboId": 1212707,
+          "legIndex": 4,
+          "contractId": "1181318",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1181318",
+            "contractName": "UConn",
+            "contractTicker": "UCONN",
+            "eventTicker": "NCAAM-2611190200-UCONN-ARI-M",
+            "eventName": "UConn vs Arizona",
+            "category": "College Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-M-UCONN",
+            "imageUrl": "https://assets.gemini.com/predictions/images/UConn_69671e79-82d1-48cd-8bac-058d6e04847d.png",
+            "expiryDate": "2026-11-21T02:00:00.000Z",
+            "description": "This market resolves to Yes if UConn wins the men's college basketball game between UConn and Arizona originally scheduled for November 18, 2026 at 9:00 PM ET. Otherwise, it resolves to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing the event, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf)",
+            "sortOrder": 1,
+            "gameId": "a78b847d-636e-4c34-8d1c-c56a4ad480da",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "contract": {
+        "contractId": "1209649",
+        "contractName": "Philadelphia Yes + Arizona Yes",
+        "contractTicker": "CMB",
+        "eventTicker": "CMB-261121-177D9788E508D440",
+        "eventName": "",
+        "category": "Basketball",
+        "contractStatus": "Active",
+        "eventType": "binary",
+        "instrumentSymbol": "GEMI-CMB-261121-177D9788E508D440-CMB",
+        "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_6c686009-b224-4e06-8686-f5ddafc52ba8.avif",
+        "expiryDate": "2026-11-21T02:00:00.000Z",
+        "description": "Philadelphia-Pro Basketball-Yes, Arizona-College Basketball-Yes [terms & conditions](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_-_Combos_Class_c3a4c1f2-a3fe-4d21-976a-2643cabf017f.pdf)"
+      },
+      "legs": [
+        {
+          "comboId": 1209649,
+          "legIndex": 0,
+          "contractId": "1150850",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1150850",
+            "contractName": "Philadelphia",
+            "contractTicker": "PHI",
+            "eventTicker": "NBA-2611190000-PHI-ORL-M",
+            "eventName": "Philadelphia vs Orlando",
+            "category": "Pro Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NBA-2611190000-PHI-ORL-M-PHI",
+            "imageUrl": "https://assets.gemini.com/predictions/images/PHI_7927fb8e-12cd-49d4-95ad-16b2b53f1794.png",
+            "expiryDate": "2026-11-20T12:00:00.000Z",
+            "description": "If Philadelphia wins the Pro Basketball game between Philadelphia and Orlando originally scheduled for November 18, 2026 at 7:00 PM ET, this market will resolve to Yes. Otherwise, it will resolve to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing body, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NBA_Win_Lose_Class_925aa13e-b255-4ef8-85e0-534a6f0a9012.pdf)",
+            "sortOrder": 1,
+            "target": {
+              "type": "team",
+              "name": "Philadelphia 76ers",
+              "externalIds": {
+                "sportradar": "583ec87d-fb46-11e1-82cb-f4ce4684ea4c"
+              }
+            },
+            "gameId": "f930320e-e699-4128-9826-1609cf174b58",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        },
+        {
+          "comboId": 1209649,
+          "legIndex": 1,
+          "contractId": "1181334",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1181334",
+            "contractName": "Arizona",
+            "contractTicker": "ARI",
+            "eventTicker": "NCAAM-2611190200-UCONN-ARI-M",
+            "eventName": "UConn vs Arizona",
+            "category": "College Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-M-ARI",
+            "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+            "expiryDate": "2026-11-21T02:00:00.000Z",
+            "description": "This market resolves to Yes if Arizona wins the men's college basketball game between Arizona and UConn originally scheduled for November 18, 2026 at 9:00 PM ET. Otherwise, it resolves to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing the event, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf)",
+            "sortOrder": 2,
+            "gameId": "a78b847d-636e-4c34-8d1c-c56a4ad480da",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "contract": {
+        "contractId": "1212556",
+        "contractName": "Phoenix Yes + San Diego Yes + 4 more",
+        "contractTicker": "CMB",
+        "eventTicker": "CMB-261121-F56B9B6FB146C154",
+        "eventName": "",
+        "category": "Basketball",
+        "contractStatus": "Active",
+        "eventType": "binary",
+        "instrumentSymbol": "GEMI-CMB-261121-F56B9B6FB146C154-CMB",
+        "imageUrl": "https://assets.gemini.com/predictions/images/Basketball_6c686009-b224-4e06-8686-f5ddafc52ba8.avif",
+        "expiryDate": "2026-11-21T02:30:00.000Z",
+        "description": "Phoenix-Pro Basketball-Yes, San Diego-College Basketball-Yes, San Jose State-College Basketball-Yes, Arizona-College Basketball-Yes, UNC Greensboro-College Basketball-Yes, Bradley-College Basketball-Yes [terms & conditions](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_-_Combos_Class_c3a4c1f2-a3fe-4d21-976a-2643cabf017f.pdf)"
+      },
+      "legs": [
+        {
+          "comboId": 1212556,
+          "legIndex": 0,
+          "contractId": "1167178",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1167178",
+            "contractName": "Phoenix",
+            "contractTicker": "PHX",
+            "eventTicker": "NBA-2611190300-PHX-SAC-M",
+            "eventName": "Phoenix vs Sacramento",
+            "category": "Pro Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NBA-2611190300-PHX-SAC-M-PHX",
+            "imageUrl": "https://assets.gemini.com/predictions/images/PHX_2129010b-5e82-4842-b376-a67b0fa0d6ec.png",
+            "expiryDate": "2026-11-20T15:00:00.000Z",
+            "description": "If Phoenix wins the Pro Basketball game between Phoenix and Sacramento originally scheduled for November 18, 2026 at 10:00 PM ET, this market will resolve to Yes. Otherwise, it will resolve to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing body, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NBA_Win_Lose_Class_925aa13e-b255-4ef8-85e0-534a6f0a9012.pdf)",
+            "sortOrder": 1,
+            "target": {
+              "type": "team",
+              "name": "Phoenix Suns",
+              "externalIds": {
+                "sportradar": "583ecfa8-fb46-11e1-82cb-f4ce4684ea4c"
+              }
+            },
+            "gameId": "c1b55ae0-1e4d-43a8-8157-31926e0bdd13",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        },
+        {
+          "comboId": 1212556,
+          "legIndex": 1,
+          "contractId": "1181647",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1181647",
+            "contractName": "San Diego",
+            "contractTicker": "USD",
+            "eventTicker": "NCAAM-2611190230-UCRV-USD-M",
+            "eventName": "UC Riverside vs San Diego",
+            "category": "College Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NCAAM-2611190230-UCRV-USD-M-USD",
+            "imageUrl": "https://assets.gemini.com/predictions/images/San_Diego_TorerosDark_f64b985f-5918-4e6b-9aa6-e4125a1a424b.png",
+            "expiryDate": "2026-11-21T02:30:00.000Z",
+            "description": "This market resolves to Yes if San Diego wins the men's college basketball game between San Diego and UC Riverside originally scheduled for November 18, 2026 at 9:30 PM ET. Otherwise, it resolves to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing the event, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf)",
+            "sortOrder": 2,
+            "gameId": "21724285-7407-4d6f-a418-951ea42b68cf",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        },
+        {
+          "comboId": 1212556,
+          "legIndex": 2,
+          "contractId": "1181494",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1181494",
+            "contractName": "San Jose State",
+            "contractTicker": "SJSU",
+            "eventTicker": "NCAAM-2611190200-FRES-SJSU-M",
+            "eventName": "Fresno State vs San Jose State",
+            "category": "College Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NCAAM-2611190200-FRES-SJSU-M-SJSU",
+            "imageUrl": "https://assets.gemini.com/predictions/images/San_Jose_State_SpartansDark_75e589eb-9950-4a60-aafb-21663c22f985.png",
+            "expiryDate": "2026-11-21T02:00:00.000Z",
+            "description": "This market resolves to Yes if San Jose State wins the men's college basketball game between San Jose State and Fresno State originally scheduled for November 18, 2026 at 9:00 PM ET. Otherwise, it resolves to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing the event, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf)",
+            "sortOrder": 2,
+            "gameId": "6059be9c-e4d2-4268-8f62-306aacaee8fb",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        },
+        {
+          "comboId": 1212556,
+          "legIndex": 3,
+          "contractId": "1181334",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1181334",
+            "contractName": "Arizona",
+            "contractTicker": "ARI",
+            "eventTicker": "NCAAM-2611190200-UCONN-ARI-M",
+            "eventName": "UConn vs Arizona",
+            "category": "College Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NCAAM-2611190200-UCONN-ARI-M-ARI",
+            "imageUrl": "https://assets.gemini.com/predictions/images/Arizona_e0b80abe-5f4f-41c7-8b29-e177a15a9133.png",
+            "expiryDate": "2026-11-21T02:00:00.000Z",
+            "description": "This market resolves to Yes if Arizona wins the men's college basketball game between Arizona and UConn originally scheduled for November 18, 2026 at 9:00 PM ET. Otherwise, it resolves to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing the event, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf)",
+            "sortOrder": 2,
+            "gameId": "a78b847d-636e-4c34-8d1c-c56a4ad480da",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        },
+        {
+          "comboId": 1212556,
+          "legIndex": 4,
+          "contractId": "1181053",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1181053",
+            "contractName": "UNC Greensboro",
+            "contractTicker": "UNCG",
+            "eventTicker": "NCAAM-2611190100-UNCG-WEBB-M",
+            "eventName": "UNC Greensboro vs Gardner-Webb",
+            "category": "College Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NCAAM-2611190100-UNCG-WEBB-M-UNCG",
+            "imageUrl": "https://assets.gemini.com/predictions/images/UNC-Greensboro_SpartansDark_4c3730db-7ac4-42bc-872d-122b2d3a8424.png",
+            "expiryDate": "2026-11-21T01:00:00.000Z",
+            "description": "This market resolves to Yes if UNC Greensboro wins the men's college basketball game between UNC Greensboro and Gardner-Webb originally scheduled for November 18, 2026 at 8:00 PM ET. Otherwise, it resolves to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing the event, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf)",
+            "sortOrder": 1,
+            "gameId": "0aee363a-962f-4b51-9a32-3a1d96c810aa",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        },
+        {
+          "comboId": 1212556,
+          "legIndex": 5,
+          "contractId": "1181004",
+          "requiredOutcome": "Yes",
+          "contract": {
+            "contractId": "1181004",
+            "contractName": "Bradley",
+            "contractTicker": "BRAD",
+            "eventTicker": "NCAAM-2611190100-PFW-BRAD-M",
+            "eventName": "Purdue Fort Wayne vs Bradley",
+            "category": "College Basketball",
+            "contractStatus": "Active",
+            "eventType": "binary",
+            "instrumentSymbol": "GEMI-NCAAM-2611190100-PFW-BRAD-M-BRAD",
+            "imageUrl": "https://assets.gemini.com/predictions/images/Bradley_BravesDark_2186b995-cb49-455a-8dfe-b3d71b572e91.png",
+            "expiryDate": "2026-11-21T01:00:00.000Z",
+            "description": "This market resolves to Yes if Bradley wins the men's college basketball game between Bradley and Purdue Fort Wayne originally scheduled for November 18, 2026 at 8:00 PM ET. Otherwise, it resolves to No. The Underlying is the official result of the specified sporting event. Source Agencies, in order, are the league governing the event, ESPN, Fox Sports, and the broadcast partner of the event. If the Expiration Value cannot be determined on the Expiration Date (including because the event is cancelled or a team forfeits, withdraws, or is disqualified), the Exchange may determine payouts pursuant to the Market Outcome Review Process. View the [full rules.](https://assets.gemini.com/predictions/terms_and_conditions/Terms_and_Conditions_NCAA_MB_Win-Lose_Classdocx_893b1bbb-20f3-490c-81bb-650735bfb0f4.pdf)",
+            "sortOrder": 2,
+            "gameId": "28502349-be0d-4d7b-80d3-4c6e3e8f7f0e",
+            "sportsMarket": {
+              "sport": "basketball",
+              "type": "moneyline",
+              "subject": "contest",
+              "scope": {
+                "type": "full_contest"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

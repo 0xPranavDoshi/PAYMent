@@ -2,6 +2,8 @@ export * from "./scoring.js";
 export * from "./badge.js";
 export * from "./profile.js";
 export * from "./trading.js";
+export * from "./sentiment.js";
+export * from "./scout.js";
 export * from "./ingest.js";
 export * from "./leaderboard.js";
 export * from "./copy.js";
