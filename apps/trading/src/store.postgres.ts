@@ -181,6 +181,31 @@ export function createPostgresStore(sql: postgres.Sql): TradingStore {
       return toTail(row);
     },
 
+    async claimAutoTail(tail) {
+      // The unique index tails_auto_once_idx makes this atomic: of any number of concurrent
+      // claims for the same follower and call, exactly one inserts and the rest get no row back.
+      const [row] = await sql<DbTail[]>`
+        insert into tails
+          (follower_id, call_id, mode, amount_usdc, entry_odds, gemini_order_id, status, pnl_usdc, source)
+        values
+          (${tail.followerId}, ${tail.callId}, ${tail.mode}, ${tail.amountUsdc},
+           ${tail.entryOdds}, ${tail.geminiOrderId ?? null}, ${tail.status}, ${tail.pnlUsdc ?? null},
+           ${tail.source})
+        on conflict (follower_id, call_id, source) where source in ('watch', 'copy') do nothing
+        returning *
+      `;
+      return row ? toTail(row) : null;
+    },
+
+    async updateTail(tailId, patch) {
+      const columns: Record<string, unknown> = {};
+      if (patch.geminiOrderId !== undefined) columns.gemini_order_id = patch.geminiOrderId;
+      if (patch.status !== undefined) columns.status = patch.status;
+      if (patch.pnlUsdc !== undefined) columns.pnl_usdc = patch.pnlUsdc;
+      if (Object.keys(columns).length === 0) return;
+      await sql`update tails set ${sql(columns)} where id = ${tailId}`;
+    },
+
     async getTail(tailId) {
       const [row] = await sql<DbTail[]>`
         select * from tails where id = ${tailId}
@@ -285,7 +310,7 @@ export function createPostgresStore(sql: postgres.Sql): TradingStore {
       if (!row) return null;
       const [stats] = await sql<DbCopyTradeStats[]>`
         select
-          count(t.id) as n_trades,
+          count(t.id) filter (where t.status <> 'cancelled') as n_trades,
           sum(t.pnl_usdc) filter (where t.pnl_usdc is not null) as live_pnl_usdc
         from tails t
         where t.follower_id = ${followerId}
@@ -306,7 +331,7 @@ export function createPostgresStore(sql: postgres.Sql): TradingStore {
     async listCopyTrades(followerId) {
       const rows = await sql<(DbCopyTrade & DbCopyTradeStats)[]>`
         select ct.*,
-          count(t.id) as n_trades,
+          count(t.id) filter (where t.status <> 'cancelled') as n_trades,
           sum(t.pnl_usdc) filter (where t.pnl_usdc is not null) as live_pnl_usdc
         from copy_trades ct
         left join tails t on t.follower_id = ct.follower_id

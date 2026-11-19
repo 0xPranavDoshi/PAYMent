@@ -388,12 +388,18 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
       call.side === "no" && outcome.noOdds !== null ? outcome.noOdds : outcome.currentOdds;
 
     const errors: string[] = [];
+    let alreadyNotified = 0;
+
+    // Every follower's tail row is claimed (inserted) BEFORE anything else happens for them. The
+    // claim is atomic (unique index tails_auto_once_idx), so if this endpoint runs twice for one
+    // call, concurrently or later, the second run finds the claim and skips that follower. That
+    // is what stops a retry from placing a second live order.
 
     // Watchers: $1 paper tails (paper only needs odds, so side may be null)
     const watchers = await store.getActiveWatchers(call.userXHandle);
     const watchResults = await Promise.allSettled(
-      watchers.map((followerId) =>
-        store.createTail({
+      watchers.map(async (followerId) => {
+        const tail = await store.claimAutoTail({
           followerId,
           callId: call.id,
           mode: "paper",
@@ -403,13 +409,15 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
           status: "open",
           pnlUsdc: null,
           source: "watch",
-        }),
-      ),
+        });
+        return tail !== null;
+      }),
     );
     let watchTails = 0;
     for (const r of watchResults) {
-      if (r.status === "fulfilled") watchTails += 1;
-      else errors.push(`watch: ${String(r.reason)}`);
+      if (r.status === "rejected") errors.push(`watch: ${String(r.reason)}`);
+      else if (r.value) watchTails += 1;
+      else alreadyNotified += 1;
     }
 
     // Copy traders: live orders (needs a side)
@@ -419,38 +427,65 @@ export function createApp({ store, gemini, serviceKey }: AppDeps) {
       const side = call.side;
       const copyResults = await Promise.allSettled(
         copyTraders.map(async ({ followerId, amountUsdc }) => {
-          const quantity = Math.floor(amountUsdc / entryOdds);
-          if (quantity < 1) {
-            throw new Error("amount too small to buy one contract at current odds");
-          }
-          const order = await gemini.placeOrder({
-            symbol: outcome.instrumentSymbol,
-            side: "buy",
-            outcome: side,
-            quantity: String(quantity),
-            price: entryOdds.toFixed(4),
-          });
-          const status = parseFloat(order.filledQuantity) > 0 ? "filled" : "open";
-          await store.createTail({
+          // Claim first. Only the run that wins the claim may place an order for this follower.
+          const tail = await store.claimAutoTail({
             followerId,
             callId: call.id,
             mode: "live",
             amountUsdc,
             entryOdds,
-            geminiOrderId: String(order.orderId),
-            status,
+            geminiOrderId: null,
+            status: "open",
             pnlUsdc: null,
             source: "copy",
           });
+          if (!tail) return false;
+
+          const quantity = Math.floor(amountUsdc / entryOdds);
+          if (quantity < 1) {
+            await store.updateTail(tail.id, { status: "cancelled" });
+            throw new Error("amount too small to buy one contract at current odds");
+          }
+
+          let order;
+          try {
+            order = await gemini.placeOrder({
+              symbol: outcome.instrumentSymbol,
+              side: "buy",
+              outcome: side,
+              quantity: String(quantity),
+              price: entryOdds.toFixed(4),
+            });
+          } catch (err) {
+            // No order was placed. The cancelled row stays, so this follower is not retried
+            // automatically: a failed live order needs a person to look at it.
+            await store.updateTail(tail.id, { status: "cancelled" });
+            throw err;
+          }
+
+          try {
+            await store.updateTail(tail.id, {
+              geminiOrderId: String(order.orderId),
+              status: parseFloat(order.filledQuantity) > 0 ? "filled" : "open",
+            });
+          } catch (err) {
+            // The order exists on Gemini but the tail row was not updated. Say so loudly: this
+            // is the one case that needs reconciling by hand. It cannot cause a second order.
+            throw new Error(
+              `order ${order.orderId} was placed for tail ${tail.id} but the tail row could not be updated: ${String(err)}`,
+            );
+          }
+          return true;
         }),
       );
       for (const r of copyResults) {
-        if (r.status === "fulfilled") copyTails += 1;
-        else errors.push(`copy: ${String(r.reason)}`);
+        if (r.status === "rejected") errors.push(`copy: ${String(r.reason)}`);
+        else if (r.value) copyTails += 1;
+        else alreadyNotified += 1;
       }
     }
 
-    return c.json({ watchTails, copyTails, errors });
+    return c.json({ watchTails, copyTails, alreadyNotified, errors });
   });
 
   return app;
