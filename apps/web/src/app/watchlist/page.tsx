@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   fetchWatches,
   removeWatch,
+  startCopyTrade,
   type WatchItem,
 } from "@/lib/api";
 import {
@@ -59,6 +60,24 @@ export default function WatchlistPage() {
       await load(followerId);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to remove watch.");
+    }
+  }
+
+  async function handleCopy(traderHandle: string) {
+    if (!followerId) return;
+    const entered = window.prompt(`Copy @${traderHandle}: USDC to place on each new pick`, "10");
+    if (entered === null) return;
+    const amountUsdc = Number(entered);
+    if (!Number.isFinite(amountUsdc) || amountUsdc <= 0) {
+      setError("Enter a positive USDC amount to copy trade.");
+      return;
+    }
+    setError(null);
+    try {
+      await startCopyTrade(followerId, traderHandle, amountUsdc);
+      await load(followerId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to start copy trade.");
     }
   }
 
@@ -158,6 +177,7 @@ export default function WatchlistPage() {
                 key={w.traderHandle}
                 watch={w}
                 onRemove={handleRemove}
+                onCopy={handleCopy}
               />
             ))}
           </tbody>
