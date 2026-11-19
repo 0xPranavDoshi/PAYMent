@@ -49,7 +49,7 @@ const settledWin: GeminiEvent = {
 const spreadPick = (o: Partial<PickMatch> = {}) =>
   match({ geminiEventTicker: "G-S", instrumentSymbol: "S-1", side: "yes", contractLabel: "Lakers by 2", ...o });
 
-const gemini = (events: GeminiEvent[]): GeminiClient =>
+const gemini = (events: GeminiEvent[], prices: Record<string, number> = {}): GeminiClient =>
   ({
     searchGames: vi.fn(),
     getEvent: vi.fn(async (t: string) => {
@@ -57,6 +57,7 @@ const gemini = (events: GeminiEvent[]): GeminiClient =>
       if (!e) throw new Error("nope");
       return e;
     }),
+    getYesPriceAt: vi.fn(async (symbol: string) => prices[symbol] ?? null),
   }) as unknown as GeminiClient;
 
 const match = (o: Partial<PickMatch>): PickMatch => ({
@@ -92,7 +93,7 @@ const post = (id: string, matches: PickMatch[]): ScoutPostRow => ({
 type Reply = { status?: number; errorFor?: string[]; body?: unknown } | Error;
 
 /** Ingest stub: echoes a result per posted tweet (with `error` for ids in errorFor). */
-function setup(events: GeminiEvent[], reply: Reply = {}) {
+function setup(events: GeminiEvent[], reply: Reply = {}, prices: Record<string, number> = {}) {
   const store = createMemoryStore();
   const fetchFn = vi.fn(async (_url: string, init: RequestInit) => {
     if (reply instanceof Error) throw reply;
@@ -111,7 +112,7 @@ function setup(events: GeminiEvent[], reply: Reply = {}) {
     url: "http://ingest",
     serviceKey: "k",
     store,
-    gemini: gemini(events),
+    gemini: gemini(events, prices),
     fetch: fetchFn as unknown as typeof fetch,
   });
   const call = (i = 0) => fetchFn.mock.calls[i] as unknown as [string, RequestInit];
@@ -168,6 +169,19 @@ describe("createForwarder", () => {
     const { forwarder, body } = setup([spread]);
     await forwarder.forward([post("t1", [spreadPick()])], "bob");
     expect(body()[0].picks[0]).toMatchObject({ resolutionSide: "yes", resolvedAt: "2026-11-19T05:00:00.000Z" });
+  });
+
+  it("prices each pick at the tweet's time (YES price, or 1 - YES for a NO pick) so ingest can score it", async () => {
+    const { forwarder, body } = setup([winEvent], {}, { "S-LAL": 0.39, "S-CHA": 0.62 });
+    const picks = [match({}), match({ instrumentSymbol: "S-CHA", contractLabel: "Hornets", side: "no" })];
+    await forwarder.forward([post("t1", picks)], "bob");
+    expect(body()[0].picks.map((p: { oddsAtTweet: number | null }) => p.oddsAtTweet)).toEqual([0.39, 0.38]);
+  });
+
+  it("sends a pick unpriced when Gemini has no price for it", async () => {
+    const { forwarder, body } = setup([winEvent]);
+    await forwarder.forward([post("t1", [match({})])], "bob");
+    expect(body()[0].picks[0].oddsAtTweet).toBeNull();
   });
 
   it("upserts each market keyed by ticker, with per-contract resolution and the game start as lock time", async () => {

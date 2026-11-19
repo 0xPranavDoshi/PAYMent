@@ -207,6 +207,7 @@ describe("findGame", () => {
     return {
       searchGames: vi.fn(async (term: string, _opts?: { sport?: string }) => byTerm(term)),
       getEvent: vi.fn(async (ticker: string) => full({ ...lakersGame(at(1000)), ticker })),
+      getYesPriceAt: vi.fn(async () => null),
     } satisfies GeminiClient;
   };
 

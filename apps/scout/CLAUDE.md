@@ -79,6 +79,32 @@ Run it locally with `pnpm dev:scout` (port 8789). It needs `DATABASE_URL`, `APIF
 - **What counts as forwarded:** a post only when ingest stored it. A result carrying `error` is retried on the next scan. A pick is held back if its event can't be loaded or its market upsert fails.
 - `oddsAtTweet` is always null: Gemini has no contract price history, so ingest prices picks itself.
 
+### Keeping picks settleable and starting scans (Nov 18, after merging PR #33)
+- **Market refresher** (`src/refresh.ts`; runs every `SCOUT_MARKET_REFRESH_S`, default 600 s, when forwarding is on).
+  - What it does: re-fetches the markets behind forwarded picks whose game has started and whose `markets` row isn't settled, and upserts their per-contract `resolutionSide`. Cancelled (invalid) markets become `void`.
+  - *Why:* the trading sync only refreshes the 200 most recent game-winner markets per sport. Spread, total and prop markets (and older games) would otherwise keep an empty result, and Aditya's worker could never settle those picks.
+- **Extension profile-scan hook** (`apps/extension`, built with Aditya's OK).
+  - Opening `x.com/<handle>` marks that handle's badges "Scanning…". The background worker POSTs to the scout, polls every 3 s for up to 90 s, then fetches the fresh badge from the scoring API and writes it to the badge cache.
+  - Handles asked about in the last 10 minutes are skipped.
+  - Config: `WXT_SCOUT_URL` (default `http://localhost:8789`), plus a matching host permission. Because of that permission the background worker isn't subject to CORS, so the scout needs no `SCOUT_ALLOWED_ORIGIN` for the extension.
+
+### End-to-end forwarding test (Nov 18, Supabase, Pranav's OK)
+- **Setup:** Aditya's API ran locally against Supabase with a throwaway service key and `TRADING_URL` blank (no watch or copy-trade notifications) and its worker paused. The scout ran with forwarding on.
+- **Run 1:** 14 posts → 14 calls and 14 markets, with correct markets and sides. **Every call was unpriced** (`odds_source: none`): ingest only snapshots a price if the market was synced within 10 minutes of the tweet. The worker marked the 10 finished picks "scored", but with no points, so the score stayed 50 "New" with 0 resolved picks.
+- **Fix: the scout prices picks at tweet time from Gemini candles** (`getYesPriceAt`). That's the close of the last 5-minute candle at or before the tweet (hourly as a fallback), or none if older than 6 hours, and `1 − YES` for NO picks. Sent as `oddsAtTweet`, so ingest records `odds_source: history`. Candles reach about 2 days back. My earlier "no price history" conclusion came from a single stale market.
+- **Run 2:** I deleted only that test user's calls, posts and score, then re-forwarded. **Score 28, tier "scored", 5 resolved, 1 win:**
+
+  | Pick | Price | Points |
+  |---|---|---|
+  | Edmonton | 0.47 | +0.53 |
+  | Toronto | 0.39 | −0.39 |
+  | Florida −15.5 | 0.46 | −0.46 |
+  | Charlotte | 0.27 | −0.27 |
+  | Chargers–Ravens under 39.5 | 0.50 | −0.50 |
+
+  "UConn +3.5" is priced at 0.49 and still pending.
+- **Still unpriced: 8 of 14** (contracts Gemini has no trades for: some spreads and props, Nets −2.5). These are excluded by Aditya's scoring, including a winning "Tennessee +3.5". Whether to count unpriced picks at an even 0.50 is a **team decision about scoring policy**.
+
 ## Open questions for the team (block turning forwarding on)
 - ~~**Gemini environment**~~ **resolved on main:** market data reads production (`GEMINI_READ_BASE_URL`), and orders go to the sandbox.
 - **Lock time: decided (Pranav, Nov 18). `markets.lock_time` = the market's `expiryDate`**, written the same way by the scout's upsert and by the trading sync (`apps/trading/src/sync.ts` `lockTimeFor`, changed in this branch).

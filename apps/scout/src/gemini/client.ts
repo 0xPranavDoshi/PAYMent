@@ -18,7 +18,19 @@ export interface GeminiClient {
    */
   searchGames(term: string, opts?: { sport?: string }): Promise<GeminiEvent[]>;
   getEvent(ticker: string): Promise<GeminiEvent>;
+  /**
+   * The contract's YES price (0-1) at `at`, from Gemini's candles: the close of the last candle
+   * starting at or before `at` (5-minute candles, else hourly). Null when there's no candle within
+   * PRICE_MAX_AGE_MS before `at` (history reaches back about two days, and some contracts never trade).
+   */
+  getYesPriceAt(instrumentSymbol: string, at: Date): Promise<number | null>;
 }
+
+/** A candle older than this before the tweet is too stale to price the pick. */
+export const PRICE_MAX_AGE_MS = 6 * 60 * 60 * 1000;
+const CANDLE_INTERVALS = ["5m", "1hr"] as const;
+/** Candles for a contract are fetched once per this window (one forward pass looks up many picks). */
+const CANDLE_TTL_MS = 5 * 60 * 1000;
 
 /** Statuses a matchable game can be in: listed but not trading, trading, awaiting result, settled. */
 export const GAME_STATUSES = ["approved", "active", "under_review", "settled"] as const;
@@ -121,6 +133,37 @@ export function createGeminiClient(
       const incompleteGame = parsed.data.template === "sports-game" && !(parsed.data.events?.length);
       if (!incompleteGame) store(url, parsed.data, parsed.data.status === "settled" ? null : ACTIVE_TTL_MS);
       return parsed.data;
+    },
+
+    async getYesPriceAt(instrumentSymbol, at) {
+      const t = at.getTime();
+      for (const interval of CANDLE_INTERVALS) {
+        const url = `${baseUrl}/v2/candles/${encodeURIComponent(instrumentSymbol)}/${interval}`;
+        let rows = cached<number[][]>(url);
+        if (!rows) {
+          // No candles is an answer ({"result":"error","reason":"NoDataFound"}), not a failure.
+          let body: unknown = null;
+          try {
+            const res = await doFetch(url, { headers: { accept: "application/json" } });
+            body = await res.json();
+          } catch {
+            body = null;
+          }
+          rows = Array.isArray(body) ? (body as number[][]).filter((r) => Array.isArray(r) && r.length >= 5) : [];
+          store(url, rows, CANDLE_TTL_MS);
+        }
+        // Rows are [startMs, open, high, low, close, volume]; take the last candle starting at or before `at`.
+        let best: number[] | null = null;
+        for (const r of rows) {
+          const start = Number(r[0]);
+          if (start <= t && (!best || start > Number(best[0]))) best = r;
+        }
+        if (best && t - Number(best[0]) <= PRICE_MAX_AGE_MS) {
+          const close = Number(best[4]);
+          if (Number.isFinite(close) && close > 0 && close < 1) return close;
+        }
+      }
+      return null;
     },
   };
 }

@@ -6,6 +6,7 @@ import { createForwarder, noopForwarder } from "./forward.js";
 import { createGeminiClient } from "./gemini/client.js";
 import { createGrok } from "./grok/client.js";
 import { createApifySource } from "./posts/apify.js";
+import { refreshMarkets } from "./refresh.js";
 import { runScan, type ScanDeps } from "./scan.js";
 import { createPostgresStore } from "./store.postgres.js";
 
@@ -53,3 +54,20 @@ const app = createApp({
 serve({ fetch: app.fetch, port: positiveIntOr(env.SCOUT_PORT, 8789) }, (info) => {
   console.log(`coPAYMe scout listening on http://localhost:${info.port}`);
 });
+
+// Keep the markets behind forwarded picks current so the scoring worker can settle them.
+if (env.SCOUT_FORWARD_ENABLED === "true") {
+  const everyMs = positiveIntOr(env.SCOUT_MARKET_REFRESH_S, 600) * 1000;
+  let running = false;
+  const tick = async () => {
+    if (running) return;
+    running = true;
+    try {
+      await refreshMarkets({ store, gemini, log: console.log });
+    } finally {
+      running = false;
+    }
+  };
+  setInterval(() => void tick(), everyMs).unref();
+  void tick();
+}

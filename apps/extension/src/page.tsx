@@ -1,11 +1,11 @@
-import type { BadgesResponse } from "@copayme/shared";
+import type { Badge as BadgeData, BadgesResponse } from "@copayme/shared";
 import { createRoot, type Root } from "react-dom/client";
 import type { ProfileData } from "./messages.js";
 import { createPopoverManager } from "./popover/manager.js";
 import { Badge, BADGE_CSS } from "./Badge.js";
 import { createBadgeStore } from "./badgeStore.js";
 import { createBatcher } from "./batcher.js";
-import { TWEET_SELECTOR, extractHandle, findMountPoint } from "./selectors.js";
+import { TWEET_SELECTOR, extractHandle, findMountPoint, profileHandleFromPath } from "./selectors.js";
 
 export interface StartOptions {
   /** Fetches badges for these handles (in the extension, via the background worker). */
@@ -17,10 +17,28 @@ export interface StartOptions {
   doc?: Document;
   /** Quiet period before a batch is sent. */
   delayMs?: number;
+  /**
+   * Scans a handle's posts (in the extension, via the background worker and the scout). Called when
+   * the user opens a profile page. Without it, profiles are never scanned.
+   */
+  scan?: (handle: string) => Promise<ScanResult>;
+  /** How often to check whether the user navigated to a profile (X changes pages without loading). */
+  routeCheckMs?: number;
 }
 
+/** What a scan reports back to the page. */
+export type ScanResult = { status: "done"; badge: BadgeData | null } | { status: "skipped" | "failed" | "timeout" };
+
 /** Puts a badge next to the author of every tweet on the page, including ones added later. Returns a stop function. */
-export function startBadges({ lookup, loadProfile, webUrl = "", doc = document, delayMs = 150 }: StartOptions): () => void {
+export function startBadges({
+  lookup,
+  loadProfile,
+  webUrl = "",
+  doc = document,
+  delayMs = 150,
+  scan,
+  routeCheckMs = 1000,
+}: StartOptions): () => void {
   const store = createBadgeStore();
   const requested = new Set<string>();
   const mounted = new WeakMap<Element, { host: HTMLElement; root: Root }>();
@@ -30,7 +48,8 @@ export function startBadges({ lookup, loadProfile, webUrl = "", doc = document, 
   const batcher = createBatcher(async (handles) => {
     try {
       const badges = await lookup(handles);
-      for (const handle of handles) store.set(handle, badges[handle] ?? null);
+      // A badge lookup that lands mid-scan would show the pre-scan badge; the scan sets the new one.
+      for (const handle of handles) if (store.get(handle) !== "scanning") store.set(handle, badges[handle] ?? null);
     } catch (err) {
       console.warn("[coPAYMe] badge lookup failed", err);
       // Forget these handles so the next tweet that shows them tries again.
@@ -87,8 +106,34 @@ export function startBadges({ lookup, loadProfile, webUrl = "", doc = document, 
   doc.querySelectorAll(TWEET_SELECTOR).forEach(mount);
   observer.observe(doc.body, { childList: true, subtree: true });
 
+  // Opening a profile scans that handle's posts, so a score can appear for people we haven't seen.
+  let lastProfile: string | null = null;
+  async function scanProfile(handle: string) {
+    if (!scan) return;
+    const before = store.get(handle);
+    store.set(handle, "scanning");
+    let result: ScanResult;
+    try {
+      result = await scan(handle);
+    } catch (err) {
+      console.warn("[coPAYMe] profile scan failed", err);
+      result = { status: "failed" };
+    }
+    if (result.status === "done") store.set(handle, result.badge);
+    else store.set(handle, before === "scanning" ? undefined : before);
+  }
+  function checkRoute() {
+    const handle = profileHandleFromPath(doc.location?.pathname ?? "");
+    if (handle === lastProfile) return;
+    lastProfile = handle;
+    if (handle) void scanProfile(handle);
+  }
+  const routeTimer = scan ? setInterval(checkRoute, routeCheckMs) : null;
+  if (scan) checkRoute();
+
   return () => {
     observer.disconnect();
+    if (routeTimer) clearInterval(routeTimer);
     popover?.close();
   };
 }

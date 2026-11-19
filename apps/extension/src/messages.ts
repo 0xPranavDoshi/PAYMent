@@ -1,4 +1,4 @@
-import type { BadgesResponse, CallEntry, UserProfile } from "@copayme/shared";
+import type { Badge, BadgesResponse, CallEntry, UserProfile } from "@copayme/shared";
 
 /** Content script to background worker. */
 export interface BadgesRequest {
@@ -24,4 +24,16 @@ export interface ProfileData {
 
 export type ProfileReply = ({ ok: true } & ProfileData) | { ok: false; error: string };
 
-export type ExtensionRequest = BadgesRequest | ProfileRequest;
+/** Sent when the user opens a handle's profile page: scan its posts so a score can appear. */
+export interface ScanRequest {
+  type: "scan";
+  handle: string;
+}
+
+export type ScanReply =
+  /** `badge`: the handle's fresh badge (null: still no score) when the scan finished. */
+  | { ok: true; status: "done"; badge: Badge | null }
+  | { ok: true; status: "skipped" | "failed" | "timeout" }
+  | { ok: false; error: string };
+
+export type ExtensionRequest = BadgesRequest | ProfileRequest | ScanRequest;

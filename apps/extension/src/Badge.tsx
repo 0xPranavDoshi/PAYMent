@@ -14,6 +14,7 @@ export const BADGE_CSS = `
   .badge:hover { filter: brightness(1.12); }
   .badge:focus-visible { outline: 2px solid #1d9bf0; outline-offset: 1px; }
   .badge.new { background: #8b98a5; }
+  .badge.scanning { background: #8b98a5; font-weight: 600; font-style: italic; cursor: progress; }
   .arrow.up { color: #b7f5c8; }
   .arrow.down { color: #ffc2c2; }
 `;

@@ -1,6 +1,7 @@
 import { defineConfig } from "wxt";
 
 const apiOrigin = new URL(process.env.WXT_API_URL ?? "http://localhost:8787").origin;
+const scoutOrigin = new URL(process.env.WXT_SCOUT_URL ?? "http://localhost:8789").origin;
 
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
@@ -9,7 +10,8 @@ export default defineConfig({
     description: "Track-record scores next to X handles",
     // chrome.storage.local holds the badge cache.
     permissions: ["storage"],
-    // The background worker fetches the scoring API, so the page never makes cross-origin calls.
-    host_permissions: ["https://x.com/*", `${apiOrigin}/*`],
+    // The background worker fetches the scoring API and the scout (which scans a profile when it's
+    // opened), so the page never makes cross-origin calls.
+    host_permissions: ["https://x.com/*", `${apiOrigin}/*`, `${scoutOrigin}/*`],
   },
 });
