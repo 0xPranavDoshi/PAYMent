@@ -1,3 +1,4 @@
+import Page from "@/components/Page";
 import { notFound } from "next/navigation";
 import { fetchCopyMode, fetchCopyTrades, fetchTraderCalls, fetchTraderProfile, fetchWatches } from "@/lib/api";
 import { getFollowerId } from "@/lib/session";
@@ -27,7 +28,7 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
   const edgeCents = Math.round(profile.skill * 100);
 
   return (
-    <>
+    <Page>
       <div className="thead">
         <ScoreRing score={isNew ? null : profile.score} size={96} />
         <div>
@@ -103,6 +104,6 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
           )}
         </div>
       </section>
-    </>
+    </Page>
   );
 }

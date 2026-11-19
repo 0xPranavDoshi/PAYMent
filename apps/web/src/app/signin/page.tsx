@@ -1,3 +1,4 @@
+import Page from "@/components/Page";
 import { signInDemo, signInWithId } from "@/lib/actions";
 
 export const metadata = { title: "Sign in · coPAYMe" };
@@ -6,7 +7,7 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
   const { error } = await searchParams;
   const demoConfigured = Boolean(process.env.DEFAULT_FOLLOWER_ID);
   return (
-    <div className="narrow">
+    <Page><div className="narrow">
       <h1 style={{ fontSize: 32 }}>Sign in</h1>
       <p className="muted" style={{ marginTop: 8 }}>Sign in to keep a watchlist and copy traders.</p>
 
@@ -38,6 +39,6 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
           {error === "id" && <p className="fine bad">That is not a valid user id.</p>}
         </form>
       </details>
-    </div>
+    </div></Page>
   );
 }

@@ -1,3 +1,4 @@
+import Page from "@/components/Page";
 import Link from "next/link";
 import { fetchCopyMode, fetchCopyTrades, fetchTails } from "@/lib/api";
 import { formatSignedPct, formatUsd, shortDate, tone } from "@/lib/format";
@@ -39,7 +40,7 @@ export default async function PortfolioPage() {
     });
 
   return (
-    <>
+    <Page>
       <h1 style={{ fontSize: 32 }}>Portfolio</h1>
       <p className="muted" style={{ marginTop: 8 }}>
         {paper ? "Simulated trades from the traders you copy and watch. No real money moves." : "Trades from the traders you copy and watch."}
@@ -122,6 +123,6 @@ export default async function PortfolioPage() {
           </section>
         </>
       )}
-    </>
+    </Page>
   );
 }

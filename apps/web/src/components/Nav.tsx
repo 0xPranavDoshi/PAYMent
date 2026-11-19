@@ -2,6 +2,7 @@ import Link from "next/link";
 import { signOut } from "@/lib/actions";
 import { getFollowerId } from "@/lib/session";
 import Mark from "./Mark";
+import NavLinks from "./NavLinks";
 
 export default async function Nav() {
   const signedIn = (await getFollowerId()) !== null;
@@ -9,15 +10,10 @@ export default async function Nav() {
     <header className="nav">
       <div className="container">
         <Link href="/" className="brand">
-          <Mark />
+          <span className="logo"><Mark /></span>
           coPAYMe
         </Link>
-        <nav className="links" aria-label="Main">
-          <Link href="/leaderboard" className="link">Leaderboard</Link>
-          <Link href="/watchlist" className="link">Watchlist</Link>
-          <Link href="/portfolio" className="link">Portfolio</Link>
-          <Link href="/how-scoring" className="link hide-sm">How it works</Link>
-        </nav>
+        <NavLinks />
         <div className="spacer" />
         {signedIn ? (
           <form action={signOut}>

@@ -1,3 +1,4 @@
+import Page from "@/components/Page";
 import Link from "next/link";
 import { fetchCopyMode, fetchCopyTrades, fetchWatches } from "@/lib/api";
 import { formatSignedPct, formatUsd, shortDate, tone } from "@/lib/format";
@@ -29,7 +30,7 @@ export default async function WatchlistPage() {
   const copyBy = new Map(copies.map((c) => [c.traderHandle.toLowerCase(), c]));
 
   return (
-    <>
+    <Page>
       <h1 style={{ fontSize: 32 }}>Watchlist</h1>
       <p className="muted" style={{ marginTop: 8 }}>
         How each trader has done since you started watching, as if you had put $1 on every pick.
@@ -90,6 +91,6 @@ export default async function WatchlistPage() {
           </div>
         </>
       )}
-    </>
+    </Page>
   );
 }

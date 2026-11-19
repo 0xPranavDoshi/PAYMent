@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition } from "react";
+import { useOptimistic, useRef, useState, useTransition } from "react";
 import { startCopy, stopCopy, watchTrader, type ActionResult } from "@/lib/actions";
 import { CheckIcon, ChevronIcon, CopyIcon, EyeIcon } from "./Icons";
 
@@ -23,16 +23,21 @@ function useAction(signedIn: boolean) {
   const [error, setError] = useState<string | null>(null);
   const busy = useRef(false);
 
-  function run(action: () => Promise<ActionResult>, after?: () => void) {
+  /**
+   * Runs an action. `optimistic` shows the result at once (it is undone automatically if the server
+   * says no), and `after` runs straight away too, so a click never waits on the round trip.
+   */
+  function run(action: () => Promise<ActionResult>, opts: { optimistic?: () => void; after?: () => void } = {}) {
     if (!signedIn) return router.push("/signin");
     if (busy.current) return; // a double-click must not submit twice
     busy.current = true;
     setError(null);
+    opts.after?.();
     start(async () => {
+      opts.optimistic?.();
       try {
         const result = await action();
         if (!result.ok) setError(result.error ?? "Something went wrong.");
-        else after?.();
       } finally {
         busy.current = false;
       }
@@ -43,18 +48,19 @@ function useAction(signedIn: boolean) {
 
 export function WatchButton({ handle, watching, signedIn }: { handle: string; watching: boolean; signedIn: boolean }) {
   const { run, pending, error } = useAction(signedIn);
+  const [isWatching, setWatching] = useOptimistic(watching);
   return (
     <span className="tb">
       <button
         type="button"
-        className={`btn sm ${watching ? "on" : ""}`}
-        aria-pressed={watching}
+        className={`btn sm ${isWatching ? "is-watching" : ""}`}
+        aria-pressed={isWatching}
         aria-busy={pending}
-        title={watching ? "On your watchlist. Press to remove." : "Add to your watchlist"}
-        onClick={() => run(() => watchTrader(handle, !watching))}
+        title={isWatching ? "On your watchlist. Press to remove." : "Add to your watchlist"}
+        onClick={() => run(() => watchTrader(handle, !isWatching), { optimistic: () => setWatching(!isWatching) })}
       >
-        {watching ? <CheckIcon /> : <EyeIcon />}
-        {watching ? "Watching" : "Watch"}
+        {isWatching ? <CheckIcon /> : <EyeIcon />}
+        {isWatching ? "Watching" : "Watch"}
       </button>
       {error && <span className="err">{error}</span>}
     </span>
@@ -73,7 +79,8 @@ export function CopyButton({
   paper: boolean;
 }) {
   const { run, pending, error } = useAction(signedIn);
-  const copying = copy?.active === true;
+  const [shown, setShown] = useOptimistic(copy);
+  const copying = shown?.active === true;
   const [panel, setPanel] = useState<"amount" | "menu" | null>(null);
   const [preset, setPreset] = useState<number | "custom">(10);
   const [custom, setCustom] = useState("");
@@ -81,7 +88,7 @@ export function CopyButton({
   const invalid = preset === "custom" && custom.trim() !== "" && amount === null;
 
   function openAmount() {
-    const current = copying ? copy!.amountUsdc : 10;
+    const current = copying ? shown!.amountUsdc : 10;
     if (PRESETS.includes(current)) {
       setPreset(current);
       setCustom("");
@@ -96,7 +103,7 @@ export function CopyButton({
     <span className="tb">
       <button
         type="button"
-        className={`btn sm primary ${copying ? "on" : ""}`}
+        className={`btn sm ${copying ? "is-copying" : "primary"}`}
         aria-pressed={copying}
         aria-expanded={panel !== null}
         aria-busy={pending}
@@ -108,14 +115,14 @@ export function CopyButton({
         }}
       >
         {copying ? <CheckIcon /> : <CopyIcon />}
-        {copying ? `Copying · ${usd(copy!.amountUsdc)}` : "Copy trade"}
+        {copying ? `Copying · ${usd(shown!.amountUsdc)}` : "Copy trade"}
         {copying && <ChevronIcon />}
       </button>
 
       {panel === "menu" && (
         <div className="pop menu" role="menu">
           <button type="button" role="menuitem" onClick={openAmount}>Change amount</button>
-          <button type="button" role="menuitem" className="danger" onClick={() => run(() => stopCopy(handle), () => setPanel(null))}>
+          <button type="button" role="menuitem" className="danger" onClick={() => run(() => stopCopy(handle), { optimistic: () => setShown(shown && { ...shown, active: false }), after: () => setPanel(null) })}>
             Stop copying
           </button>
           <p className="fine">Stopping keeps picks that are already copied open.</p>
@@ -124,12 +131,14 @@ export function CopyButton({
 
       {panel === "amount" && (
         <div className="pop" role="group" aria-label="Copy trade amount">
+          <div className="pop-h">
+            <b>Copy @{handle}</b>
+            <span className={`mode ${paper ? "paper" : "live"}`}>{paper ? "Simulated" : "Real orders"}</span>
+          </div>
           <p>
-            {paper ? (
-              <><b>Simulated.</b> We&apos;ll place a paper trade of {amount ? usd(amount) : "your amount"} on each new pick from @{handle}. No real money moves.</>
-            ) : (
-              <><b>Real orders.</b> We&apos;ll buy {amount ? usd(amount) : "your amount"} on each new pick from @{handle}.</>
-            )}
+            {paper
+              ? <>Places a paper trade of <b>{amount ? usd(amount) : "your amount"}</b> on each new pick, the moment it&apos;s tweeted. No real money moves.</>
+              : <>Buys <b>{amount ? usd(amount) : "your amount"}</b> on each new pick, the moment it&apos;s tweeted.</>}
           </p>
           <div className="chips">
             {PRESETS.map((v) => (
@@ -150,13 +159,13 @@ export function CopyButton({
               />
             </label>
           </div>
-          {invalid && <p className="fine bad">Enter an amount above $0 with at most two decimals.</p>}
+          {invalid && <p className="fine bad">Enter an amount above $0, with at most two decimals.</p>}
           <div className="row2">
             <button
               type="button"
               className="btn sm primary"
-              disabled={amount === null || pending}
-              onClick={() => amount !== null && run(() => startCopy(handle, amount), () => setPanel(null))}
+              disabled={amount === null}
+              onClick={() => amount !== null && run(() => startCopy(handle, amount), { optimistic: () => setShown({ active: true, amountUsdc: amount }), after: () => setPanel(null) })}
             >
               {copying ? "Update amount" : "Start copying"}
             </button>

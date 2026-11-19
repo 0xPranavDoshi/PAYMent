@@ -1,8 +1,9 @@
+import Page from "@/components/Page";
 export const metadata = { title: "How scoring works · coPAYMe" };
 
 export default function HowScoring() {
   return (
-    <div className="prose">
+    <Page><div className="prose">
       <h1 style={{ fontSize: 32 }}>How scoring works</h1>
       <p>The score answers one question: does this person beat the market, or just pick favourites?</p>
 
@@ -41,6 +42,6 @@ export default function HowScoring() {
       <div className="callout">
         The 14-day arrow beside a score compares it with the score two weeks ago, and only shows for changes of 2 points or more.
       </div>
-    </div>
+    </div></Page>
   );
 }
