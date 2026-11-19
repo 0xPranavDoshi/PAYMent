@@ -97,6 +97,9 @@ export const SCAN_CSS = `
   .bar i { position: absolute; inset: 0 auto 0 0; width: 38%; border-radius: 2px; background: var(--ember); animation: sweep 1.5s ease-in-out infinite; }
   .again { all: unset; cursor: pointer; margin-top: 12px; padding: 8px 14px; border-radius: 999px; background: var(--ember); color: var(--ember-ink); font: 700 12px/1 var(--font); }
   .again:hover { filter: brightness(1.07); }
+  .stop { all: unset; cursor: pointer; margin-top: 12px; padding: 7px 13px; border-radius: 999px; border: 1px solid var(--chip-line); color: var(--ink); font: 600 12px/1 var(--font); }
+  .stop:hover { border-color: var(--coral); color: var(--coral); }
+  .stop:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(270%); } }
   @media (prefers-reduced-motion: reduce) { .mark.spin { animation: none; } .bar i { animation: none; width: 100%; opacity: .5; } }

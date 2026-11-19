@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { WEB_URL } from "../src/config.js";
-import type { BadgesReply, BadgesRequest, ProfileReply, ProfileRequest, ScanReply, ScanRequest, TradingReply, TradingRequest } from "../src/messages.js";
+import type { BadgesReply, BadgesRequest, ProfileReply, ProfileRequest, ScanCancelReply, ScanCancelRequest, ScanReply, ScanRequest, TradingReply, TradingRequest } from "../src/messages.js";
 import { startBadges } from "../src/page.js";
 import { createTradingBridge } from "../src/tradingBridge.js";
 
@@ -23,7 +23,13 @@ export default defineContentScript({
         if (!reply.ok) throw new Error(reply.error);
         return { profile: reply.profile, calls: reply.calls };
       },
-      // Opening a profile asks the scout to read that handle's recent picks.
+      // Pressing Stop: stop waiting here, and tell the scout to skip the paid work it has not started yet.
+      cancelScan: async (handle) => {
+        const request: ScanCancelRequest = { type: "scan-cancel", handle };
+        const reply: ScanCancelReply = await browser.runtime.sendMessage(request);
+        if (!reply.ok) throw new Error(reply.error);
+      },
+      // Pressing Scan picks asks the scout to read that handle's recent picks.
       scan: async (handle, newestTweetId) => {
         const request: ScanRequest = { type: "scan", handle, newestTweetId };
         const reply: ScanReply = await browser.runtime.sendMessage(request);

@@ -87,3 +87,74 @@ describe("createScanService", () => {
     expect(fetcher).toHaveBeenCalledTimes(2); // one POST + one poll
   });
 });
+
+describe("createScanService: stopping", () => {
+  /** A service whose polling pauses call `onSleep`, so a test can press Stop while a scan is being polled. */
+  function stoppable(fetcher: ReturnType<typeof scout>, onSleep: (n: number, service: ReturnType<typeof createScanService>) => Promise<void> | void) {
+    let t = 1_000_000;
+    let n = 0;
+    const refreshBadge = vi.fn(async () => scored);
+    const service: ReturnType<typeof createScanService> = createScanService({
+      scoutUrl: "http://scout.test",
+      refreshBadge,
+      fetcher: fetcher as unknown as typeof fetch,
+      now: () => t,
+      sleep: async (ms) => {
+        t += ms;
+        await onSleep(++n, service);
+      },
+    });
+    return { service, refreshBadge };
+  }
+
+  it("stops polling at once, does not fetch the badge, and tells the scout with a DELETE", async () => {
+    const fetcher = scout(["running"]);
+    const { service, refreshBadge } = stoppable(fetcher, (n, s) => (n === 2 ? void s.cancel("alice") : undefined));
+    expect(await service.scan("alice")).toEqual({ status: "stopped" });
+    expect(refreshBadge).not.toHaveBeenCalled();
+    const deletes = fetcher.mock.calls.filter(([, init]) => init?.method === "DELETE");
+    expect(deletes).toHaveLength(1);
+    expect(String(deletes[0]![0])).toBe("http://scout.test/v1/scout/alice");
+    expect(fetcher.mock.calls.length).toBeLessThan(6); // it did not keep polling for the whole window
+  });
+
+  it("allows scanning the same handle again right after a stop, instead of skipping for 10 minutes", async () => {
+    const fetcher = scout(["running"]);
+    const { service } = stoppable(fetcher, (n, s) => (n === 1 ? void s.cancel("alice") : undefined));
+    expect(await service.scan("alice")).toEqual({ status: "stopped" });
+    const again = scout(["idle"]);
+    const { service: second } = setup(again);
+    expect((await second.scan("alice")).status).toBe("done"); // a fresh service: baseline
+    // and the stopped service itself does not say "skipped":
+    expect((await service.scan("alice")).status).not.toBe("skipped");
+  });
+
+  it("still stops waiting when the scout cannot be reached for the DELETE", async () => {
+    const calls: string[] = [];
+    const fetcher = vi.fn(async (_url: URL, init?: RequestInit) => {
+      calls.push(init?.method ?? "GET");
+      if (init?.method === "DELETE") throw new Error("scout down");
+      return new Response(body("running"), { status: 200 });
+    });
+    let t = 1_000_000;
+    let n = 0;
+    const service: ReturnType<typeof createScanService> = createScanService({
+      scoutUrl: "http://scout.test",
+      refreshBadge: async () => scored,
+      fetcher: fetcher as unknown as typeof fetch,
+      now: () => t,
+      sleep: async (ms) => {
+        t += ms;
+        if (++n === 1) await service.cancel("alice");
+      },
+    });
+    expect(await service.scan("alice")).toEqual({ status: "stopped" });
+    expect(calls).toContain("DELETE");
+  });
+
+  it("cancelling a handle that is not being scanned is harmless", async () => {
+    const fetcher = scout(["idle"]);
+    const { service } = setup(fetcher);
+    await expect(service.cancel("nobody")).resolves.toBeUndefined();
+  });
+});
