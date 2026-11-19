@@ -23,7 +23,7 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<{
 
       <div className="card" style={{ marginTop: 14 }}>
         <form action={signInDemo}>
-          <button className="btn primary" type="submit" disabled={!demoConfigured} style={{ width: "100%", justifyContent: "center" }}>
+          <button className="btn" type="submit" disabled={!demoConfigured} style={{ width: "100%", justifyContent: "center" }}>
             Continue as demo user
           </button>
         </form>
