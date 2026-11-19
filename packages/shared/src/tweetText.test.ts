@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decodeHtmlEntities, parseTweetText, plainTweetText } from "./tweetText.js";
+import { decodeHtmlEntities, formatTweetTime, parseTweetText, plainTweetText, tweetUrl } from "./tweetText.js";
 
 describe("decodeHtmlEntities", () => {
   it("decodes the escapes X puts in tweet text", () => {
@@ -64,8 +64,10 @@ describe("parseTweetText", () => {
     expect(kinds("(https://example.com/x), then")).toEqual(["text:(", "link:example.com/x", "text:), then"]);
   });
 
-  it("labels an unexpanded t.co link in the middle rather than showing a random short code", () => {
-    expect(kinds("see https://t.co/AbC123 now")).toEqual(["text:see ", "link:link", "text: now"]);
+  it("shows a t.co link in the middle by its address, since the real destination is not in the data", () => {
+    expect(kinds("see https://t.co/AbC123 now")).toEqual(["text:see ", "link:t.co/AbC123", "text: now"]);
+    const link = parseTweetText("see https://t.co/AbC123 now")[1]!;
+    expect(link).toMatchObject({ href: "https://t.co/AbC123" });
   });
 
   it("leaves emails, C#, and plain text alone", () => {
@@ -87,5 +89,21 @@ describe("parseTweetText", () => {
   it("keeps the real example from the demo intact", () => {
     const raw = "21+ (18+ WY). T&amp;Cs apply. Gambling problem? Call 1-800-GAMBLER.\n  https://t.co/VXTYrphI6W";
     expect(parseTweetText(raw)).toEqual([{ kind: "text", text: "21+ (18+ WY). T&Cs apply. Gambling problem? Call 1-800-GAMBLER." }]);
+  });
+});
+
+describe("tweetUrl", () => {
+  it("is the tweet's permalink, with the id escaped", () => {
+    expect(tweetUrl("2123176566800715914")).toBe("https://x.com/i/status/2123176566800715914");
+    expect(tweetUrl("a/b")).toBe("https://x.com/i/status/a%2Fb");
+  });
+});
+
+describe("formatTweetTime", () => {
+  it("writes the time the way X does", () => {
+    const { short, full } = formatTweetTime("2026-11-19T12:03:00.000Z");
+    expect(short).toMatch(/^Nov (19|18|20)$/); // the local day, which depends on the machine's time zone
+    expect(full).toMatch(/^\d{1,2}:\d{2} (AM|PM) · Nov \d{1,2}, 2026$/);
+    expect(full).toContain(short);
   });
 });

@@ -8,7 +8,7 @@ export function TweetText({ text }: { text: string }) {
         segment.kind === "text" ? (
           segment.text
         ) : (
-          // Clicking a link in the tweet must not flip the card or follow the tweet underneath.
+          // A click on a link in the tweet must not reach whatever the card sits inside (a flip, a link).
           <a key={i} href={segment.href} target="_blank" rel="noopener noreferrer" onClick={(event) => event.stopPropagation()}>
             {segment.text}
           </a>

@@ -1,3 +1,5 @@
+import { TWEET_CARD_CSS } from "@copayme/tweet-card";
+
 /**
  * coPAYMe's look: flat, high-contrast surfaces. Near-black in dark, warm paper in light, one ember
  * accent, green for wins and coral for losses. No gradients. Everything lives in shadow roots, so
@@ -107,6 +109,7 @@ export const SCAN_CSS = `
 
 export const POPOVER_CSS = `
   ${TOKENS_CSS}
+  ${TWEET_CARD_CSS}
   :host { all: initial; }
   * { box-sizing: border-box; }
   .card {
@@ -195,7 +198,15 @@ export const POPOVER_CSS = `
   .flip { position: relative; transition: height .45s cubic-bezier(.22, .8, .2, 1), transform .5s cubic-bezier(.22, .8, .2, 1); transform-style: preserve-3d; }
   .pick.flipped .flip { transform: rotateY(180deg); }
   .face { position: absolute; inset: 0 0 auto 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 10px; }
-  .face.back { transform: rotateY(180deg); background: var(--tw-bg); color: var(--tw-ink); border: 1px solid var(--tw-line); padding: 12px 14px 10px; }
+  /* The back face is the shared tweet card, themed from X's own colours (see TWEET_CARD_CSS). */
+  .face.back {
+    transform: rotateY(180deg);
+    --tweetcard-bg: var(--tw-bg); --tweetcard-ink: var(--tw-ink); --tweetcard-ink-2: var(--tw-ink-2); --tweetcard-line: var(--tw-line);
+    --tweetcard-avatar: var(--tw-avatar); --tweetcard-avatar-ink: var(--tw-avatar-ink); --tweetcard-link: var(--tw-link);
+    --tweetcard-accent: var(--ember); --tweetcard-radius: 10px; --tweetcard-pad: 12px 14px 10px; --tweetcard-font: var(--font);
+  }
+  .tweetcard-acts .flipbtn { color: var(--tw-ink-2); }
+  .tweetcard-acts .flipbtn:hover { color: var(--ember); }
   .front { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 9px 8px; }
   .front:hover { background: var(--chip); }
   .pick .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -206,19 +217,6 @@ export const POPOVER_CSS = `
   .pts.won { color: var(--win); }
   .pts.lost { color: var(--coral); }
   .pts.none { color: var(--ink-3); font: 500 12px/1 var(--font); }
-  .tweet { display: flex; gap: 10px; }
-  .avatar { width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center; background: var(--tw-avatar); color: var(--tw-avatar-ink); font: 700 17px/1 var(--font); }
-  .tmain { min-width: 0; flex: 1; }
-  .thead { display: flex; gap: 4px; align-items: baseline; font: 15px/20px var(--font); color: var(--tw-ink-2); min-width: 0; }
-  .thead b { font-weight: 700; color: var(--tw-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ttext { margin: 2px 0 0; font: 15px/20px var(--font); color: var(--tw-ink); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; max-height: 200px; overflow-y: auto; overscroll-behavior: contain; }
-  .ttext a { color: var(--tw-link); text-decoration: none; }
-  .ttext a:hover { text-decoration: underline; }
-  .tmeta { margin-top: 10px; font: 13px/16px var(--font); color: var(--tw-ink-2); }
-  .tfoot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--tw-line); font-size: 12px; color: var(--tw-ink-2); }
-  .tfoot .link, .tfoot .flipbtn { color: var(--tw-ink-2); }
-  .tfoot .link:hover, .tfoot .flipbtn:hover { color: var(--ember); }
-  .tfoot .acts { display: inline-flex; gap: 12px; align-items: center; }
   .empty { padding: 4px 16px 10px; color: var(--ink-2); }
   .foot { padding: 12px 16px 16px; }
   .site {

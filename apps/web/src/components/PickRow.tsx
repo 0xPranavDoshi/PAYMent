@@ -1,7 +1,7 @@
 "use client";
 
+import { TweetCard } from "@copayme/tweet-card";
 import { useState } from "react";
-import TweetText from "./TweetText";
 
 export interface PickRowProps {
   handle: string;
@@ -12,11 +12,11 @@ export interface PickRowProps {
   outcome: string;
   tweetText: string;
   tweetId: string;
-  short: string;
-  full: string;
+  /** When it was tweeted, ISO. */
+  postedAt: string;
 }
 
-/** One pick. "See tweet" opens the tweet in place, drawn the way X draws it. */
+/** One pick. "See tweet" opens the tweet in place, drawn by the same card the extension uses. */
 export default function PickRow(p: PickRowProps) {
   const [open, setOpen] = useState(false);
   return (
@@ -31,22 +31,7 @@ export default function PickRow(p: PickRowProps) {
       <button type="button" className="seetweet" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         {open ? "Hide tweet" : "See tweet"}
       </button>
-      {open && (
-        <article className="xtweet" aria-label={`Tweet from @${p.handle}`}>
-          <div className="xt-av" aria-hidden="true">{p.handle[0]?.toUpperCase()}</div>
-          <div className="xt-body">
-            <div className="xt-head">
-              <b>@{p.handle}</b>
-              <span>· {p.short}</span>
-            </div>
-            <p><TweetText text={p.tweetText} /></p>
-            <div className="xt-time">{p.full}</div>
-            <a href={`https://x.com/i/status/${encodeURIComponent(p.tweetId)}`} target="_blank" rel="noopener noreferrer">
-              Open on X ↗
-            </a>
-          </div>
-        </article>
-      )}
+      {open && <TweetCard className="inpick" handle={p.handle} text={p.tweetText} postedAt={p.postedAt} tweetId={p.tweetId} />}
     </div>
   );
 }

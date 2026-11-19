@@ -68,9 +68,9 @@ export function parseTweetText(raw: string): TweetSegment[] {
         pushText(token + tail);
         continue;
       }
-      // An unexpanded t.co link says nothing, so it is labelled rather than shown as a random short code.
-      const label = new URL(href).hostname === "t.co" ? "link" : token.replace(/^https?:\/\//, "").replace(/\/$/, "");
-      out.push({ kind: "link", text: label, href });
+      // Shown as its address without the scheme, like X does when it has no better name for it. (X's
+      // expanded destination is not in the data we receive, so a t.co link keeps its short address.)
+      out.push({ kind: "link", text: token.replace(/^https?:\/\//, "").replace(/\/$/, ""), href });
       pushText(tail);
     } else if (match[2]) {
       out.push({ kind: "mention", text: token, href: `https://x.com/${token.slice(1)}` });
@@ -80,4 +80,18 @@ export function parseTweetText(raw: string): TweetSegment[] {
   }
   pushText(text.slice(last));
   return out;
+}
+
+/** A tweet's permalink on X. */
+export function tweetUrl(tweetId: string): string {
+  return `https://x.com/i/status/${encodeURIComponent(tweetId)}`;
+}
+
+/** A tweet's time the way X writes it: "Nov 19" beside the name, "7:03 AM · Nov 19, 2026" under the text. */
+export function formatTweetTime(iso: string): { short: string; full: string } {
+  const date = new Date(iso);
+  const day = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const time = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const year = date.toLocaleDateString("en-US", { year: "numeric" });
+  return { short: day, full: `${time} · ${day}, ${year}` };
 }
