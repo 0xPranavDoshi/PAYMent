@@ -53,10 +53,17 @@ describe("matchPrediction", () => {
     expect(r).toMatchObject({ predictionIndex: 3, status: "no_market", reason: "no game within 7 days" });
   });
 
-  it("tweet during the team's game -> no_market 'tweet during game'", async () => {
+  it("tweet during the team's game, before it settled -> matched on the live game (live picks count)", async () => {
     const live = game({ startTime: "2026-11-18T11:00:00.000Z" });
     const r = await matchPrediction(pred(), 0, TWEET, { gemini: gemini(live), grok });
-    expect(r).toMatchObject({ status: "no_market", reason: "tweet during game" });
+    expect(r).toMatchObject({ status: "matched", instrumentSymbol: "SYM-LAL" });
+  });
+
+  it("tweet after the team's game settled -> no_market 'tweet after the game settled'", async () => {
+    const base = game({ startTime: "2026-11-18T08:00:00.000Z" });
+    const over = { ...base, contracts: base.contracts.map((x) => ({ ...x, resolvedAt: "2026-11-18T10:30:00.000Z" })) };
+    const r = await matchPrediction(pred(), 0, TWEET, { gemini: gemini(over), grok });
+    expect(r).toMatchObject({ status: "no_market", reason: "tweet after the game settled" });
   });
 
   it("game returned with no sub-markets at all, every time -> retryable no_market after 5 fetches", async () => {
@@ -212,14 +219,14 @@ describe("matchPrediction", () => {
     const g2 = gemini(g);
     const r = await matchPrediction(pred(), 0, new Date("2026-11-18T12:00:00.000Z"), { gemini: g2, grok });
     expect(r.status).toBe("matched");
-    // simulate a game that slips past findGame: getEvent returns a different, already-started event
-    const started = game({ startTime: "2026-11-18T11:00:00.000Z" });
+    // simulate a game that slips past findGame: getEvent returns the same game, already settled before the tweet
+    const settled = { ...g, contracts: g.contracts.map((x) => ({ ...x, resolvedAt: "2026-11-18T11:30:00.000Z" })) };
     const stub = {
       searchGames: vi.fn(async () => [g]),
-      getEvent: vi.fn(async () => started),
+      getEvent: vi.fn(async () => settled),
     } as unknown as GeminiClient;
     const r2 = await matchPrediction(pred(), 0, TWEET, { gemini: stub, grok });
-    expect(r2).toMatchObject({ status: "rejected", reason: expect.stringMatching(/starts/) });
+    expect(r2).toMatchObject({ status: "rejected", reason: expect.stringMatching(/settled/) });
   });
 
   it("findGame errors propagate", async () => {

@@ -6,7 +6,7 @@ import { NO_GAME_REASON } from "./match/candidates.js";
 import { matchPrediction, NO_SUB_MARKETS_REASON } from "./match/match.js";
 import type { PostSource, RawPost } from "./posts/source.js";
 import { readPosts } from "./stages/read.js";
-import { PIPELINE_VERSION, type ScoutPostRow, type ScoutStore } from "./store.js";
+import { PIPELINE_VERSION, hasObsoleteMatch, type ScoutPostRow, type ScoutStore } from "./store.js";
 
 export interface ScanDeps {
   store: ScoutStore;
@@ -112,6 +112,9 @@ export async function runScan(handle: string, deps: ScanDeps, opts: ScanOptions 
         r.sentiment = null;
         r.matches = null;
         r.pipelineVersion = PIPELINE_VERSION;
+      } else if (hasObsoleteMatch(r)) {
+        // Matched under a rule that has changed (e.g. live picks didn't count): match again, keep the reading.
+        r.matches = null;
       }
       rows.set(r.tweetId, r);
     }

@@ -1,6 +1,6 @@
 import type { PickMatch, ScoutStatus, Sentiment } from "@copayme/shared";
 import type postgres from "postgres";
-import { PIPELINE_VERSION, STALE_LOCK_MS, isPending, type ScoutPostRow, type ScoutStore } from "./store.js";
+import { OBSOLETE_MATCH_REASONS, PIPELINE_VERSION, STALE_LOCK_MS, isPending, type ScoutPostRow, type ScoutStore } from "./store.js";
 
 /** Posts per multi-row upsert statement (well under Postgres' 65535 bind-parameter limit). */
 const UPSERT_CHUNK = 200;
@@ -143,7 +143,8 @@ export function createPostgresStore(sql: postgres.Sql): ScoutStore {
       const rows = await sql<PostDb[]>`
         select * from scout_posts
         where x_handle = ${handle}
-          and (sentiment is null or matches is null or pipeline_version < ${PIPELINE_VERSION})
+          and (sentiment is null or matches is null or pipeline_version < ${PIPELINE_VERSION}
+               or exists (select 1 from jsonb_array_elements(matches) m where m->>'reason' = any(${[...OBSOLETE_MATCH_REASONS]})))
         order by tweeted_at desc
       `;
       return rows.map(toPost).filter(isPending);
