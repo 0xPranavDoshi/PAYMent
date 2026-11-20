@@ -783,22 +783,23 @@ describe("the flipped card looks like a tweet", () => {
     expect(back.querySelector(".tweetcard-foot")!.textContent).toContain("Pick: UConn · YES · 62¢");
   });
 
-  it("is painted with the exact background of the page it sits on, so it matches X's own tweets", async () => {
+  it("stays light on every X theme, with notches cut in the page's own background", async () => {
     for (const background of ["rgb(255, 255, 255)", "rgb(21, 32, 43)", "rgb(0, 0, 0)"]) {
       await openWith(background);
-      expect(popoverHosts()[0]!.style.getPropertyValue("--tw-bg")).toBe(background);
+      expect(popoverHosts()[0]!.style.getPropertyValue("--page-bg")).toBe(background);
+      expect(popoverHosts()[0]!.dataset.theme).toBeUndefined(); // always light, even on Dim and Lights Out
       popoverHosts()[0]!.remove();
       stop();
     }
   });
 
-  it("follows the user switching X's theme while it is open", async () => {
+  it("keeps its notches matching the page when the user switches X's theme while it is open", async () => {
     await openWith("rgb(0, 0, 0)"); // Lights Out
     document.body.style.backgroundColor = "rgb(21, 32, 43)"; // Dim
-    await vi.waitFor(() => expect(popoverHosts()[0]!.style.getPropertyValue("--tw-bg")).toBe("rgb(21, 32, 43)"));
+    await vi.waitFor(() => expect(popoverHosts()[0]!.style.getPropertyValue("--page-bg")).toBe("rgb(21, 32, 43)"));
     document.body.style.backgroundColor = "rgb(255, 255, 255)"; // Light
-    await vi.waitFor(() => expect(popoverHosts()[0]!.style.getPropertyValue("--tw-bg")).toBe("rgb(255, 255, 255)"));
-    expect(popoverHosts()[0]!.dataset.theme).toBe("light");
+    await vi.waitFor(() => expect(popoverHosts()[0]!.style.getPropertyValue("--page-bg")).toBe("rgb(255, 255, 255)"));
+    expect(popoverHosts()[0]!.dataset.theme).toBeUndefined();
   });
 });
 

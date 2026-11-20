@@ -94,10 +94,9 @@ export function startBadges({
   const roots = new Set<Root>();
   let stopped = false;
 
-  // Badges and the popover follow X's own theme (Light, Dim or Lights Out), live.
+  // Badges and the popover are always light. X's page colour is tracked only for the ticket's notches.
   const theme = createThemeStore(doc);
   const hosts = new Set<HTMLElement>();
-  theme.subscribe((next) => hosts.forEach((host) => (host.dataset.theme = next)));
 
   const popover = loadProfile
     ? createPopoverManager({
@@ -149,7 +148,6 @@ export function startBadges({
 
     const host = doc.createElement("span");
     host.dataset.copayme = "badge";
-    host.dataset.theme = theme.get();
     hosts.add(host);
     const shadow = host.attachShadow({ mode: "open" });
     const style = doc.createElement("style");
@@ -351,7 +349,6 @@ export function startBadges({
   if (scan) {
     scanHost = doc.createElement("div");
     scanHost.dataset.copayme = "scan";
-    scanHost.dataset.theme = theme.get();
     scanHost.style.cssText = "position:fixed;top:72px;right:20px;z-index:2147483646;";
     hosts.add(scanHost);
     const shadow = scanHost.attachShadow({ mode: "open" });

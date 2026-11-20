@@ -1,27 +1,23 @@
-import { TOKENS, TOKENS_DARK, tokensCss } from "@copayme/shared";
+import { TOKENS, tokensCss } from "@copayme/shared";
 import { TWEET_CARD_CSS } from "@copayme/tweet-card";
 
 /**
- * coPAYMe's look (style D): thick outlines and solid offset shadows. Light is warm paper with black
- * outlines; dark (variant B) is near-black with cream outlines and an orange shadow. All of it comes
- * from the shared tokens, so components just use var(--line) and var(--shadow). Everything lives in shadow roots, so
- * X's styles cannot touch it and ours cannot leak out. The theme comes from `data-theme` on the
- * shadow host, kept in sync with X's own theme.
+ * coPAYMe's look (style D): warm paper, thick black outlines and solid offset shadows. It is always
+ * light, whatever X's own theme is. All of it comes from the shared tokens, so components just use
+ * var(--line) and var(--shadow). Everything lives in shadow roots, so X's styles cannot touch it and
+ * ours cannot leak out.
  */
 export const TOKENS_CSS = `
   ${tokensCss(":host", TOKENS)}
-  ${tokensCss(':host([data-theme="dark"])', TOKENS_DARK)}
   :host {
     --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
     --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
     --pill-bg: var(--surface);
-    /* X's own colours, so a tweet shown here looks like the ones on the page. --tw-bg is replaced
-       with the page's exact background by the extension. */
+    /* X's light-theme colours for a tweet shown inside the card. */
     --tw-link: #1d9bf0; --tw-bg: #ffffff; --tw-ink: #0f1419; --tw-ink-2: #536471; --tw-line: #eff3f4; --tw-avatar: #cfd9de; --tw-avatar-ink: #536471;
   }
-  :host([data-theme="dark"]) {
-    --pill-bg: var(--card);
-    --tw-link: #1d9bf0; --tw-bg: #000000; --tw-ink: #e7e9ea; --tw-ink-2: #71767b; --tw-line: #2f3336; --tw-avatar: #2f3336; --tw-avatar-ink: #e7e9ea;
+    /* What X paints behind the card, so the ticket's notches read as holes. Set by the extension. */
+    --page-bg: #ffffff;
   }
 `;
 
@@ -108,8 +104,7 @@ export const SCAN_CSS = `
 /**
  * The popover (style D): an outlined card with a solid offset shadow. Copy trade tears a stub off its
  * bottom along a dashed perforation with half-circle notches, which are painted in X's own page colour
- * (--tw-bg) so they read as holes. Dark X gets variant B from the tokens: a near-black card, cream
- * outlines, an orange card shadow and cream button shadows.
+ * (--page-bg) so they read as holes.
  */
 export const POPOVER_CSS = `
   ${TOKENS_CSS}
@@ -161,7 +156,7 @@ export const POPOVER_CSS = `
   .flip { position: relative; transition: height .45s cubic-bezier(.22, .8, .2, 1), transform .5s cubic-bezier(.22, .8, .2, 1); transform-style: preserve-3d; }
   .pick.flipped .flip { transform: rotateY(180deg); }
   .face { position: absolute; inset: 0 0 auto 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 10px; }
-  /* The back face is the shared tweet card, themed from X's own colours (see TWEET_CARD_CSS). */
+  /* The back face is the shared tweet card, in X's light colours (see TWEET_CARD_CSS). */
   .face.back {
     transform: rotateY(180deg);
     --tweetcard-bg: var(--tw-bg); --tweetcard-ink: var(--tw-ink); --tweetcard-ink-2: var(--tw-ink-2); --tweetcard-line: var(--tw-line);
@@ -219,7 +214,6 @@ export const POPOVER_CSS = `
   .btn.full:active { transform: translate(4px, 4px); box-shadow: none; }
   .btn.sm { height: 36px; padding: 0 8px; font-size: 13px; }
   .btn.danger { color: var(--loss); }
-  :host([data-theme="dark"]) .btn.primary, :host([data-theme="dark"]) .tbtn.copy:not(.on):not(.pressed) { border-color: var(--orange); }
 
   .toast { margin: 12px 16px 0; padding: 9px 12px; border: 2px solid var(--line); border-radius: 9px; background: var(--ticket); font-size: 12px; color: var(--ink-2); }
   .toast.error { color: var(--loss); border-color: var(--loss); }
@@ -229,7 +223,7 @@ export const POPOVER_CSS = `
   .perf { position: relative; margin-top: 16px; border-top: 2.5px dashed var(--line); }
   .perf::before, .perf::after {
     content: ""; position: absolute; top: -13.75px; box-sizing: content-box; width: 20px; height: 20px; border-radius: 50%;
-    background: var(--tw-bg); border: 2.5px solid var(--line);
+    background: var(--page-bg); border: 2.5px solid var(--line);
   }
   .perf::before { left: -12.5px; clip-path: inset(-4px -4px -4px 50%); }
   .perf::after { right: -12.5px; clip-path: inset(-4px 50% -4px -4px); }
