@@ -83,7 +83,7 @@ export default async function PortfolioPage() {
                       <b className={tone(c.livePnlUsdc)}>{c.livePnlUsdc === null ? "–" : formatUsd(c.livePnlUsdc)}</b>
                       <small className="muted">P&amp;L</small>
                     </div>
-                    <div className="wact"><CopyTradeToggle handle={c.traderHandle} copy={{ active: c.active, amountUsdc: c.amountUsdc, since: c.createdAt }} signedIn nPicks={0} ticketPlacement="inline" /></div>
+                    <div className="wact"><CopyTradeToggle handle={c.traderHandle} copy={{ active: c.active, amountUsdc: c.amountUsdc, since: c.createdAt }} signedIn viewerId={followerId} nPicks={0} ticketPlacement="inline" /></div>
                   </div>
                 ))
               )}

@@ -13,26 +13,32 @@ describe("copyBasis", () => {
 });
 
 describe("resolveCopy", () => {
-  const startedFromNothing: CopyOverride = { value: copying10, basis: copyBasis(null) };
+  const startedFromNothing: CopyOverride = { value: copying10, basis: copyBasis(null), viewer: "user-a" };
 
   it("shows page data when there is no override", () => {
-    expect(resolveCopy(undefined, null, true)).toEqual({ copy: null, drop: false });
-    expect(resolveCopy(undefined, copying10, true)).toEqual({ copy: copying10, drop: false });
+    expect(resolveCopy(undefined, null, "user-a")).toEqual({ copy: null, drop: false });
+    expect(resolveCopy(undefined, copying10, "user-a")).toEqual({ copy: copying10, drop: false });
   });
 
   it("shows the override while the page still has the data it was set against", () => {
-    expect(resolveCopy(startedFromNothing, null, true)).toEqual({ copy: copying10, drop: false });
+    expect(resolveCopy(startedFromNothing, null, "user-a")).toEqual({ copy: copying10, drop: false });
   });
 
   it("lets page data win, and drops the override, once the page data changes", () => {
     const fromServer = { active: true, amountUsdc: 25, since: "2026-11-01T00:00:00Z" };
-    expect(resolveCopy(startedFromNothing, fromServer, true)).toEqual({ copy: fromServer, drop: true });
+    expect(resolveCopy(startedFromNothing, fromServer, "user-a")).toEqual({ copy: fromServer, drop: true });
     // a stop made elsewhere: the page now says inactive
-    const stopped: CopyOverride = { value: copying10, basis: copyBasis({ active: true, amountUsdc: 5 }) };
-    expect(resolveCopy(stopped, { active: false, amountUsdc: 5 }, true)).toEqual({ copy: { active: false, amountUsdc: 5 }, drop: true });
+    const stopped: CopyOverride = { value: copying10, basis: copyBasis({ active: true, amountUsdc: 5 }), viewer: "user-a" };
+    expect(resolveCopy(stopped, { active: false, amountUsdc: 5 }, "user-a")).toEqual({ copy: { active: false, amountUsdc: 5 }, drop: true });
   });
 
   it("never shows an override to a signed-out viewer", () => {
-    expect(resolveCopy(startedFromNothing, null, false)).toEqual({ copy: null, drop: true });
+    expect(resolveCopy(startedFromNothing, null, null)).toEqual({ copy: null, drop: true });
+  });
+
+  it("never shows one viewer's override to another, even when their page data matches its basis", () => {
+    // A (not copying before) copied @x, so basis is "none"; B is not copying @x either, so B's page data is null too.
+    expect(copyBasis(null)).toBe(startedFromNothing.basis);
+    expect(resolveCopy(startedFromNothing, null, "user-b")).toEqual({ copy: null, drop: true });
   });
 });

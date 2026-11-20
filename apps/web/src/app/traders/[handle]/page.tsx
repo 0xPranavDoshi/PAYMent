@@ -60,7 +60,7 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
           </div>
           <div className="actions">
             <WatchButton handle={profile.handle} watching={watching} signedIn={followerId !== null} />
-            <CopyTradeToggle handle={profile.handle} copy={copy} signedIn={followerId !== null} nPicks={calls.length} primary ticketPlacement="inline" />
+            <CopyTradeToggle handle={profile.handle} copy={copy} signedIn={followerId !== null} viewerId={followerId} nPicks={calls.length} primary ticketPlacement="inline" />
           </div>
         </div>
       </div>

@@ -82,7 +82,7 @@ export default async function WatchlistPage() {
                     <small className={tone(w.projectedPnlUsdc)}>{w.projectedPnlUsdc === null ? (w.nPicks === 0 ? "No picks yet" : "Not priced yet") : formatUsd(w.projectedPnlUsdc)}</small>
                   </div>
                   <div className="wact">
-                    <CopyTradeToggle handle={w.traderHandle} copy={copy ? { active: copy.active, amountUsdc: copy.amountUsdc, since: copy.createdAt } : null} signedIn nPicks={0} ticketPlacement="inline" />
+                    <CopyTradeToggle handle={w.traderHandle} copy={copy ? { active: copy.active, amountUsdc: copy.amountUsdc, since: copy.createdAt } : null} signedIn viewerId={followerId} nPicks={0} ticketPlacement="inline" />
                     <WatchButton handle={w.traderHandle} watching signedIn />
                   </div>
                 </div>

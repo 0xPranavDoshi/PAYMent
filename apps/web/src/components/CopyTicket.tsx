@@ -24,6 +24,7 @@ const usd = (n: number) => (Number.isInteger(n) ? `$${n}` : formatUsd(n, false))
 // The toggle and its ticket can be rendered apart (the leaderboard puts the ticket in the next row),
 // so the result of a copy action is kept here, keyed by handle, until the page's own data catches up.
 // Page data wins as soon as it differs from what the override was set against (see resolveCopy),
+// Entries belong to the viewer (follower id) who made them and are never shown to anyone else;
 // stale entries are deleted, and the whole store is cleared whenever the viewer is signed out.
 
 const overrides = new Map<string, CopyOverride>();
@@ -47,13 +48,13 @@ function clearOverrides() {
   for (const l of listeners) l();
 }
 
-function useCopyState(handle: string, fromPage: CopyState | null, signedIn: boolean): CopyState | null {
+function useCopyState(handle: string, fromPage: CopyState | null, viewer: string | null): CopyState | null {
   const override = useSyncExternalStore(subscribe, () => overrides.get(keyOf(handle)), () => undefined);
-  const { copy, drop } = resolveCopy(override, fromPage, signedIn);
+  const { copy, drop } = resolveCopy(override, fromPage, viewer);
   useEffect(() => {
-    if (!signedIn) clearOverrides();
+    if (viewer === null) clearOverrides();
     else if (drop && overrides.get(keyOf(handle)) === override) setOverride(handle, undefined);
-  }, [signedIn, drop, override, handle]);
+  }, [viewer, drop, override, handle]);
   return copy;
 }
 
@@ -91,6 +92,7 @@ export default function CopyTicket({
   handle,
   copy: copyFromPage,
   signedIn,
+  viewerId,
   nPicks,
   variant,
   onClose,
@@ -98,11 +100,14 @@ export default function CopyTicket({
   handle: string;
   copy: CopyState | null;
   signedIn: boolean;
+  /** The signed-in follower's id (null when signed out); copy results are kept per viewer. */
+  viewerId: string | null;
   nPicks: number;
   variant: "row" | "card";
   onClose?: () => void;
 }) {
-  const copy = useCopyState(handle, copyFromPage, signedIn);
+  const viewer = signedIn ? viewerId : null;
+  const copy = useCopyState(handle, copyFromPage, viewer);
   const copying = copy?.active === true;
   const calls = useTicketCalls(handle);
   const [editing, setEditing] = useState(false);
@@ -117,17 +122,17 @@ export default function CopyTicket({
     busy.current = true;
     const before = overrides.get(keyOf(handle));
     setError(null);
-    setOverride(handle, { value: next, basis: copyBasis(copyFromPage) });
+    if (viewer !== null) setOverride(handle, { value: next, basis: copyBasis(copyFromPage), viewer });
     setEditing(false);
     start(async () => {
       try {
         const result = await action();
         if (!result.ok) {
-          setOverride(handle, before);
+          if (viewer !== null) setOverride(handle, before);
           setError(result.error ?? "Something went wrong.");
         }
       } catch {
-        setOverride(handle, before);
+        if (viewer !== null) setOverride(handle, before);
         setError("Something went wrong.");
       } finally {
         busy.current = false;
@@ -248,6 +253,7 @@ export function CopyTradeToggle({
   handle,
   copy: copyFromPage,
   signedIn,
+  viewerId,
   nPicks,
   primary = false,
   size = "sm",
@@ -258,6 +264,8 @@ export function CopyTradeToggle({
   handle: string;
   copy: CopyState | null;
   signedIn: boolean;
+  /** The signed-in follower's id (null when signed out); copy results are kept per viewer. */
+  viewerId: string | null;
   nPicks: number;
   primary?: boolean;
   /** Button size; tables use "sm", the profile header "lg". */
@@ -268,7 +276,7 @@ export function CopyTradeToggle({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
-  const copy = useCopyState(handle, copyFromPage, signedIn);
+  const copy = useCopyState(handle, copyFromPage, signedIn ? viewerId : null);
   const copying = copy?.active === true;
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
@@ -284,7 +292,7 @@ export function CopyTradeToggle({
         {copying ? `✓ Copying · ${usd(copy!.amountUsdc)}` : open ? "Copy trade ▴" : "Copy trade"}
       </button>
       {ticketPlacement === "inline" && open && (
-        <CopyTicket handle={handle} copy={copyFromPage} signedIn={signedIn} nPicks={nPicks} variant="card" onClose={() => setOpen(false)} />
+        <CopyTicket handle={handle} copy={copyFromPage} signedIn={signedIn} viewerId={viewerId} nPicks={nPicks} variant="card" onClose={() => setOpen(false)} />
       )}
     </>
   );
