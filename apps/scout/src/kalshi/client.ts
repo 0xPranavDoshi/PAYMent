@@ -32,6 +32,8 @@ export interface KalshiClient {
 }
 
 export const KALSHI_BASE = "https://api.elections.kalshi.com/trade-api/v2";
+/** How long one Kalshi request may take before it counts as failed. */
+export const KALSHI_TIMEOUT_MS = 15_000;
 /** Wider than this, a quote isn't a usable fair value; fall back to a trade price. */
 export const MAX_SPREAD = 0.1;
 const LIST_TTL_MS = 5 * 60 * 1000;
@@ -74,9 +76,17 @@ export function priceAt(candles: Candle[], atSec: number): number | null {
 }
 
 export function createKalshiClient(
-  opts: { fetch?: typeof fetch; baseUrl?: string; now?: () => number; sleep?: (ms: number) => Promise<void> } = {},
+  opts: {
+    fetch?: typeof fetch;
+    baseUrl?: string;
+    now?: () => number;
+    sleep?: (ms: number) => Promise<void>;
+    timeoutMs?: number;
+  } = {},
 ): KalshiClient {
-  const doFetch = opts.fetch ?? fetch;
+  // A request that never answers counts as failed (no price) instead of hanging the scan.
+  const timeoutMs = opts.timeoutMs ?? KALSHI_TIMEOUT_MS;
+  const doFetch = (url: string, init: RequestInit) => (opts.fetch ?? fetch)(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
   const base = opts.baseUrl ?? KALSHI_BASE;
   const now = opts.now ?? Date.now;
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));

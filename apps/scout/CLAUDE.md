@@ -184,6 +184,17 @@ Adi's first scan of @Pickswise: 98 posts, 18 predictions, 15 picks forwarded, sc
   - **Brags are recaps too:** "44 winning picks on Saturday ✅ Indiana -8.5, Iowa State -3, Heat +4.5, Sharks ML" had become two picks, Heat +4.5 on Miami's next game and Sharks ML. The Heat pick was unpriced because that market opened on Kalshi 6.4 h after the tweet. The prompt now names lists of past winners; real Grok rejects 3/3 brags and keeps 2/2 picks.
   - Stored rows made under the old rule: 4 of 27 line picks used a different line, all forwarded: Booker u23.5 → 24.5, total 44 → 44.5, Adebayo o17.5 → 14.5, Grambling +37.5 → 40.5.
 
+### A scan that never ended (@covers, Nov 19)
+- **What we saw:**
+  - @covers started at 20:45:52 UTC and Apify returned its posts (2.5¢), but the scan stayed "running" for 5+ hours with nothing saved and no error.
+  - Other scans that day finished normally: @the_bmatt 40 s, @yoxics 33 s, @pickswise 2 min.
+- **Two possible causes; I can't confirm which without the scout's terminal:**
+  1. The scout restarted mid-scan. `pnpm dev:scout` is `tsx watch`, which restarts on file changes, and PR #68 merged at 20:40, so a `git pull` during the scan would kill it.
+  2. A Gemini or Kalshi request never answered. They had no time limit, so the scan would wait forever.
+- **Fix (2):** every Gemini (20 s), Kalshi (15 s) and ingest (30 s) request now has a time limit. A timeout is a normal failure: the post is retried next scan, or the pick is unpriced.
+- **Advice for (1):** for the demo, run the scout without watch mode (`tsx --env-file=../../.env src/index.ts`).
+- **No cleanup needed:** a "running" lock older than 5 minutes (`STALE_LOCK_MS`) is taken over by the next scan.
+
 ## Open questions for the team (block turning forwarding on)
 - ~~**Gemini environment**~~ **resolved on main:** market data reads production (`GEMINI_READ_BASE_URL`), and orders go to the sandbox.
 - **Lock time: decided (Pranav, Nov 18). `markets.lock_time` = the market's `expiryDate`**, written the same way by the scout's upsert and by the trading sync (`apps/trading/src/sync.ts` `lockTimeFor`, changed in this branch).
