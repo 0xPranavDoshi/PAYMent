@@ -11,3 +11,16 @@ export function dbPoolMax(raw: string | undefined, fallback: number = DEFAULT_DB
   const n = Number(raw.trim());
   return n >= 1 ? n : fallback;
 }
+
+/**
+ * Seconds a connection may sit unused before the service closes it. The database library's own default
+ * is never, so every service kept its whole pool open all day. Closed connections reopen on the next
+ * query, so this only gives slots back while a service is quiet.
+ */
+export const DEFAULT_DB_IDLE_TIMEOUT_S = 30;
+
+/** Reads a DB_IDLE_TIMEOUT_S value: whole seconds, 0 to never close idle connections, else the default. */
+export function dbIdleTimeout(raw: string | undefined, fallback: number = DEFAULT_DB_IDLE_TIMEOUT_S): number {
+  if (raw === undefined || !/^\d+$/.test(raw.trim())) return fallback;
+  return Number(raw.trim());
+}
