@@ -1,4 +1,4 @@
-import { NEW_BADGE_MIN_RESOLVED, marketUrl, type CallEntry, type UserProfile } from "@copayme/shared";
+import { NEW_BADGE_MIN_RESOLVED, changeArrow, marketUrl, type CallEntry, type UserProfile } from "@copayme/shared";
 import { tweetUrl } from "@copayme/shared/tweet-text";
 import { badgeView, type BadgeView } from "../badgeView.js";
 
@@ -83,6 +83,7 @@ export interface ProfileView {
 export function profileView(profile: UserProfile): ProfileView {
   const badge = badgeView(profile)!;
   const isNew = profile.tier === "new";
+  const arrow = isNew ? null : changeArrow(profile.change14d);
   return {
     badge,
     gauge: isNew ? null : profile.score,
@@ -93,9 +94,7 @@ export function profileView(profile: UserProfile): ProfileView {
     picks: String(profile.nResolved),
     edge: isNew ? "–" : formatCents(profile.skill),
     edgeTone: isNew || Math.round(profile.skill * 100) === 0 ? "none" : profile.skill > 0 ? "up" : "down",
-    delta: badge.arrow
-      ? { direction: badge.arrow.direction, text: `${badge.arrow.direction === "up" ? "▲" : "▼"} ${badge.arrow.amount} in 14 days` }
-      : null,
+    delta: arrow ? { direction: arrow.direction, text: `${arrow.direction === "up" ? "▲" : "▼"} ${arrow.amount} in 14 days` } : null,
     note: isNew ? `A score appears after ${NEW_BADGE_MIN_RESOLVED} resolved picks.` : null,
   };
 }

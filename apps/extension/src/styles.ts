@@ -39,29 +39,28 @@ export const TILE_CSS = `
 export const BADGE_CSS = `
   ${TOKENS_CSS}
   :host { all: initial; display: inline-flex; vertical-align: middle; margin-left: 4px; }
+  /* The meter pill: a rounded outline holding a small bar filled to the score, then the score. */
   .pill {
-    all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px;
-    height: 24px; padding: 0 8px 0 3px; border: 2px solid var(--line); border-radius: 7px; cursor: pointer;
-    font: 800 13px/1 var(--font); color: var(--ink); white-space: nowrap; background: var(--pill-bg);
-    box-shadow: 2px 2px 0 var(--shadow);
+    all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 5px;
+    height: 20px; padding: 0 7px 0 5px; border: 1.5px solid var(--line); border-radius: 999px; cursor: pointer;
+    font: 800 12px/1 var(--font); color: var(--ink); white-space: nowrap; background: var(--surface);
   }
-  .pill:active { transform: translate(2px, 2px); box-shadow: none; }
+  .pill:active { transform: translateY(1px); }
   .pill:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
-  .mark { width: 16px; height: 16px; color: var(--line); flex: none; display: block; }
-  .num { font: 800 13px/1 var(--font); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
-  .arrow { font: 800 12px/1 var(--font); font-variant-numeric: tabular-nums; }
-  .arrow.up { color: var(--win); }
-  .arrow.down { color: var(--loss); }
-  .pill.new, .pill.scanning, .pill.empty { border-style: dashed; box-shadow: none; }
-  .pill.new .num { font: 700 10px/1 var(--mono); letter-spacing: .08em; color: var(--ink-2); }
+  .meter { position: relative; flex: none; box-sizing: border-box; width: 26px; height: 6px; border: 1.5px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .meter::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--v); }
+  .meter.win::after { background: var(--win); }
+  .meter.amber::after { background: var(--amber); }
+  .meter.loss::after { background: var(--loss); }
+  .num { font: 800 12px/1 var(--font); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .pill:not(.scored) { padding: 0 8px; border-style: dashed; }
+  .pill:not(.scored) .num { font: 700 10px/1 var(--mono); letter-spacing: .06em; color: var(--ink-2); }
+  .pill.new .num { letter-spacing: .08em; }
   .pill.scanning { cursor: progress; }
-  .pill.scanning .num { font: 700 11px/1 var(--mono); color: var(--ink-2); }
-  .pill.scanning .clock { font: 700 11px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--ink); }
-  .pill.offer .num { font: 800 12px/1 var(--font); }
-  .pill.empty .num { font: 700 11px/1 var(--mono); color: var(--ink-2); }
-  .pill.failed { border-color: var(--loss); }
-  .pill.failed .num { font: 800 12px/1 var(--font); color: var(--loss); }
-  @media (prefers-reduced-motion: reduce) { .pill:active { transform: none; box-shadow: 2px 2px 0 var(--shadow); } }
+  .pill.scanning .clock { font: 700 10px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+  .pill.failed { border-style: solid; border-color: var(--loss); }
+  .pill.failed .num { color: var(--loss); }
+  @media (prefers-reduced-motion: reduce) { .pill:active { transform: none; } }
 `;
 
 /** The corner card that shows a scan running, and how it ended. */
