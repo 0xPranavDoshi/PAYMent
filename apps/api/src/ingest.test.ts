@@ -240,6 +240,35 @@ describe("POST /v1/posts", () => {
       body: typeof body === "string" ? body : JSON.stringify(body),
     });
 
+  it("drops the badge the API remembered for each author, so a scan's new data shows at once", async () => {
+    let known = false;
+    const badgeRow = {
+      handle: "newbie", score: 61, scoreChange14d: null, skill: 0.04, nResolved: 12, nWins: 7, hitRate: 7 / 12,
+      lastCallAt: NOW, updatedAt: NOW, latestSnapshot: null,
+    };
+    const findByHandles = vi.fn(async (hs: readonly string[]) => (known ? hs.filter((h) => h === "newbie").map(() => badgeRow) : []));
+    const { store } = fakeStore();
+    const app = createApp({ store: { findByHandles, leaderboard: async () => [] }, ingest: store, serviceKey: KEY, now: () => NOW.getTime() });
+    const badge = async () => (await (await app.request("/v1/badges?handles=newbie")).json()).newbie;
+
+    expect(await badge()).toBeNull(); // unknown: remembered as "no data"
+    known = true; // the scan stores the account's picks and scores it
+    expect(await badge()).toBeNull(); // still remembered for a minute
+
+    await send(app, post({ xHandle: "@Newbie" })); // the scout forwards the scan's picks
+    expect(await badge()).toMatchObject({ score: 61, tier: "scored" }); // not 'no data'
+  });
+
+  it("only drops the badges of the accounts in the request", async () => {
+    const findByHandles = vi.fn(async () => []);
+    const { store } = fakeStore();
+    const app = createApp({ store: { findByHandles, leaderboard: async () => [] }, ingest: store, serviceKey: KEY, now: () => NOW.getTime() });
+    await app.request("/v1/badges?handles=other");
+    await send(app, post({ xHandle: "newbie" }));
+    await app.request("/v1/badges?handles=other");
+    expect(findByHandles).toHaveBeenCalledTimes(1); // "other" stayed cached
+  });
+
   it("is switched off until a key and a store are configured", async () => {
     expect((await send(build({ serviceKey: null }), post())).status).toBe(503);
     expect((await send(build({ ingest: null }), post())).status).toBe(503);

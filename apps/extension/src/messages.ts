@@ -58,4 +58,11 @@ export type TradingRequest =
 
 export type TradingReply = ({ ok: true } & { state?: TradingState }) | { ok: false; error: string };
 
+/** Background worker to every x.com tab: a scan finished and this is the handle's fresh badge. */
+export interface BadgeUpdatedMessage {
+  type: "badge-updated";
+  handle: string;
+  badge: Badge | null;
+}
+
 export type ExtensionRequest = BadgesRequest | ProfileRequest | ScanRequest | ScanCancelRequest | TradingRequest;

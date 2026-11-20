@@ -29,7 +29,7 @@ export default async function Home() {
   const movers = [...scored].filter((e) => formatChange(e.change14d)).sort((a, b) => Math.abs(b.change14d ?? 0) - Math.abs(a.change14d ?? 0)).slice(0, 5);
 
   return (
-    <Page>
+    <Page live>
       <div className="strap">
         <h1>Every pick on X, scored against the market.</h1>
       </div>

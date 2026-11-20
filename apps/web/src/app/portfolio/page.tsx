@@ -40,7 +40,7 @@ export default async function PortfolioPage() {
     });
 
   return (
-    <Page>
+    <Page live>
       <h1 className="ptitle">Portfolio</h1>
       <p className="psub">
         {paper ? "Simulated trades from the traders you copy and watch. No real money moves." : "Trades from the traders you copy and watch."}
