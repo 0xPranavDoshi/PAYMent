@@ -49,15 +49,6 @@ export function callRowView(call: CallEntry): CallRowView {
   };
 }
 
-/** "just now", "5m ago", "3h ago", "2d ago". */
-export function timeAgo(iso: string, now: Date = new Date()): string {
-  const seconds = Math.max(0, (now.getTime() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return "just now";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86_400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86_400)}d ago`;
-}
-
 export interface ProfileView {
   badge: BadgeView;
   /** The score for the ring, or null for a user still on the New badge. */
@@ -74,12 +65,11 @@ export interface ProfileView {
   edgeTone: "up" | "down" | "none";
   /** The 14-day change as a chip, or null when there is none worth showing. */
   delta: { direction: "up" | "down"; text: string } | null;
-  lastPick: string | null;
   /** Shown when the user is still on the New badge. */
   note: string | null;
 }
 
-export function profileView(profile: UserProfile, now: Date = new Date()): ProfileView {
+export function profileView(profile: UserProfile): ProfileView {
   const badge = badgeView(profile)!;
   const isNew = profile.tier === "new";
   return {
@@ -95,23 +85,18 @@ export function profileView(profile: UserProfile, now: Date = new Date()): Profi
     delta: badge.arrow
       ? { direction: badge.arrow.direction, text: `${badge.arrow.direction === "up" ? "▲" : "▼"} ${badge.arrow.amount} in 14 days` }
       : null,
-    lastPick: profile.lastCallAt ? `Last pick ${timeAgo(profile.lastCallAt, now)}` : null,
     note: isNew ? `A score appears after ${NEW_BADGE_MIN_RESOLVED} resolved picks.` : null,
   };
-}
-
-/**
- * An amount a user typed, in dollars: "7", "7.5", "$12.50" and "1,000" are fine. Anything that is not
- * a positive number with at most two decimals (empty, zero, negative, letters, "1e3") is null.
- */
-export function parseAmount(text: string): number | null {
-  const cleaned = text.trim().replace(/^\$/, "").replace(/,/g, "");
-  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
-  const value = Number(cleaned);
-  return value > 0 ? value : null;
 }
 
 /** A dollar amount the way a person writes it: "$25", "$7.50". */
 export function formatAmount(dollars: number): string {
   return Number.isInteger(dollars) ? `$${dollars}` : `$${dollars.toFixed(2)}`;
+}
+
+/** A signed dollar result to the cent, with a real minus sign: "+$9.23", "−$10.00", "$0.00". */
+export function formatUsd(dollars: number): string {
+  const cents = Math.round(dollars * 100);
+  const text = `$${(Math.abs(cents) / 100).toFixed(2)}`;
+  return cents > 0 ? `+${text}` : cents < 0 ? `−${text}` : text;
 }

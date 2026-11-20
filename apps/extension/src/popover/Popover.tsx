@@ -1,11 +1,21 @@
-import type { CallEntry, UserProfile } from "@copayme/shared";
+import {
+  COPY_STEPS,
+  DEFAULT_COPY_AMOUNT,
+  pastWeekEarnings,
+  recentSettled,
+  snapToStep,
+  stepAmount,
+  type CallEntry,
+  type UserProfile,
+} from "@copayme/shared";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Mark, ScoreTile } from "../brand.js";
 import { REFRESH_MESSAGE, isContextInvalidated } from "../context.js";
-import { ArrowUpRightIcon, CheckIcon, ChevronDownIcon, CopyIcon, EyeIcon } from "../icons.js";
+import { ArrowUpRightIcon, CheckIcon } from "../icons.js";
+import type { Rank } from "../messages.js";
 import { SIGNED_OUT, type TradingActions, type TradingState } from "../trading.js";
 import { TweetCard } from "@copayme/tweet-card";
-import { callRowView, formatAmount, parseAmount, profileView } from "./view.js";
+import { callRowView, formatAmount, formatUsd, profileView } from "./view.js";
 
 export type PopoverState =
   | { status: "loading" }
@@ -15,6 +25,8 @@ export type PopoverState =
 export function Popover(props: {
   handle: string;
   state: PopoverState;
+  /** Where the trader stands on the leaderboard, shown as "#R of N". Null or missing: not shown. */
+  rank?: Rank | null;
   /** Base URL of the coPAYMe website. */
   webUrl: string;
   onClose: () => void;
@@ -25,7 +37,7 @@ export function Popover(props: {
   onRescan?: () => void;
   now?: Date;
 }) {
-  const { handle, state, webUrl, onClose, onRetry, onRescan, trading, now } = props;
+  const { handle, state, rank = null, webUrl, onClose, onRetry, onRescan, trading, now } = props;
   const site = `${webUrl.replace(/\/$/, "")}/traders/${encodeURIComponent(handle)}`;
 
   return (
@@ -68,9 +80,7 @@ export function Popover(props: {
 
       {state.status === "ready" && !state.profile && <div className="state">No track record for @{handle} yet.</div>}
 
-      {state.status === "ready" && state.profile && (
-        <Summary profile={state.profile} calls={state.calls} now={now} trading={trading} webUrl={webUrl} />
-      )}
+      {state.status === "ready" && state.profile && <Summary profile={state.profile} calls={state.calls} rank={rank} />}
 
       <div className="foot">
         <a className="site" href={site} target="_blank" rel="noopener noreferrer">
@@ -88,61 +98,63 @@ export function Popover(props: {
           </button>
         )}
       </div>
+
+      {state.status === "ready" && state.profile && (
+        <TradeActions handle={state.profile.handle} calls={state.calls} now={now} trading={trading} webUrl={webUrl} />
+      )}
     </div>
   );
 }
 
-function Summary({
-  profile,
-  calls,
-  now,
-  trading,
-  webUrl,
-}: {
-  profile: UserProfile;
-  calls: CallEntry[];
-  now?: Date;
-  trading?: TradingActions;
-  webUrl: string;
-}) {
-  const view = profileView(profile, now);
+function Summary({ profile, calls, rank }: { profile: UserProfile; calls: CallEntry[]; rank: Rank | null }) {
+  const view = profileView(profile);
+  const recent = recentSettled(calls, 2);
   return (
     <>
-      <div className="hero">
-        <ScoreTile score={view.gauge} size="lg" />
+      <div className="head">
         <div className="who">
-          <div className="handle">@{profile.handle}</div>
-          {view.lastPick && <div className="sub">{view.lastPick}</div>}
+          <div className="handle" title={`@${profile.handle}`}>@{profile.handle}</div>
+          <div className="sub">
+            {view.picks} resolved
+            {rank && (
+              <>
+                {" · "}
+                <span className={`rank ${rank.rank === 1 ? "first" : ""}`}>
+                  #{rank.rank} of {rank.total}
+                </span>
+              </>
+            )}
+          </div>
           {view.delta && <span className={`delta ${view.delta.direction}`}>{view.delta.text}</span>}
         </div>
+        <ScoreTile score={view.gauge} size="lg" />
       </div>
       {view.note && <div className="note">{view.note}</div>}
 
-      <div className="stats">
+      <div className="kv">
         <div title="Wins and losses">
+          <span>Record</span>
           <b aria-label={view.record}>
             <span className="w">{view.wins}</span>–<span className="l">{view.losses}</span>
           </b>
-          <span>Record</span>
         </div>
         <div>
-          <b>{view.hitRate}</b>
           <span>Hit rate</span>
+          <b>{view.hitRate}</b>
         </div>
         <div title="Average cents per $1 contract beyond the market price, shrunk for small samples">
-          <b className={view.edgeTone === "none" ? undefined : view.edgeTone === "up" ? "w" : "l"}>{view.edge}</b>
           <span>Edge</span>
+          <b className={view.edgeTone === "none" ? undefined : view.edgeTone === "up" ? "w" : "l"}>{view.edge}</b>
         </div>
       </div>
 
-      <TradeActions handle={profile.handle} trading={trading} webUrl={webUrl} />
-
-      <div className="sec">Recent picks</div>
       {calls.length === 0 ? (
         <div className="empty">No picks recorded yet.</div>
+      ) : recent.length === 0 ? (
+        <div className="empty">No settled picks yet.</div>
       ) : (
-        <ul className="picks">
-          {calls.map((call) => (
+        <ul className="picks" aria-label="Recent picks">
+          {recent.map((call) => (
             <PickRow key={call.callId} call={call} handle={profile.handle} />
           ))}
         </ul>
@@ -151,10 +163,10 @@ function Summary({
   );
 }
 
-const COPY_PRESETS = [5, 10, 25];
-const DEFAULT_COPY_AMOUNT = 10;
 /** How long a confirmation line stays before it clears itself. */
 const NOTICE_MS = 5000;
+const MIN_STEP = COPY_STEPS[0]!;
+const MAX_STEP = COPY_STEPS[COPY_STEPS.length - 1]!;
 
 interface Notice {
   kind: "info" | "error";
@@ -163,22 +175,41 @@ interface Notice {
   link?: { href: string; label: string };
 }
 
+/** "NOV 19", for the stamp's "SINCE NOV 19". */
+const sinceLabel = (iso: string) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase();
+
 /**
- * Watch (add the trader to your watchlist, which lives on the website) and Copy trade (mirror each new
- * pick). Both are plain toggles; there are no panels that stay open. While copying, the Copy trade
- * pill opens a small menu to change the amount or stop.
+ * Watch (add the trader to your watchlist, which lives on the website) and Copy trade. Copy trade
+ * tears a stub off the bottom of the card: the amount per pick on a stepper, what that amount would
+ * have made over the past week, and one button to confirm. While copying, the stub is a green
+ * "Copying" stamp with Change amount and Stop copying.
  */
-function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: TradingActions; webUrl: string }) {
+function TradeActions({
+  handle,
+  calls,
+  now,
+  trading,
+  webUrl,
+}: {
+  handle: string;
+  calls: CallEntry[];
+  now?: Date;
+  trading?: TradingActions;
+  webUrl: string;
+}) {
   const [state, setState] = useState<TradingState | null>(null);
   const [busy, setBusy] = useState<"watch" | "copy" | null>(null);
   // State updates land after the next render, so rapid clicks would all see "not busy". The ref is
   // set immediately, which is what stops a double-click from submitting twice.
   const working = useRef(false);
-  const [panel, setPanel] = useState<"amount" | "menu" | null>(null);
-  const [preset, setPreset] = useState<number | "custom">(DEFAULT_COPY_AMOUNT);
-  const [custom, setCustom] = useState("");
+  const [open, setOpen] = useState(false);
+  /** Changing the amount of a copy that is running: the stub shows the stepper instead of the stamp. */
+  const [editing, setEditing] = useState(false);
+  const [amount, setAmount] = useState(DEFAULT_COPY_AMOUNT);
   const [notice, setNotice] = useState<Notice | null>(null);
-  const watchlistUrl = `${webUrl.replace(/\/$/, "")}/watchlist`;
+  const stub = useRef<HTMLDivElement>(null);
+  const base = webUrl.replace(/\/$/, "");
+  const watchlistUrl = `${base}/watchlist`;
 
   /** Re-reads login + watch/copy state from the service and returns it. */
   const refresh = useCallback(async (): Promise<TradingState | null> => {
@@ -215,6 +246,11 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
     return () => clearTimeout(timer);
   }, [notice]);
 
+  // The stub opens at the bottom of a card that scrolls, so bring it into view.
+  useEffect(() => {
+    if (open) stub.current?.scrollIntoView?.({ block: "nearest" });
+  }, [open]);
+
   /** Synchronous check: true/false when known, null when the cached state says signed out
    *  and it's worth re-checking. Staying sync on the signed-in path keeps the double-click
    *  guard (`working`) effective. */
@@ -233,7 +269,7 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
     if (!current?.signedIn) {
       // One login for site + extension: sign in on the coPAYMe site, and the session
       // bridge (entrypoints/webAuth.content.ts) hands it to the extension.
-      try { window.open(`${webUrl.replace(/\/$/, "")}/signin`, "_blank", "noopener"); } catch { /* blocked */ }
+      try { window.open(`${base}/signin`, "_blank", "noopener"); } catch { /* blocked */ }
       setNotice({ kind: "info", text: "Sign in with X on coPAYMe, then come back here." });
       return false;
     }
@@ -241,7 +277,7 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
   }
 
   /** Runs one action, then re-reads the truth from the service so what is shown is what is saved. */
-  async function run(which: "watch" | "copy", action: () => Promise<void>, done: Notice, after?: () => void) {
+  async function run(which: "watch" | "copy", action: () => Promise<void>, done: Notice | null, after?: () => void) {
     if (working.current) return;
     working.current = true;
     setBusy(which);
@@ -263,28 +299,23 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
   }
 
   const watching = state?.watching === true;
-  const copying = state?.copy?.active === true;
-  const paperMode = state?.copyMode === "paper";
-  const amount = preset === "custom" ? parseAmount(custom) : preset;
-  const customInvalid = preset === "custom" && custom.trim() !== "" && amount === null;
+  const copy = state?.copy?.active ? state.copy : null;
+  const showStamp = copy !== null && !editing;
+  const week = pastWeekEarnings(calls, amount, now ?? new Date());
 
-  function openAmountPanel() {
-    // Changing an existing copy starts from its current amount.
-    const current = state?.copy?.active ? state.copy.amountUsdc : DEFAULT_COPY_AMOUNT;
-    if (COPY_PRESETS.includes(current)) {
-      setPreset(current);
-      setCustom("");
-    } else {
-      setPreset("custom");
-      setCustom(String(current));
-    }
+  function openStub() {
+    // A running copy's amount may not be one of the steps; the stepper starts at the nearest one.
+    setAmount(copy ? snapToStep(copy.amountUsdc) : DEFAULT_COPY_AMOUNT);
+    setEditing(false);
     setNotice(null);
-    setPanel("amount");
+    setOpen(true);
   }
+
+  const confirm = () => void run("copy", () => trading!.startCopy(handle, amount), null, () => setEditing(false));
 
   const stopCopying = () =>
     void run("copy", () => trading!.stopCopy(handle), { kind: "info", text: `Stopped copying @${handle}. Picks already copied stay open.` }, () =>
-      setPanel(null),
+      setOpen(false),
     );
 
   return (
@@ -297,7 +328,6 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
           aria-pressed={watching}
           aria-busy={busy === "watch"}
           onClick={async () => {
-            setPanel(null);
             if (working.current) return;
             if (!(readyNow() ?? (await recheck()))) return;
             void run(
@@ -309,103 +339,27 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
             );
           }}
         >
-          {watching ? <CheckIcon /> : <EyeIcon />}
+          {watching && <CheckIcon />}
           {watching ? "Watching" : "Watch"}
         </button>
 
         <button
           type="button"
-          className={`tbtn solid ${copying ? "on" : ""}`}
-          title={copying ? `Copying at ${formatAmount(state?.copy?.amountUsdc ?? 0)} per pick. Press for options.` : "Copy trade: mirror each new pick"}
-          aria-pressed={copying}
-          aria-expanded={copying ? panel === "menu" : panel === "amount"}
+          className={`tbtn copy ${copy ? "on" : ""} ${open ? "pressed" : ""}`}
+          title={copy ? `Copying at ${formatAmount(copy.amountUsdc)} per pick. Press to change or stop.` : "Copy trade: mirror each new pick"}
+          aria-expanded={open}
           aria-busy={busy === "copy"}
           onClick={async () => {
             if (working.current) return;
             if (!(readyNow() ?? (await recheck()))) return;
-            if (copying) setPanel((open) => (open === "menu" ? null : "menu"));
-            else if (panel === "amount") setPanel(null);
-            else openAmountPanel();
+            if (open) setOpen(false);
+            else openStub();
           }}
         >
-          {copying ? <CheckIcon /> : <CopyIcon />}
-          {copying ? `Copying · ${formatAmount(state?.copy?.amountUsdc ?? 0)}` : "Copy trade"}
-          {copying && <ChevronDownIcon />}
+          {copy && <CheckIcon />}
+          {copy ? `Copying · ${formatAmount(copy.amountUsdc)}` : open ? "Copy trade ▴" : "Copy trade"}
         </button>
       </div>
-
-      {copying && panel === "menu" && (
-        <div className="menu" role="menu" aria-label="Copy trading options">
-          <button type="button" role="menuitem" onClick={openAmountPanel}>
-            Change amount
-          </button>
-          <button type="button" role="menuitem" className="danger" onClick={stopCopying}>
-            Stop copying
-          </button>
-        </div>
-      )}
-
-      {panel === "amount" && (
-        <div className="panel" role="group" aria-label="Copy trade amount">
-          <p>
-            {paperMode ? (
-              <>
-                <b>This is simulated.</b> coPAYMe will place a paper trade of {amount !== null ? formatAmount(amount) : "your amount"} on every new
-                pick from @{handle}, as it is tweeted. No real money moves.
-              </>
-            ) : (
-              <>
-                <b>This places real orders.</b> coPAYMe will buy {amount !== null ? formatAmount(amount) : "your amount"} on every new pick from @{handle},
-                as it is tweeted.
-              </>
-            )}{" "}
-            You can stop any time.
-          </p>
-          <div className="chips">
-            {COPY_PRESETS.map((value) => (
-              <button key={value} type="button" className="chip" aria-pressed={preset === value} onClick={() => setPreset(value)}>
-                ${value}
-              </button>
-            ))}
-            <label className={`amount ${preset === "custom" ? "active" : ""} ${customInvalid ? "bad" : ""}`}>
-              <span>$</span>
-              <input
-                inputMode="decimal"
-                placeholder="Other"
-                aria-label="Other amount in dollars"
-                value={custom}
-                onFocus={() => setPreset("custom")}
-                onChange={(event) => {
-                  setPreset("custom");
-                  setCustom(event.target.value);
-                }}
-              />
-            </label>
-          </div>
-          {customInvalid && <div className="hint">Enter an amount above $0, with at most two decimals.</div>}
-          <div className="row2">
-            <button
-              type="button"
-              className="btn primary"
-              disabled={amount === null}
-              onClick={() =>
-                amount !== null &&
-                void run(
-                  "copy",
-                  () => trading!.startCopy(handle, amount),
-                  { kind: "info", text: copying ? `Now copying @${handle} at ${formatAmount(amount)} per pick.` : `Copying @${handle} at ${formatAmount(amount)} per pick.` },
-                  () => setPanel(null),
-                )
-              }
-            >
-              {copying ? "Update amount" : "Start copying"}
-            </button>
-            <button type="button" className="btn" onClick={() => setPanel(null)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       {notice && (
         <div className={`toast ${notice.kind === "error" ? "error" : ""}`} role="status">
@@ -416,6 +370,76 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
             </a>
           )}
         </div>
+      )}
+
+      {open && (
+        <>
+          <div className="perf" aria-hidden="true" />
+          <div className="pstub" ref={stub} role="group" aria-label={`Copy trade @${handle}`}>
+            {showStamp ? (
+              <>
+                <div className="stamp">
+                  Copying @{handle}
+                  <small>
+                    {formatAmount(copy.amountUsdc)} PER PICK{copy.since ? ` · SINCE ${sinceLabel(copy.since)}` : ""}
+                  </small>
+                </div>
+                <div className="row2">
+                  <button
+                    type="button"
+                    className="btn sm"
+                    onClick={() => {
+                      setAmount(snapToStep(copy.amountUsdc));
+                      setNotice(null);
+                      setEditing(true);
+                    }}
+                  >
+                    Change amount
+                  </button>
+                  <button type="button" className="btn sm danger" aria-busy={busy === "copy"} onClick={stopCopying}>
+                    Stop copying
+                  </button>
+                </div>
+                <p className="fine">
+                  See every copied pick in{" "}
+                  <a href={`${base}/portfolio`} target="_blank" rel="noopener noreferrer">
+                    Portfolio
+                  </a>
+                  .
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="ph">
+                  COPY TRADE <small>@{handle}</small>
+                </div>
+                <div className="pslip">
+                  <div className="li">
+                    <span>Amount per pick</span>
+                    <span className="dots" />
+                    <span className="stp">
+                      <button type="button" aria-label="Lower amount per pick" disabled={amount <= MIN_STEP} onClick={() => setAmount((a) => stepAmount(a, -1))}>
+                        −
+                      </button>
+                      <b aria-live="polite">{formatAmount(amount)}</b>
+                      <button type="button" aria-label="Raise amount per pick" disabled={amount >= MAX_STEP} onClick={() => setAmount((a) => stepAmount(a, 1))}>
+                        +
+                      </button>
+                    </span>
+                  </div>
+                  <div className="li total" title="What copying at this amount would have made on the picks of the last 7 days">
+                    <span>Past week</span>
+                    <span className="dots" />
+                    <b className={week === null || Math.round(week * 100) === 0 ? "none" : week > 0 ? "w" : "l"}>{week === null ? "—" : formatUsd(week)}</b>
+                  </div>
+                </div>
+                <button type="button" className="btn primary full" aria-busy={busy === "copy"} onClick={confirm}>
+                  {copy ? "Save" : "Copy trade"}
+                </button>
+              </>
+            )}
+          </div>
+        </>
       )}
     </>
   );

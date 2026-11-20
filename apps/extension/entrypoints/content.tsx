@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { WEB_URL } from "../src/config.js";
-import type { BadgesReply, BadgesRequest, ProfileReply, ProfileRequest, ScanCancelReply, ScanCancelRequest, ScanReply, ScanRequest, TradingReply, TradingRequest } from "../src/messages.js";
+import type { BadgesReply, BadgesRequest, ProfileReply, ProfileRequest, RankReply, RankRequest, ScanCancelReply, ScanCancelRequest, ScanReply, ScanRequest, TradingReply, TradingRequest } from "../src/messages.js";
 import { injectFonts } from "../src/fonts.js";
 import { startBadges } from "../src/page.js";
 import { createTradingBridge } from "../src/tradingBridge.js";
@@ -24,6 +24,12 @@ export default defineContentScript({
         const reply: ProfileReply = await browser.runtime.sendMessage(request);
         if (!reply.ok) throw new Error(reply.error);
         return { profile: reply.profile, calls: reply.calls };
+      },
+      // The popover header's "#R of N"; null (no rank shown) when the trader is not on the leaderboard.
+      loadRank: async (handle) => {
+        const request: RankRequest = { type: "rank", handle };
+        const reply: RankReply | undefined = await browser.runtime.sendMessage(request);
+        return reply ?? null;
       },
       // Pressing Stop: stop waiting here, and tell the scout to skip the paid work it has not started yet.
       cancelScan: async (handle) => {
