@@ -131,7 +131,7 @@ function Summary({
         </div>
         <div title="Average cents per $1 contract beyond the market price, shrunk for small samples">
           <b className={view.edgeTone === "none" ? undefined : view.edgeTone === "up" ? "w" : "l"}>{view.edge}</b>
-          <span>Edge</span>
+          <span>Edge per pick</span>
         </div>
       </div>
 

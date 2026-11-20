@@ -141,13 +141,13 @@ export const POPOVER_CSS = `
   .delta.up { color: var(--win); }
   .delta.down { color: var(--coral); }
   .note { margin: 4px 16px 0; color: var(--ink-2); font-size: 12px; }
-  .stats { display: grid; grid-template-columns: repeat(3, 1fr); margin: 10px 16px 0; border-top: 1px solid var(--card-line); border-bottom: 1px solid var(--card-line); }
+  .stats { display: grid; grid-template-columns: 1fr 1fr 1.35fr; margin: 10px 16px 0; border-top: 1px solid var(--card-line); border-bottom: 1px solid var(--card-line); }
   .stats div { padding: 10px 0; }
   .stats div + div { padding-left: 12px; border-left: 1px solid var(--card-line); }
   .stats b { display: block; font: 700 15px/1.1 var(--font); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
   .stats b .w, .stats b.w { color: var(--win); }
   .stats b .l, .stats b.l { color: var(--coral); }
-  .stats > div > span { color: var(--ink-3); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+  .stats > div > span { color: var(--ink-3); font-size: 11px; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
 
   .actions { display: flex; gap: 8px; padding: 12px 16px 0; }
   .tbtn {
