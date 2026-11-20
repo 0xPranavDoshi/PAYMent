@@ -226,6 +226,12 @@ export const POPOVER_CSS = `
   .site svg { width: 14px; height: 14px; flex: none; }
   .site:hover { background: var(--ember); color: var(--ember-ink); }
   .site:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .rescan {
+    all: unset; box-sizing: border-box; display: block; width: 100%; margin-top: 8px; padding: 6px; cursor: pointer; text-align: center;
+    border-radius: 10px; font: 600 12px/1 var(--font); color: var(--ink-2);
+  }
+  .rescan:hover { color: var(--ember); text-decoration: underline; }
+  .rescan:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   .link { color: var(--ink-2); text-decoration: none; }
   .link:hover { color: var(--ember); }
   .skeleton { display: grid; gap: 10px; padding: 18px 16px 8px; }

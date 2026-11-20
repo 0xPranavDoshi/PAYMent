@@ -31,7 +31,7 @@ export interface StartOptions {
    * when the user presses "Scan picks" on a profile: scans cost money and only suit accounts that post
    * sports picks, so the user chooses. Without it, there is no scan button.
    */
-  scan?: (handle: string, newestTweetId: string | null) => Promise<ScanResult>;
+  scan?: (handle: string, newestTweetId: string | null, opts?: { force?: boolean }) => Promise<ScanResult>;
   /** Tells the scout to stop a running scan (the user pressed Stop). Without it, Stop only stops waiting. */
   cancelScan?: (handle: string) => Promise<void>;
   /**
@@ -72,7 +72,17 @@ export function startBadges({
   const hosts = new Set<HTMLElement>();
   theme.subscribe((next) => hosts.forEach((host) => (host.dataset.theme = next)));
 
-  const popover = loadProfile ? createPopoverManager({ load: loadProfile, webUrl, theme, trading, doc }) : null;
+  const popover = loadProfile
+    ? createPopoverManager({
+        load: loadProfile,
+        webUrl,
+        theme,
+        trading,
+        doc,
+        // The card's Rescan button: scan this handle again now (startScan is hoisted).
+        ...(scan ? { rescan: (h: string) => void startScan(h, { force: true }) } : {}),
+      })
+    : null;
 
   const batcher = createBatcher(async (handles) => {
     try {
@@ -207,7 +217,8 @@ export function startBadges({
   const stateBeforeScan = new Map<string, BadgeState>();
   let runCounter = 0;
 
-  async function startScan(handle: string) {
+  /** `force`: the Rescan button (skips the 10-minute "asked recently" wait; the scout still decides the cost). */
+  async function startScan(handle: string, opts: { force?: boolean } = {}) {
     if (!scan || stopped || activeRun.has(handle)) return;
     const run = ++runCounter;
     activeRun.set(handle, run);
@@ -217,11 +228,14 @@ export function startBadges({
     scanStatus.set({ phase: "scanning", handle, startedAt: Date.now() });
     store.set(handle, "scanning");
     try {
-      const newest = await newestOnTimeline(handle);
+      // Only the account's own profile shows its newest tweets first. Elsewhere (a timeline, a reply) the
+      // tweet on screen may be an old one, and the scout would wrongly conclude nothing new was posted.
+      const onOwnProfile = profileHandleFromPath(doc.location?.pathname ?? "") === handle;
+      const newest = onOwnProfile ? await newestOnTimeline(handle) : null;
       if (!isCurrent()) return; // stopped while waiting: nothing is asked of the scout
       let result: ScanResult;
       try {
-        result = await scan(handle, newest);
+        result = await (opts.force ? scan(handle, newest, { force: true }) : scan(handle, newest));
       } catch (err) {
         if (isContextInvalidated(err)) return stopAll();
         console.warn("[coPAYMe] profile scan failed", err);

@@ -104,6 +104,27 @@ describe("the popover", () => {
     expect(links).toContain(`${WEB}/traders/alice`);
   });
 
+  it("has a Rescan button that closes the card and rescans the account, forced past the 10-minute wait", async () => {
+    document.body.innerHTML = `<main>${tweetHtml("alice")}</main>`;
+    const scan = vi.fn(async () => ({ status: "done" as const, badge }));
+    stop = startBadges({ lookup, loadProfile: async () => ready(), scan, webUrl: WEB, delayMs: 5 });
+    await vi.waitFor(() => expect(badges().every((b) => b.shadowRoot?.querySelector("button"))).toBe(true));
+    click(badgeButton());
+    await vi.waitFor(() => expect(popoverText()).toContain("Game 1"));
+    const rescan = popoverHosts()[0]!.shadowRoot!.querySelector<HTMLButtonElement>("button.rescan")!;
+    expect(rescan.textContent).toBe("Rescan");
+    click(rescan);
+    await vi.waitFor(() => expect(scan).toHaveBeenCalledWith("alice", null, { force: true })); // not its profile: no newest id
+    expect(popoverHosts()).toHaveLength(0);
+  });
+
+  it("has no Rescan button when scanning isn't available", async () => {
+    await start(async () => ready());
+    click(badgeButton());
+    await vi.waitFor(() => expect(popoverText()).toContain("Game 1"));
+    expect(popoverHosts()[0]!.shadowRoot!.querySelector("button.rescan")).toBeNull();
+  });
+
   it("explains the New badge and handles empty data", async () => {
     await start(async () => ({ profile: profile("alice", { tier: "new", nResolved: 2, nWins: 1, hitRate: 0.5 }), calls: [] }));
     click(badgeButton());

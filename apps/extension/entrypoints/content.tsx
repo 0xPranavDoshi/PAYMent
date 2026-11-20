@@ -30,8 +30,8 @@ export default defineContentScript({
         if (!reply.ok) throw new Error(reply.error);
       },
       // Pressing Scan picks asks the scout to read that handle's recent picks.
-      scan: async (handle, newestTweetId) => {
-        const request: ScanRequest = { type: "scan", handle, newestTweetId };
+      scan: async (handle, newestTweetId, opts) => {
+        const request: ScanRequest = { type: "scan", handle, newestTweetId, force: opts?.force === true };
         const reply: ScanReply = await browser.runtime.sendMessage(request);
         if (!reply.ok) throw new Error(reply.error);
         return reply.status === "done" ? { status: "done", badge: reply.badge } : { status: reply.status };

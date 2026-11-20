@@ -84,12 +84,16 @@ export function createScanService(opts: {
       }
     },
 
-    /** `newestTweetId`: the newest tweet by the handle shown on its profile, or null if none showed. */
-    scan(handle: string, newestTweetId: string | null = null): Promise<ScanOutcome> {
+    /**
+     * `newestTweetId`: the newest tweet by the handle shown on its profile, or null if none showed.
+     * `force` (the Rescan button): ask even if this handle was asked about in the last 10 minutes. The
+     * scout still decides what costs money: it only fetches from X when there is something new to read.
+     */
+    scan(handle: string, newestTweetId: string | null = null, opts: { force?: boolean } = {}): Promise<ScanOutcome> {
       const pending = inFlight.get(handle);
       if (pending) return pending;
       const last = lastAsked.get(handle);
-      if (last !== undefined && now() - last < RESCAN_AFTER_MS) return Promise.resolve({ status: "skipped" });
+      if (!opts.force && last !== undefined && now() - last < RESCAN_AFTER_MS) return Promise.resolve({ status: "skipped" });
       lastAsked.set(handle, now());
       stoppedByUser.delete(handle);
       const job = run(handle, newestTweetId)
