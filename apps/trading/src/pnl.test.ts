@@ -182,4 +182,39 @@ describe("GET /v1/users/:id/tails — portfolio with live PnL", () => {
     // stored 0.6: pnl = 10 * (0.6 - 0.5) / 0.5 = 2.0
     expect(body[0]).toMatchObject({ realized: false, markPrice: 0.6, unrealizedPnlUsdc: 2 });
   });
+  it("passes ?source=copy to the store, which is how the portfolio leaves out watch trades", async () => {
+    const store = { listUserTailsForPnl: vi.fn(async () => []) };
+    const app = createApp({
+      store: store as unknown as TradingStore,
+      gemini: { getEvent: vi.fn() } as unknown as GeminiClient,
+      serviceKey: "k",
+    });
+    await app.request(`/v1/users/${USER_ID}/tails?source=copy`);
+    expect(store.listUserTailsForPnl).toHaveBeenCalledWith(USER_ID, "copy");
+  });
+
+  it("a 0 quote is no price: it is not used as the mark, so no -100% appears", async () => {
+    const rows = [ctxRow({ id: TAIL_ID, entryOdds: 0.675, amountUsdc: 10 }, { storedMarkPrice: 0 })];
+    const gemini = { getEvent: vi.fn(async () => { throw new Error("down"); }) };
+    const store = { listUserTailsForPnl: vi.fn(async () => rows) };
+    const app = createApp({ store: store as unknown as TradingStore, gemini: gemini as unknown as GeminiClient, serviceKey: "k" });
+    const res = await app.request(`/v1/users/${USER_ID}/tails`);
+    expect(res.status).toBe(200);
+    expect((await res.json())[0]).toMatchObject({ markPrice: null, unrealizedPnlUsdc: null });
+  });
+
+  it("a trade stored with an entry price of 0 does not fail the whole list", async () => {
+    const rows = [
+      ctxRow({ id: TAIL_ID, entryOdds: 0, amountUsdc: 10 }, { storedMarkPrice: 0.6 }),
+      ctxRow({ id: "33333333-3333-4333-8333-333333333333", entryOdds: 0.5, amountUsdc: 10 }, { storedMarkPrice: 0.6 }),
+    ];
+    const gemini = { getEvent: vi.fn(async () => { throw new Error("down"); }) };
+    const store = { listUserTailsForPnl: vi.fn(async () => rows) };
+    const app = createApp({ store: store as unknown as TradingStore, gemini: gemini as unknown as GeminiClient, serviceKey: "k" });
+    const res = await app.request(`/v1/users/${USER_ID}/tails`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body[0]).toMatchObject({ unrealizedPnlUsdc: null });
+    expect(body[1]).toMatchObject({ unrealizedPnlUsdc: 2 });
+  });
 });

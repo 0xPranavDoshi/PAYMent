@@ -109,6 +109,20 @@ describe("GET /v1/watches", () => {
     expect(body[0].projectedPnlUsdc).toBe(0.7);
   });
 
+  it("ignores a pick with a 0 quote (no price yet) instead of showing -100%", async () => {
+    const getEvent = vi.fn(async () => { throw new Error("gemini down"); });
+    const res = await app([alice], [mark({ storedMarkPrice: 0 })], getEvent).get();
+    expect(res.status).toBe(200);
+    // the open pick is left out: only the realized 0.5 counts
+    expect((await res.json())[0]).toMatchObject({ projectedPnlUsdc: 0.5 });
+  });
+
+  it("does not fail when a watch trade was stored with an entry price of 0", async () => {
+    const res = await app([alice], [mark({ entryOdds: 0 })]).get();
+    expect(res.status).toBe(200);
+    expect((await res.json())[0]).toMatchObject({ projectedPnlUsdc: 0.5 });
+  });
+
   it("handles a watched trader with no picks yet", async () => {
     const bob: WatchBase = {
       traderHandle: "bob",

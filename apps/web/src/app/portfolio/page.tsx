@@ -15,11 +15,13 @@ export default async function PortfolioPage() {
   if (!followerId) return <SignInPrompt title="Your portfolio" body="Sign in to see the trades you have copied and how they are doing." />;
 
   const paper = (await fetchCopyMode()) === "paper";
+  // Only trades placed by copy trading. Watching a trader also records $1 simulated trades (they feed the
+  // Watchlist's projected P&L), but those are not trades you are making and do not belong here.
   let tails: Awaited<ReturnType<typeof fetchTails>> = [];
   let copies: Awaited<ReturnType<typeof fetchCopyTrades>> = [];
   let error: string | null = null;
   try {
-    [tails, copies] = await Promise.all([fetchTails(followerId), fetchCopyTrades(followerId)]);
+    [tails, copies] = await Promise.all([fetchTails(followerId, "copy"), fetchCopyTrades(followerId)]);
   } catch (e) {
     error = e instanceof Error ? e.message : "Could not load your portfolio.";
   }

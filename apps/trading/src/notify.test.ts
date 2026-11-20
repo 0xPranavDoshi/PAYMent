@@ -87,6 +87,15 @@ describe("POST /v1/calls/notify", () => {
   });
   afterEach(() => vi.useRealTimers());
 
+  it("opens no trades while the pick has no usable price (a 0 quote means no price yet)", async () => {
+    const outcome = { label: "UConn", instrumentSymbol: "GEMI-UCONN", currentOdds: 0, noOdds: 0.4, resolutionSide: null, priceIncrement: 0.01, quantityIncrement: 0.01, quantityMinimum: 0.01 };
+    const { notify, tails, gemini } = setup({ market: { outcomes: [outcome] } as Partial<MarketRow> });
+    const res = await notify();
+    expect(res.status).toBe(409);
+    expect(tails).toHaveLength(0);
+    expect(gemini.placeOrder).not.toHaveBeenCalled();
+  });
+
   it("opens a paper tail per watcher and a live order per copy trader for a fresh pick", async () => {
     const { notify, gemini, tails } = setup();
     const res = await notify();
