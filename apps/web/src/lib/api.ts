@@ -15,6 +15,8 @@ export interface LeaderboardEntry {
   nResolved: number;
   hitRate: number | null;
   tier: "new" | "scored";
+  /** Dollars won per pick over the market price (0.11 is +11¢). */
+  skill: number;
 }
 
 // ── Fetch helpers ────────────────────────────────────────────────────────────
@@ -29,6 +31,17 @@ export async function fetchLeaderboard(limit = 100): Promise<LeaderboardEntry[]>
   const res = await fetch(`${API}/v1/leaderboard?limit=${limit}`, { next: { revalidate: 20 } });
   if (!res.ok) throw new Error(`fetchLeaderboard failed: ${res.status}`);
   return (await res.json()) as LeaderboardEntry[];
+}
+
+/** A trader's recent score snapshots, oldest first; empty on any error. */
+export async function fetchScoreHistory(handle: string, limit = 30): Promise<{ score: number; computedAt: string }[]> {
+  try {
+    const res = await fetch(`${API}/v1/users/${encodeURIComponent(handle)}/score-history?limit=${limit}`, { next: { revalidate: 20 } });
+    if (!res.ok) return [];
+    return (await res.json()) as { score: number; computedAt: string }[];
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchTraderProfile(
