@@ -452,6 +452,28 @@ describe("the popover", () => {
       expect(card().querySelector(".panel")).toBeNull(); // no confirmation to start copying
     });
 
+    it("picks up a sign-in made on the site without reloading x.com", async () => {
+      let signedIn = false;
+      const trading = fakeTrading({}, {
+        state: vi.fn(async () => ({ signedIn, watching: false, copy: null, copyMode: "paper" as const })),
+      });
+      await openCard(trading);
+      await loaded();
+      signedIn = true; // the user signs in on coPAYMe in another tab
+      click(watchBtn());
+      await vi.waitFor(() => expect(trading.setWatch).toHaveBeenCalledWith("alice", true));
+      expect(toast()).not.toBe("Sign in with X on coPAYMe, then come back here.");
+    });
+
+    it("re-checks the login when the user returns to the tab", async () => {
+      const trading = fakeTrading({ signedIn: false });
+      await openCard(trading);
+      await loaded();
+      const before = vi.mocked(trading.state).mock.calls.length;
+      window.dispatchEvent(new Event("focus"));
+      await vi.waitFor(() => expect(vi.mocked(trading.state).mock.calls.length).toBeGreaterThan(before));
+    });
+
     describe("watching", () => {
       it("adds to the watchlist, says so with a link to it, and toggles back", async () => {
         const trading = fakeTrading();

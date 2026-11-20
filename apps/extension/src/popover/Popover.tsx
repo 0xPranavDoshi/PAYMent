@@ -1,5 +1,5 @@
 import type { CallEntry, UserProfile } from "@copayme/shared";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Gauge, Mark } from "../brand.js";
 import { REFRESH_MESSAGE, isContextInvalidated } from "../context.js";
 import { ArrowUpRightIcon, CheckIcon, ChevronDownIcon, CopyIcon, EyeIcon } from "../icons.js";
@@ -168,17 +168,33 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
   const [notice, setNotice] = useState<Notice | null>(null);
   const watchlistUrl = `${webUrl.replace(/\/$/, "")}/watchlist`;
 
-  useEffect(() => {
-    let live = true;
-    if (!trading) return;
-    trading.state(handle).then(
-      (next) => live && setState(next),
-      () => live && setState(SIGNED_OUT),
-    );
-    return () => {
-      live = false;
-    };
+  /** Re-reads login + watch/copy state from the service and returns it. */
+  const refresh = useCallback(async (): Promise<TradingState | null> => {
+    if (!trading) return null;
+    try {
+      const next = await trading.state(handle);
+      setState(next);
+      return next;
+    } catch {
+      setState(SIGNED_OUT);
+      return SIGNED_OUT;
+    }
   }, [trading, handle]);
+
+  useEffect(() => {
+    void refresh();
+    // Re-check when the user comes back to this tab — e.g. after signing in on coPAYMe in
+    // another tab — so the login takes effect without reloading x.com.
+    const onReturn = () => {
+      if (!document.hidden) void refresh();
+    };
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
+    return () => {
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
+    };
+  }, [refresh]);
 
   // A confirmation clears itself, so nothing is left sitting in the card.
   useEffect(() => {
@@ -187,13 +203,22 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
     return () => clearTimeout(timer);
   }, [notice]);
 
-  /** Whether trading can be used right now; if not, says why. */
-  function ready(): boolean {
+  /** Synchronous check: true/false when known, null when the cached state says signed out
+   *  and it's worth re-checking. Staying sync on the signed-in path keeps the double-click
+   *  guard (`working`) effective. */
+  function readyNow(): boolean | null {
     if (!trading) {
       setNotice({ kind: "info", text: "Trading isn't available yet." });
       return false;
     }
-    if (!state?.signedIn) {
+    return state?.signedIn ? true : null;
+  }
+
+  /** Re-checks the login (a sign-in on the site may have just happened in another tab);
+   *  if still signed out, sends the user to sign in. */
+  async function recheck(): Promise<boolean> {
+    const current = await refresh();
+    if (!current?.signedIn) {
       // One login for site + extension: sign in on the coPAYMe site, and the session
       // bridge (entrypoints/webAuth.content.ts) hands it to the extension.
       try { window.open(`${webUrl.replace(/\/$/, "")}/signin`, "_blank", "noopener"); } catch { /* blocked */ }
@@ -259,9 +284,10 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
           title={watching ? "On your watchlist. Press to remove." : "Add to your watchlist, where you can follow how they do"}
           aria-pressed={watching}
           aria-busy={busy === "watch"}
-          onClick={() => {
+          onClick={async () => {
             setPanel(null);
-            if (!ready() || working.current) return;
+            if (working.current) return;
+            if (!(readyNow() ?? (await recheck()))) return;
             void run(
               "watch",
               () => trading!.setWatch(handle, !watching),
@@ -282,8 +308,9 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
           aria-pressed={copying}
           aria-expanded={copying ? panel === "menu" : panel === "amount"}
           aria-busy={busy === "copy"}
-          onClick={() => {
-            if (!ready() || working.current) return;
+          onClick={async () => {
+            if (working.current) return;
+            if (!(readyNow() ?? (await recheck()))) return;
             if (copying) setPanel((open) => (open === "menu" ? null : "menu"));
             else if (panel === "amount") setPanel(null);
             else openAmountPanel();
