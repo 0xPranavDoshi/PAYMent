@@ -8,7 +8,7 @@ export default function ScoreTile({ score, size = "sm" }: { score: number | null
   const strip = STRIP[band];
   return (
     <div
-      className={`stile ${size}${strip ? "" : " none"}`}
+      className={`stile ${size}${strip ? "" : " none"}${score !== null && score >= 100 ? " long" : ""}`}
       style={strip ? ({ ["--c" as string]: strip } as React.CSSProperties) : undefined}
       role="img"
       aria-label={score === null ? "No score yet" : `Score ${score} out of 100`}

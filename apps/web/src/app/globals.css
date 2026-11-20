@@ -157,6 +157,8 @@ a.lrow:hover { background: var(--chip); }
 .stile.lg.none b { font-size: 34px; letter-spacing: 0; }
 .stile.lg small { display: block; font: 700 11px/1 var(--mono); letter-spacing: .1em; color: var(--ink-2); margin-top: 6px; }
 .stile.lg::after { height: 14px; border-top-width: 3px; }
+.stile.sm.long b { font-size: 15px; letter-spacing: -.03em; }
+.stile.lg.long b { font-size: 54px; }
 
 /* trader page */
 .thead { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
