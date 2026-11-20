@@ -1,7 +1,8 @@
-import { BadgesResponse, CallsResponse, MAX_BADGE_HANDLES, UserProfile } from "@copayme/shared";
+import { BadgesResponse, CallsResponse, MAX_BADGE_HANDLES, MAX_LEADERBOARD_LIMIT, UserProfile } from "@copayme/shared";
+import { z } from "zod";
 import { API_URL, MOCK } from "./config.js";
 import type { ProfileData } from "./messages.js";
-import { mockBadges, mockProfileData } from "./mock.js";
+import { mockBadges, mockLeaderboard, mockProfileData } from "./mock.js";
 
 /** Runs in the background worker. Splits into requests of at most 50 handles, the API's limit. */
 export async function fetchBadges(
@@ -40,9 +41,22 @@ export async function fetchCalls(handle: string, limit: number, fetcher: typeof 
   return CallsResponse.parse(await res.json());
 }
 
-/** Everything the popover shows, fetched together. */
-export async function fetchProfileData(handle: string, limit = 5, fetcher: typeof fetch = fetch): Promise<ProfileData> {
+/**
+ * Everything the popover shows, fetched together. 50 picks (the API's most) so the copy slip's
+ * "Past week" can count a whole week of them; the card itself lists only the latest two.
+ */
+export async function fetchProfileData(handle: string, limit = 50, fetcher: typeof fetch = fetch): Promise<ProfileData> {
   if (MOCK) return mockProfileData(handle);
   const [profile, calls] = await Promise.all([fetchProfile(handle, fetcher), fetchCalls(handle, limit, fetcher)]);
   return { profile, calls };
+}
+
+/** The leaderboard's handles, best first (at most 100, the API's limit). Runs in the background worker. */
+export async function fetchLeaderboardHandles(fetcher: typeof fetch = fetch): Promise<string[]> {
+  if (MOCK) return mockLeaderboard();
+  const url = new URL("/v1/leaderboard", API_URL);
+  url.searchParams.set("limit", String(MAX_LEADERBOARD_LIMIT));
+  const res = await fetcher(url);
+  if (!res.ok) throw new Error(`leaderboard request failed: ${res.status}`);
+  return z.array(z.object({ handle: z.string() })).parse(await res.json()).map((row) => row.handle);
 }

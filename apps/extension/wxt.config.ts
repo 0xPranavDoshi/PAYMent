@@ -16,5 +16,7 @@ export default defineConfig({
     // The background worker fetches the scoring API and the scout (which scans a profile when it's
     // opened), so the page never makes cross-origin calls.
     host_permissions: ["https://x.com/*", `${apiOrigin}/*`, `${scoutOrigin}/*`, `${tradingOrigin}/*`, `${webOrigin}/*`],
+    // The page loads the bundled fonts, so they must be reachable from x.com.
+    web_accessible_resources: [{ resources: ["fonts/*"], matches: ["https://x.com/*"] }],
   },
 });

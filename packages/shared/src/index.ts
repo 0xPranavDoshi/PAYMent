@@ -13,3 +13,5 @@ export * from "./market.js";
 export * from "./onchain.js";
 export * from "./db.js";
 export * from "./tweetText.js";
+export * from "./design.js";
+export * from "./copySlip.js";

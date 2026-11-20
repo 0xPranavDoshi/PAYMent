@@ -58,6 +58,21 @@ export type TradingRequest =
 
 export type TradingReply = ({ ok: true } & { state?: TradingState }) | { ok: false; error: string };
 
+/** Where a trader stands on the leaderboard: "#rank of total". */
+export interface Rank {
+  rank: number;
+  total: number;
+}
+
+/** Asks for a handle's leaderboard rank, for the popover's header. */
+export interface RankRequest {
+  type: "rank";
+  handle: string;
+}
+
+/** Null when the handle is not on the leaderboard, or the leaderboard could not be read. */
+export type RankReply = Rank | null;
+
 /** Background worker to every x.com tab: a scan finished and this is the handle's fresh badge. */
 export interface BadgeUpdatedMessage {
   type: "badge-updated";
@@ -65,4 +80,4 @@ export interface BadgeUpdatedMessage {
   badge: Badge | null;
 }
 
-export type ExtensionRequest = BadgesRequest | ProfileRequest | ScanRequest | ScanCancelRequest | TradingRequest;
+export type ExtensionRequest = BadgesRequest | ProfileRequest | ScanRequest | ScanCancelRequest | TradingRequest | RankRequest;

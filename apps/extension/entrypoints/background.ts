@@ -1,12 +1,22 @@
 import { browser } from "wxt/browser";
 import { defineBackground } from "wxt/utils/define-background";
 import { badgeFromProfile } from "@copayme/shared";
-import { fetchBadges, fetchProfileData } from "../src/api.js";
+import { fetchBadges, fetchLeaderboardHandles, fetchProfileData } from "../src/api.js";
 import { createBadgeCache, type KeyValueStore } from "../src/badgeCache.js";
 import { createBadgeService } from "../src/badgeService.js";
 import { FOLLOWER_ID, MOCK, SCOUT_URL, TRADING_URL } from "../src/config.js";
-import type { BadgeUpdatedMessage, BadgesReply, ExtensionRequest, ProfileReply, ScanCancelReply, ScanReply, TradingReply } from "../src/messages.js";
+import type {
+  BadgeUpdatedMessage,
+  BadgesReply,
+  ExtensionRequest,
+  ProfileReply,
+  RankReply,
+  ScanCancelReply,
+  ScanReply,
+  TradingReply,
+} from "../src/messages.js";
 import { createProfileService } from "../src/profileService.js";
+import { createRankService } from "../src/rankService.js";
 import { createScanService } from "../src/scanService.js";
 import { createMockTrading, createTradingService, validFollowerId } from "../src/trading.js";
 
@@ -27,6 +37,7 @@ export default defineBackground(() => {
 
   const badges = createBadgeService({ cache, fetchBadges });
   const profiles = createProfileService({ fetchProfileData });
+  const ranks = createRankService({ fetchLeaderboardHandles: () => fetchLeaderboardHandles() });
   // After a scan, fetch the handle's badge straight from the API (the cached one predates the scan)
   // and write it back so every tab sees the new score.
   const scans = createScanService({
@@ -83,6 +94,14 @@ export default defineBackground(() => {
         })
         .catch((err: unknown): ProfileReply => ({ ok: false, error: String(err) }))
         .then(sendResponse);
+      return true;
+    }
+
+    if (message?.type === "rank") {
+      ranks
+        .get(message.handle)
+        .catch((): RankReply => null)
+        .then((rank: RankReply) => sendResponse(rank));
       return true;
     }
 

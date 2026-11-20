@@ -1,6 +1,6 @@
 import { MAX_BADGE_HANDLES, badgeFromProfile, type Badge as BadgeData, type BadgesResponse } from "@copayme/shared";
 import { createRoot, type Root } from "react-dom/client";
-import type { ProfileData } from "./messages.js";
+import type { ProfileData, Rank } from "./messages.js";
 import { createPopoverManager } from "./popover/manager.js";
 import { Badge } from "./Badge.js";
 import { BADGE_CSS, SCAN_CSS } from "./styles.js";
@@ -19,6 +19,8 @@ export interface StartOptions {
   lookup: (handles: string[]) => Promise<BadgesResponse>;
   /** Fetches the popover's data for one handle. Without it, badges are not clickable. */
   loadProfile?: (handle: string) => Promise<ProfileData>;
+  /** Fetches a handle's leaderboard rank for the popover's header (null: not on it). Without it, no rank is shown. */
+  loadRank?: (handle: string) => Promise<Rank | null>;
   /** Base URL of the coPAYMe website, for the popover's link. */
   webUrl?: string;
   /** What the popover's Watch and Copy trade buttons do. Without it they say trading is unavailable. */
@@ -57,6 +59,7 @@ export type ScanResult = { status: "done"; badge: BadgeData | null } | { status:
 export function startBadges({
   lookup,
   loadProfile,
+  loadRank,
   webUrl = "",
   trading,
   doc = document,
@@ -99,6 +102,7 @@ export function startBadges({
   const popover = loadProfile
     ? createPopoverManager({
         load: loadProfile,
+        loadRank,
         webUrl,
         theme,
         trading,

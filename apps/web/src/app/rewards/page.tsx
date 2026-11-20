@@ -25,7 +25,7 @@ export default async function Rewards() {
   if (!user) {
     return (
       <Page><div className="narrow">
-        <h1 className="ptitle">Rewards</h1>
+        <h1 className="pt">Rewards</h1>
         <div className="card empty-card">
           <p className="muted">We couldn't reach the on-chain service. Start it with <code>pnpm dev:onchain</code> and refresh.</p>
         </div>

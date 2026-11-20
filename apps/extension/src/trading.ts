@@ -1,23 +1,18 @@
 import { CopyTradeConfig, WatchItem } from "@copayme/shared";
 import { z } from "zod";
 
-/** How the trading service runs copy trades: "paper" simulates, "live" places real orders. */
-export type CopyMode = "paper" | "live";
-
 /** What the popover needs to know about the signed-in user's relationship to one trader. */
 export interface TradingState {
   /** False when no user is configured, so trading buttons explain that instead of failing. */
   signedIn: boolean;
   /** On the user's watchlist. How the trader is doing is shown on the website's watchlist page, not here. */
   watching: boolean;
-  /** Copying this trader, and for how much per pick. */
-  copy: { active: boolean; amountUsdc: number } | null;
-  /** How copy trades run, so the confirmation can say truthfully whether real orders are placed. */
-  copyMode: CopyMode;
+  /** Copying this trader, for how much per pick, and since when (ISO time, when known). */
+  copy: { active: boolean; amountUsdc: number; since?: string } | null;
 }
 
-/** Signed out, and if anything is unknown the cautious reading: assume copy trades place real orders. */
-export const SIGNED_OUT: TradingState = { signedIn: false, watching: false, copy: null, copyMode: "live" };
+/** Signed out: nothing watched or copied. */
+export const SIGNED_OUT: TradingState = { signedIn: false, watching: false, copy: null };
 
 export interface TradingActions {
   state(handle: string): Promise<TradingState>;
@@ -36,7 +31,7 @@ export function validFollowerId(value: unknown): string | null {
 /**
  * Talks to the trading service's watch and copy-trade endpoints as one follower. Without a follower
  * it never makes a request: `state` says signed out and every action refuses. That is the safe
- * default, since copy trading can place real orders.
+ * default, since copy trading moves the user's money.
  */
 export function createTradingService(opts: {
   baseUrl: string;
@@ -59,33 +54,21 @@ export function createTradingService(opts: {
     return res;
   }
 
-  async function copyMode(): Promise<CopyMode> {
-    try {
-      const res = await fetcher(new URL("/v1/config", baseUrl));
-      const body = z.object({ copyTradeMode: z.enum(["paper", "live"]) }).parse(await res.json());
-      return body.copyTradeMode;
-    } catch {
-      return "live"; // unknown: warn as if real money moves
-    }
-  }
-
   const handleOf = (h: string) => h.toLowerCase();
 
   return {
     async state(handle) {
       if (!(await getFollowerId())) return SIGNED_OUT;
-      const [watches, copies, mode] = await Promise.all([
+      const [watches, copies] = await Promise.all([
         call("/v1/watches").then(async (r) => z.array(WatchItem).parse(await r.json())),
         call("/v1/copy-trades").then(async (r) => z.array(CopyTradeConfig).parse(await r.json())),
-        copyMode(),
       ]);
       const watch = watches.find((w) => handleOf(w.traderHandle) === handleOf(handle));
       const copy = copies.find((c) => handleOf(c.traderHandle) === handleOf(handle));
       return {
         signedIn: true,
         watching: watch !== undefined,
-        copy: copy ? { active: copy.active, amountUsdc: copy.amountUsdc } : null,
-        copyMode: mode,
+        copy: copy ? { active: copy.active, amountUsdc: copy.amountUsdc, since: copy.createdAt } : null,
       };
     },
 
@@ -110,11 +93,17 @@ export function createTradingService(opts: {
 /** For mock mode: a signed-in user whose choices are kept in memory, so the buttons can be tried without a backend. */
 export function createMockTrading(): TradingActions {
   const watching = new Set<string>();
-  const copies = new Map<string, { active: boolean; amountUsdc: number }>();
+  const copies = new Map<string, { active: boolean; amountUsdc: number; since: string }>();
   return {
-    state: async (h) => ({ signedIn: true, watching: watching.has(h), copy: copies.get(h) ?? null, copyMode: "paper" }),
+    state: async (h) => ({ signedIn: true, watching: watching.has(h), copy: copies.get(h) ?? null }),
     setWatch: async (h, on) => void (on ? watching.add(h) : watching.delete(h)),
-    startCopy: async (h, amountUsdc) => void copies.set(h, { active: true, amountUsdc }),
-    stopCopy: async (h) => void copies.set(h, { active: false, amountUsdc: copies.get(h)?.amountUsdc ?? 0 }),
+    startCopy: async (h, amountUsdc) => {
+      const previous = copies.get(h);
+      copies.set(h, { active: true, amountUsdc, since: previous?.active ? previous.since : new Date().toISOString() });
+    },
+    stopCopy: async (h) => {
+      const previous = copies.get(h);
+      copies.set(h, { active: false, amountUsdc: previous?.amountUsdc ?? 0, since: previous?.since ?? new Date().toISOString() });
+    },
   };
 }

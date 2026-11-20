@@ -38,7 +38,7 @@ describe("startBadges", () => {
     addTweet("bob");
     addTweet("nobody");
 
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8", "SCORE72▲8", ""]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8", "72▲8", ""]));
     expect(lookup).toHaveBeenCalledTimes(1);
     expect(lookup).toHaveBeenCalledWith(["alice", "bob", "nobody"]);
   });
@@ -49,7 +49,7 @@ describe("startBadges", () => {
     addTweet("alice");
     addTweet("alice");
 
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8", "SCORE72▲8"]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8", "72▲8"]));
     expect(lookup).toHaveBeenCalledTimes(1);
     expect(lookup).toHaveBeenCalledWith(["alice"]);
   });
@@ -58,10 +58,10 @@ describe("startBadges", () => {
     const lookup = vi.fn(async (): Promise<BadgesResponse> => ({ alice: scored }));
     stop = startBadges({ lookup, delayMs: 10 });
     addTweet("alice");
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8"]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8"]));
 
     addTweet("alice"); // scrolled to another tweet by the same person
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8", "SCORE72▲8"]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8", "72▲8"]));
     expect(lookup).toHaveBeenCalledTimes(1);
   });
 
@@ -77,7 +77,7 @@ describe("startBadges", () => {
     expect(badgeTexts()).toEqual([""]);
 
     addTweet("alice");
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8", "SCORE72▲8"]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8", "72▲8"]));
     expect(lookup).toHaveBeenCalledTimes(2);
   });
 
@@ -85,7 +85,7 @@ describe("startBadges", () => {
     const lookup = vi.fn(async (): Promise<BadgesResponse> => ({ alice: scored }));
     stop = startBadges({ lookup, delayMs: 10 });
     addTweet("alice");
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8"]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8"]));
 
     timeline().querySelector("article")!.remove();
     await vi.waitFor(() => expect(badgeTexts()).toEqual([]));
@@ -144,7 +144,7 @@ describe("startBadges", () => {
       expect(pill()).toBeNull();
       stop();
       stop = startBadges({ lookup: async () => ({ dana: scored }), scan: vi.fn(), delayMs: 10 });
-      await vi.waitFor(() => expect(pillText()).toBe("SCORE72▲8"));
+      await vi.waitFor(() => expect(pillText()).toBe("72▲8"));
     });
 
     it("offers Scan picks on tweets too, and scans straight away from the feed (no profile timeline to wait for)", async () => {
@@ -154,12 +154,12 @@ describe("startBadges", () => {
       stop = startBadges({ lookup: async () => ({ alice: null, bob: scored }), scan, delayMs: 10, timelineWaitMs: 5_000 });
       addTweet("alice");
       addTweet("bob");
-      await vi.waitFor(() => expect(badgeTexts()).toEqual(["Scan picks", "SCORE72▲8"]));
+      await vi.waitFor(() => expect(badgeTexts()).toEqual(["Scan picks", "72▲8"]));
       const started = Date.now();
       document.querySelector("[data-copayme=badge]")!.shadowRoot!.querySelector<HTMLButtonElement>(".pill")!.click();
       await vi.waitFor(() => expect(scan).toHaveBeenCalledWith("alice", null));
       expect(Date.now() - started).toBeLessThan(1_000); // not the 5 s timeline wait
-      await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8", "SCORE72▲8"]));
+      await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8", "72▲8"]));
     });
 
     it("shows the new person's badge when X reuses the profile header for another profile", async () => {
@@ -169,7 +169,7 @@ describe("startBadges", () => {
         Object.fromEntries(handles.map((h) => [h, h === "pickswise" ? scored : null])),
       );
       stop = startBadges({ lookup, scan: vi.fn(), delayMs: 10, ...fastTimeline });
-      await vi.waitFor(() => expect(pillText()).toBe("SCORE72▲8"));
+      await vi.waitFor(() => expect(pillText()).toBe("72▲8"));
 
       // Clicking a "who to follow" suggestion: the URL changes and X rewrites the same header element in place.
       setUrl("/the_bmatt");
@@ -185,7 +185,7 @@ describe("startBadges", () => {
       setUrl("/pickswise");
       document.body.innerHTML = `<main id="timeline">${header("pickswise")}</main>`;
       stop = startBadges({ lookup: async (hs) => Object.fromEntries(hs.map((h) => [h, h === "pickswise" ? scored : null])), scan: vi.fn(), delayMs: 10, ...fastTimeline });
-      await vi.waitFor(() => expect(pillText()).toBe("SCORE72▲8"));
+      await vi.waitFor(() => expect(pillText()).toBe("72▲8"));
       document.querySelector('[data-testid="UserName"]')!.innerHTML = '<div><span>Other</span></div><div><span>@other</span></div>';
       setUrl("/other");
       await vi.waitFor(() => expect(pillText()).toBe("Scan picks"), { timeout: 2_000 });
@@ -207,7 +207,7 @@ describe("startBadges", () => {
       await vi.waitFor(() => expect(scan).toHaveBeenCalledWith("dana", null)); // after the timeline wait
 
       finish({ status: "done", badge: scored });
-      await vi.waitFor(() => expect(pillText()).toBe("SCORE72▲8"));
+      await vi.waitFor(() => expect(pillText()).toBe("72▲8"));
       expect(cardText()).toContain("@dana scanned");
       expect(cardText()).toContain("Score 72 · 30 settled picks.");
     });
@@ -248,7 +248,7 @@ describe("startBadges", () => {
       await vi.waitFor(() => expect(pillText()).toBe("Scan failed · Retry"));
 
       card()!.querySelector<HTMLButtonElement>(".again")!.click(); // retry from the card
-      await vi.waitFor(() => expect(pillText()).toBe("SCORE72▲8"));
+      await vi.waitFor(() => expect(pillText()).toBe("72▲8"));
       expect(scan).toHaveBeenCalledTimes(3);
     });
 
@@ -378,7 +378,7 @@ describe("badges on profile pages", () => {
 
     // X builds the profile page after navigation, so the header arrives later.
     document.getElementById("timeline")!.insertAdjacentHTML("beforeend", profileHeader("dana_picks"));
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8"]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8"]));
     expect(lookup).toHaveBeenCalledWith(["dana_picks"]);
     expect(document.querySelector('[data-testid="UserName"] > div [data-copayme=badge]')).not.toBeNull(); // in the name row
   });
@@ -390,7 +390,7 @@ describe("badges on profile pages", () => {
     stop = startBadges({ lookup, delayMs: 10 });
     document.getElementById("timeline")!.insertAdjacentHTML("beforeend", tweetHtml("dana_picks"));
 
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8", "SCORE72▲8"]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8", "72▲8"]));
     expect(lookup).toHaveBeenCalledTimes(1);
   });
 
@@ -440,7 +440,7 @@ describe("when the extension is reloaded under an open page", () => {
     document.getElementById("timeline")!.insertAdjacentHTML("beforeend", tweetHtml("alice"));
     await vi.waitFor(() => expect(lookup).toHaveBeenCalledTimes(1));
     document.getElementById("timeline")!.insertAdjacentHTML("beforeend", tweetHtml("alice"));
-    await vi.waitFor(() => expect(badgeTexts()).toContain("SCORE72▲8"));
+    await vi.waitFor(() => expect(badgeTexts()).toContain("72▲8"));
     expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
@@ -449,7 +449,7 @@ describe("when the extension is reloaded under an open page", () => {
     document.body.innerHTML = '<main id="timeline"></main>';
     stop = startBadges({ lookup: async () => ({ alice: scored }), delayMs: 10 });
     document.getElementById("timeline")!.insertAdjacentHTML("beforeend", tweetHtml("alice"));
-    await vi.waitFor(() => expect(badgeTexts()).toEqual(["SCORE72▲8"]));
+    await vi.waitFor(() => expect(badgeTexts()).toEqual(["72▲8"]));
     stop();
     stop();
     expect(document.querySelectorAll("[data-copayme=badge]")).toHaveLength(0);
@@ -488,16 +488,16 @@ describe("a scan elsewhere updates this page", () => {
 
   it("shows a badge another tab's scan produced, for that handle only", async () => {
     const t = mountWith({});
-    await vi.waitFor(() => expect(texts()).toEqual(["SCORE72▲8", "SCORE72▲8"]));
+    await vi.waitFor(() => expect(texts()).toEqual(["72▲8", "72▲8"]));
     t.apply("Alice", fresh); // the handle arrives in any case
-    await vi.waitFor(() => expect(texts()).toEqual(["SCORE80▲8", "SCORE72▲8"]));
+    await vi.waitFor(() => expect(texts()).toEqual(["80▲8", "72▲8"]));
   });
 
   it("ignores an update that carries no badge", async () => {
     const t = mountWith({});
-    await vi.waitFor(() => expect(texts()).toEqual(["SCORE72▲8", "SCORE72▲8"]));
+    await vi.waitFor(() => expect(texts()).toEqual(["72▲8", "72▲8"]));
     t.apply("alice", null);
-    expect(texts()).toEqual(["SCORE72▲8", "SCORE72▲8"]);
+    expect(texts()).toEqual(["72▲8", "72▲8"]);
   });
 
   it("does not overwrite a handle this tab is scanning right now", async () => {
@@ -526,7 +526,7 @@ describe("a scan elsewhere updates this page", () => {
     let picks = 1;
     const loadProfile = vi.fn(async () => ({ profile: profile("alice"), calls: Array.from({ length: picks }, (_, i) => call(i + 1)) }));
     const t = mountWith({ loadProfile });
-    await vi.waitFor(() => expect(texts()[0]).toBe("SCORE72▲8"));
+    await vi.waitFor(() => expect(texts()[0]).toBe("72▲8"));
     document.querySelector("[data-copayme=badge]")!.shadowRoot!.querySelector<HTMLButtonElement>(".pill")!.click();
     await vi.waitFor(() => expect(cardText()).toContain("Game 1"));
     expect(cardText()).not.toContain("Game 2");
@@ -566,16 +566,16 @@ describe("badges stay current while the page is open", () => {
     let score = 50;
     const lookup = vi.fn(async (hs: string[]): Promise<BadgesResponse> => Object.fromEntries(hs.map((h) => [h, at(score)])));
     stop = startBadges({ lookup, delayMs: 5, revalidateMs: 25 });
-    await vi.waitFor(() => expect(texts()).toEqual(["SCORE50"]));
+    await vi.waitFor(() => expect(texts()).toEqual(["50"]));
     score = 60; // the scoring worker settled a pick; nothing told this page
-    await vi.waitFor(() => expect(texts()).toEqual(["SCORE60"]), { timeout: 2_000 });
+    await vi.waitFor(() => expect(texts()).toEqual(["60"]), { timeout: 2_000 });
   });
 
   it("re-checks only the handles that are on the page now", async () => {
     document.body.innerHTML = `<main>${tweet("alice")}${tweet("bob")}</main>`;
     const lookup = vi.fn(async (hs: string[]): Promise<BadgesResponse> => Object.fromEntries(hs.map((h) => [h, at(50)])));
     stop = startBadges({ lookup, delayMs: 5, revalidateMs: 25 });
-    await vi.waitFor(() => expect(texts()).toEqual(["SCORE50", "SCORE50"]));
+    await vi.waitFor(() => expect(texts()).toEqual(["50", "50"]));
     document.querySelectorAll("article")[1]!.remove(); // bob's tweet scrolled away
     lookup.mockClear();
     await vi.waitFor(() => expect(lookup).toHaveBeenCalled(), { timeout: 2_000 });
@@ -590,12 +590,12 @@ describe("badges stay current while the page is open", () => {
       return Object.fromEntries(hs.map((h) => [h, mode === "unknown" ? null : at(50)]));
     });
     stop = startBadges({ lookup, delayMs: 5, revalidateMs: 20 });
-    await vi.waitFor(() => expect(texts()).toEqual(["SCORE50"]));
+    await vi.waitFor(() => expect(texts()).toEqual(["50"]));
     for (const next of ["unknown", "fail"] as const) {
       mode = next;
       const before = lookup.mock.calls.length;
       await vi.waitFor(() => expect(lookup.mock.calls.length).toBeGreaterThan(before + 1), { timeout: 2_000 });
-      expect(texts()).toEqual(["SCORE50"]);
+      expect(texts()).toEqual(["50"]);
     }
   });
 
@@ -604,25 +604,25 @@ describe("badges stay current while the page is open", () => {
     let score = 50;
     const lookup = vi.fn(async (hs: string[]): Promise<BadgesResponse> => Object.fromEntries(hs.map((h) => [h, at(score)])));
     stop = startBadges({ lookup, delayMs: 5, revalidateMs: 20 });
-    await vi.waitFor(() => expect(texts()).toEqual(["SCORE50"]));
+    await vi.waitFor(() => expect(texts()).toEqual(["50"]));
     setVisibility("hidden");
     await new Promise((r) => setTimeout(r, 40));
     const whileHidden = lookup.mock.calls.length;
     score = 60;
     await new Promise((r) => setTimeout(r, 80));
     expect(lookup.mock.calls.length).toBe(whileHidden); // no requests from a tab nobody is looking at
-    expect(texts()).toEqual(["SCORE50"]);
+    expect(texts()).toEqual(["50"]);
 
     setVisibility("visible");
     document.dispatchEvent(new Event("visibilitychange")); // the user came back
-    await vi.waitFor(() => expect(texts()).toEqual(["SCORE60"]), { timeout: 2_000 });
+    await vi.waitFor(() => expect(texts()).toEqual(["60"]), { timeout: 2_000 });
   });
 
   it("stops re-checking when the page stops", async () => {
     document.body.innerHTML = `<main>${tweet("mugdha")}</main>`;
     const lookup = vi.fn(async (hs: string[]): Promise<BadgesResponse> => Object.fromEntries(hs.map((h) => [h, at(50)])));
     stop = startBadges({ lookup, delayMs: 5, revalidateMs: 15 });
-    await vi.waitFor(() => expect(texts()).toEqual(["SCORE50"]));
+    await vi.waitFor(() => expect(texts()).toEqual(["50"]));
     stop();
     const after = lookup.mock.calls.length;
     await new Promise((r) => setTimeout(r, 80));
@@ -638,8 +638,8 @@ describe("badges stay current while the page is open", () => {
       delayMs: 5,
       revalidateMs: 60_000, // so only the card can fix it
     });
-    await vi.waitFor(() => expect(texts()).toEqual(["SCORE50"]));
+    await vi.waitFor(() => expect(texts()).toEqual(["50"]));
     document.querySelector("[data-copayme=badge]")!.shadowRoot!.querySelector<HTMLButtonElement>(".pill")!.click();
-    await vi.waitFor(() => expect(texts()).toEqual(["SCORE60"])); // the badge now agrees with the card
+    await vi.waitFor(() => expect(texts()).toEqual(["60"])); // the badge now agrees with the card
   });
 });

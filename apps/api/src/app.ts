@@ -259,7 +259,7 @@ export function createApp({ store, ingest, serviceKey, notifyNewCall, worker, ca
       limit = Math.min(Math.max(Number(raw), 1), MAX_LEADERBOARD_LIMIT);
     }
     const rows = await store.leaderboard(limit, NEW_BADGE_MIN_RESOLVED);
-    const board: LeaderboardEntry[] = rows.map((row) => ({ handle: row.handle, ...toBadge(row) }));
+    const board: LeaderboardEntry[] = rows.map((row) => ({ handle: row.handle, ...toBadge(row), skill: row.skill }));
     return c.json(board);
   });
 

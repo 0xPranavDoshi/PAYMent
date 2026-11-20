@@ -22,13 +22,11 @@ export default function PayoutButton({ disabled, label }: { disabled: boolean; l
   }
 
   return (
-    <div>
-      <button className="btn primary lg" disabled={disabled || busy} onClick={run}>
+    <div className="ap-run">
+      <button type="button" className="btn primary xl" disabled={disabled || busy} aria-busy={busy} onClick={run}>
         {busy ? "Running payout…" : label}
       </button>
-      {msg && (
-        <p className="fine" style={{ marginTop: 10, color: msg.ok ? "var(--win)" : "var(--coral)" }}>{msg.text}</p>
-      )}
+      {msg && <p className={`rw-note ${msg.ok ? "win" : "loss"}`}>{msg.text}</p>}
     </div>
   );
 }

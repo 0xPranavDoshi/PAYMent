@@ -1,6 +1,6 @@
 import { createRoot, type Root } from "react-dom/client";
 import { isContextInvalidated } from "../context.js";
-import type { ProfileData } from "../messages.js";
+import type { ProfileData, Rank } from "../messages.js";
 import { POPOVER_CSS } from "../styles.js";
 import type { Theme, ThemeStore } from "../theme.js";
 import type { TradingActions } from "../trading.js";
@@ -27,6 +27,8 @@ export interface PopoverManager {
  */
 export function createPopoverManager(opts: {
   load: (handle: string) => Promise<ProfileData>;
+  /** The handle's leaderboard rank, fetched alongside the profile. Without it, no rank is shown. */
+  loadRank?: (handle: string) => Promise<Rank | null>;
   /** Called with each profile the card loads, which is newer than the badge it was opened from. */
   onLoaded?: (handle: string, data: ProfileData) => void;
   webUrl: string;
@@ -38,7 +40,7 @@ export function createPopoverManager(opts: {
   rescan?: (handle: string) => void;
   doc?: Document;
 }): PopoverManager {
-  const { load, onLoaded, webUrl, theme, trading, rescan, doc = document } = opts;
+  const { load, loadRank, onLoaded, webUrl, theme, trading, rescan, doc = document } = opts;
   const win = doc.defaultView ?? window;
 
   let current: { handle: string; anchor: Element; host: HTMLElement; root: Root; reload: () => void; stop: () => void } | null = null;
@@ -92,12 +94,17 @@ export function createPopoverManager(opts: {
 
     const root = createRoot(container);
     let token = 0; // a newer request makes older answers irrelevant
+    // The rank arrives on its own (it never holds up the profile) and is drawn into whatever is showing.
+    let shown: PopoverState = { status: "loading" };
+    let rank: Rank | null = null;
 
-    const render = (state: PopoverState) =>
+    const render = (state: PopoverState) => {
+      shown = state;
       root.render(
         <Popover
           handle={handle}
           state={state}
+          rank={rank}
           webUrl={webUrl}
           trading={trading}
           onClose={close}
@@ -106,6 +113,7 @@ export function createPopoverManager(opts: {
           {...(rescan ? { onRescan: () => (close(), rescan(handle)) } : {})}
         />,
       );
+    };
 
     function fetchProfile() {
       const mine = ++token;
@@ -187,6 +195,14 @@ export function createPopoverManager(opts: {
     };
 
     fetchProfile();
+    loadRank?.(handle).then(
+      (answer) => {
+        if (current?.host !== host || !answer) return;
+        rank = answer;
+        render(shown);
+      },
+      () => {}, // no rank is shown
+    );
   }
 
   return {
