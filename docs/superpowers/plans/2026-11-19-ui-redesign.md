@@ -314,7 +314,6 @@ Spec section: "Pages → Leaderboard" and "Data". Mockup tab: "Leaderboard + cop
 - Modify: `apps/web/src/app/leaderboard/page.tsx`
 - Rewrite: `apps/web/src/components/LeaderboardTable.tsx` (`"use client"`; owns which row's ticket is open)
 - Create: `apps/web/src/components/Podium.tsx`
-- Modify: `apps/web/src/lib/api.ts` (add `fetchScoreHistory`)
 - Create: `apps/web/src/lib/leaderboard.ts` and `apps/web/src/lib/leaderboard.test.ts`
 
 **Interfaces:**
@@ -323,7 +322,6 @@ Spec section: "Pages → Leaderboard" and "Data". Mockup tab: "Leaderboard + cop
   - `export const FILTERS: { id: "all" | "beating" | "rising" | "new"; label: string; test: (e: LeaderboardEntry) => boolean }[]`, with labels "All", "Beating market", "Rising", "New". The tests are: all → true; beating → `e.tier === "scored" && e.skill > 0`; rising → `(e.change14d ?? 0) >= 2`; new → `e.tier === "new"`.
   - `export function podiumOrder<T>(top: T[]): T[]`: `[#2, #1, #3]` when there are 3, `[#2, #1]` when there are 2, `[#1]` when there is 1, and `[]` when there are none.
   - `export function rankOf(board: LeaderboardEntry[], handle: string): { rank: number; total: number } | null`
-  - `export async function fetchScoreHistory(handle: string, limit = 30): Promise<{ score: number; computedAt: string }[]>`, which returns `[]` on error.
 
 - [ ] **Step 1: Write the failing tests** in `lib/leaderboard.test.ts`:
   - `podiumOrder(["a","b","c"])` equals `["b","a","c"]`, `podiumOrder(["a","b"])` equals `["b","a"]`, `podiumOrder(["a"])` equals `["a"]`, and `podiumOrder([])` equals `[]`.
@@ -334,7 +332,7 @@ Spec section: "Pages → Leaderboard" and "Data". Mockup tab: "Leaderboard + cop
   Expected: FAIL, because the module isn't found.
 - [ ] **Step 3: Implement the lib file, then the components.**
   - **Podium:**
-    - #1 is raised by about 12px, with an orange rank, a "+Δ" green chip when `change14d` > 0, a sparkline (an ink polyline from `fetchScoreHistory`, drawn only with 2 or more points, with no end dot) and a primary `CopyTradeToggle`. #1's toggle opens the ticket under table row 1.
+    - #1 is raised by about 12px, with an orange rank, a "+Δ" green chip when `change14d` > 0 and a primary `CopyTradeToggle`. #1's toggle opens the ticket under table row 1.
     - #2 and #3 show "HIT RATE x% / EDGE y¢ · 14D ±n" in mono, or "NEW".
   - **Table:**
     - Columns: #, ScoreTile, trader (initials avatar plus handle, with "N picks" under it), 14 days (▲/▼, colored), Picks, Hit rate (`.hitbar`), Edge (`formatCents(skill)`, colored), and Action (`CopyTradeToggle`; primary on row 1, secondary on the others).

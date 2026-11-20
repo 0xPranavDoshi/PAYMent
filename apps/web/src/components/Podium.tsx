@@ -14,24 +14,8 @@ export interface CopyContext {
   setOpenHandle: (handle: string | null) => void;
 }
 
-function Sparkline({ values }: { values: number[] }) {
-  if (values.length < 2) return null;
-  const w = 120;
-  const h = 34;
-  const min = Math.min(...values);
-  const span = Math.max(...values) - min;
-  const pts = values
-    .map((v, i) => `${((i / (values.length - 1)) * w).toFixed(1)},${(span === 0 ? h / 2 : h - 4 - ((v - min) / span) * (h - 8)).toFixed(1)}`)
-    .join(" ");
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden="true">
-      <polyline fill="none" stroke="#111" strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round" points={pts} />
-    </svg>
-  );
-}
-
 /** The overall top 3 (#2 left, #1 raised in the middle, #3 right). */
-export default function Podium({ top, history, ctx }: { top: LeaderboardEntry[]; history: number[]; ctx: CopyContext }) {
+export default function Podium({ top, ctx }: { top: LeaderboardEntry[]; ctx: CopyContext }) {
   const order = podiumOrder(top.map((e, i) => ({ e, rank: i + 1 })));
   return (
     <div className={`lb-podium n${top.length}`}>
@@ -57,7 +41,6 @@ export default function Podium({ top, history, ctx }: { top: LeaderboardEntry[];
               </span>
               {first ? (
                 <div className="lb-side">
-                  <Sparkline values={history} />
                   <CopyTradeToggle
                     handle={e.handle}
                     copy={ctx.copies[e.handle.toLowerCase()] ?? null}

@@ -113,7 +113,8 @@ Score bands, used everywhere a score shows a color: **green** at 60 and above, *
   - "Top traders" (top 3, with Copy trade buttons) beside "Latest picks".
 - **Leaderboard.**
   - Title, subtitle, and the filter segment control (All / Beating market / Rising / New).
-  - A **podium** of the top 3: #2 left, #1 center and raised, #3 right. #1 has an orange rank, a +Δ chip, a sparkline and a Copy trade button. #2 and #3 show hit rate and edge in mono.
+  - A **podium** of the top 3: #2 left, #1 center and raised, #3 right. #1 has an orange rank, a +Δ chip and a Copy trade button. #2 and #3 show hit rate and edge in mono.
+  - No sparkline on the podium (removed at the owner's request).
   - Then the **table** with these columns: #, score tile, trader (initials avatar plus handle, with "N picks" under it), 14 days, picks, hit rate (bar), edge, and action (a Copy trade button on every row). Row 1's button is primary. Others are secondary.
   - Copy trade on a row opens the **ticket** (below).
 - **Trader profile.**
@@ -222,7 +223,6 @@ What the mockups show compared with what the API has:
 - **Sports line ("NFL · NBA") and market type ("Point spread"):** not in the data. **Dropped.** Where the mockup shows them, show the pick label instead (e.g. "Chiefs −2.5"), or nothing.
 - **"Top 5%":** can't be calculated. **Replaced by rank, "#1 of N"**, taken from the leaderboard position (N is the leaderboard length). If the trader isn't on the leaderboard, show nothing.
 - **Edge on the leaderboard:** `LeaderboardEntry` doesn't include `skill` today. **Add it** to the leaderboard response in `packages/shared/src/leaderboard.ts` and the API's leaderboard query. Then the Edge column and the "Beating market" filter (edge > 0) work. This is the only backend change.
-- **Podium #1 sparkline:** fetch `/v1/users/:handle/score-history` for #1 only.
 - **"Add to Chrome":** there's no store listing yet, so it stays disabled, labeled "Coming soon", like today's `ExtensionPromo`.
 
 ## Copy mode

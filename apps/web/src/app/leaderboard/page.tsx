@@ -1,5 +1,5 @@
 import Page from "@/components/Page";
-import { fetchCopyTrades, fetchLeaderboard, fetchScoreHistory, type LeaderboardEntry } from "@/lib/api";
+import { fetchCopyTrades, fetchLeaderboard, type LeaderboardEntry } from "@/lib/api";
 import LeaderboardTable from "@/components/LeaderboardTable";
 import type { CopyState } from "@/components/CopyTicket";
 import { getFollowerId } from "@/lib/session";
@@ -16,10 +16,7 @@ export default async function LeaderboardPage() {
   }
 
   const viewerId = await getFollowerId();
-  const [history, copyTrades] = await Promise.all([
-    entries[0] ? fetchScoreHistory(entries[0].handle) : Promise.resolve([]),
-    viewerId ? fetchCopyTrades(viewerId).catch(() => []) : Promise.resolve([]),
-  ]);
+  const copyTrades = viewerId ? await fetchCopyTrades(viewerId).catch(() => []) : [];
   const copies: Record<string, CopyState> = {};
   for (const c of copyTrades) copies[c.traderHandle.toLowerCase()] = { active: c.active, amountUsdc: c.amountUsdc, since: c.createdAt };
 
@@ -30,7 +27,7 @@ export default async function LeaderboardPage() {
       {error ? (
         <p className="down" style={{ marginTop: 20 }}>{error}</p>
       ) : (
-        <LeaderboardTable entries={entries} history={history.map((h) => h.score)} copies={copies} signedIn={viewerId !== null} viewerId={viewerId} />
+        <LeaderboardTable entries={entries} copies={copies} signedIn={viewerId !== null} viewerId={viewerId} />
       )}
     </Page>
   );

@@ -17,14 +17,11 @@ function initials(handle: string): string {
 
 export default function LeaderboardTable({
   entries,
-  history,
   copies,
   signedIn,
   viewerId,
 }: {
   entries: LeaderboardEntry[];
-  /** Score history for the #1 trader's sparkline, oldest first. */
-  history: number[];
   /** The viewer's copies, keyed by lower-cased handle. */
   copies: Record<string, CopyState>;
   signedIn: boolean;
@@ -62,7 +59,7 @@ export default function LeaderboardTable({
         ))}
       </div>
 
-      <Podium top={entries.slice(0, 3)} history={history} ctx={ctx} />
+      <Podium top={entries.slice(0, 3)} ctx={ctx} />
 
       {slot === "podium" && openEntry && (
         <CopyTicket
