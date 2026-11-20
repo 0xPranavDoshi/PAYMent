@@ -47,6 +47,10 @@ function requireServiceKey(key: string) {
   };
 }
 
+/** A price we can trade or mark against. A quote of 0 means "no price yet", not "worth nothing". */
+export const usablePrice = (p: number | null | undefined): number | null =>
+  p !== null && p !== undefined && Number.isFinite(p) && p > 0 && p <= 1 ? p : null;
+
 export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }: AppDeps) {
   const app = new Hono();
 
@@ -134,6 +138,9 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
       call.side === "no" && outcome.noOdds !== null
         ? outcome.noOdds
         : outcome.currentOdds;
+    if (usablePrice(entryOdds) === null) {
+      return c.json({ error: "no usable price for this pick yet" }, 409);
+    }
 
     // Slippage check
     const priceDrift = Math.abs(entryOdds - req.quotedOdds);
@@ -250,7 +257,7 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
           ? outcome.noOdds
           : outcome.currentOdds
         : null;
-      let markPrice = storedMark;
+      let markPrice = usablePrice(storedMark);
       if (market) {
         const live = await liveMarkPrice(
           gemini,
@@ -261,7 +268,7 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
         if (live !== null) markPrice = live;
       }
       const unrealizedPnlUsdc =
-        markPrice !== null
+        markPrice !== null && usablePrice(tail.entryOdds) !== null
           ? paperPnlUsdc({ amountUsdc: tail.amountUsdc, entryOdds: tail.entryOdds, exitPrice: markPrice })
           : null;
       return c.json(toTailResponse(tail, { realized: false, markPrice, unrealizedPnlUsdc }));
@@ -329,9 +336,9 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
         const live = event
           ? sidePriceFromEvent(event, { instrumentSymbol: r.instrumentSymbol, label: r.pickedOutcome }, r.side)
           : null;
-        const markPrice = live ?? r.storedMarkPrice;
+        const markPrice = live ?? usablePrice(r.storedMarkPrice);
         const unrealizedPnlUsdc =
-          markPrice !== null
+          markPrice !== null && usablePrice(tail.entryOdds) !== null
             ? paperPnlUsdc({ amountUsdc: tail.amountUsdc, entryOdds: tail.entryOdds, exitPrice: markPrice })
             : null;
         return toTailResponse(tail, { ...what, realized: false, markPrice, unrealizedPnlUsdc });
@@ -399,8 +406,8 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
       const live = event
         ? sidePriceFromEvent(event, { instrumentSymbol: m.instrumentSymbol, label: m.pickedOutcome }, m.side)
         : null;
-      const markPrice = live ?? m.storedMarkPrice;
-      if (markPrice === null) continue;
+      const markPrice = live ?? usablePrice(m.storedMarkPrice);
+      if (markPrice === null || usablePrice(m.entryOdds) === null) continue;
       const pnl = paperPnlUsdc({ amountUsdc: m.amountUsdc, entryOdds: m.entryOdds, exitPrice: markPrice });
       const key = m.traderHandle.toLowerCase();
       unrealizedByTrader.set(key, (unrealizedByTrader.get(key) ?? 0) + pnl);
