@@ -1,4 +1,4 @@
-import { NEW_BADGE_MIN_RESOLVED, type CallEntry, type UserProfile } from "@copayme/shared";
+import { NEW_BADGE_MIN_RESOLVED, marketUrl, type CallEntry, type UserProfile } from "@copayme/shared";
 import { tweetUrl } from "@copayme/shared/tweet-text";
 import { badgeView, type BadgeView } from "../badgeView.js";
 
@@ -23,6 +23,8 @@ export interface CallRowView {
   /** "+40¢", "−60¢", or null when the call earned no points. */
   points: string | null;
   tweetUrl: string;
+  /** The market on Gemini, where its price and result can be checked; null when the ticker is not known. */
+  marketUrl: string | null;
 }
 
 export function callRowView(call: CallEntry): CallRowView {
@@ -46,6 +48,7 @@ export function callRowView(call: CallEntry): CallRowView {
     outcome,
     points: call.points === null ? null : formatCents(call.points),
     tweetUrl: tweetUrl(call.tweetId),
+    marketUrl: call.marketTicker ? marketUrl(call.marketTicker) : null,
   };
 }
 

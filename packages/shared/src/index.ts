@@ -9,6 +9,7 @@ export * from "./ingest.js";
 export * from "./leaderboard.js";
 export * from "./copy.js";
 export * from "./calls.js";
+export * from "./market.js";
 export * from "./onchain.js";
 export * from "./db.js";
 export * from "./tweetText.js";

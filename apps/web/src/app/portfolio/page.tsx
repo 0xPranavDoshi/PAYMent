@@ -1,4 +1,5 @@
 import Page from "@/components/Page";
+import { marketUrl } from "@copayme/shared/market";
 import Link from "next/link";
 import { fetchCopyMode, fetchCopyTrades, fetchTails } from "@/lib/api";
 import { formatSignedPct, formatUsd, shortDate, tone } from "@/lib/format";
@@ -105,7 +106,14 @@ export default async function PortfolioPage() {
                   return (
                     <div className="trow" key={t.tailId}>
                       <div className="tmain">
-                        <div className="event">{t.eventName ?? "Trade"}</div>
+                        <div className="event">
+                          {t.eventName ?? "Trade"}
+                          {t.marketTicker && (
+                            <a className="marketlink" href={marketUrl(t.marketTicker)} target="_blank" rel="noopener noreferrer" aria-label={`View ${t.eventName ?? "this market"} on Gemini (opens in a new tab)`}>
+                              View market ↗
+                            </a>
+                          )}
+                        </div>
                         <div className="wsub">
                           {t.traderHandle ? <>@{t.traderHandle} · </> : null}
                           {t.pickLabel ?? ""}{t.side ? ` · ${t.side.toUpperCase()}` : ""} · bought at {Math.round(t.entryOdds * 100)}¢

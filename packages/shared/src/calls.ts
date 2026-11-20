@@ -16,6 +16,8 @@ export const CallEntry = z.object({
   tweetText: z.string(),
   /** The game, e.g. "UConn vs Arizona". */
   eventName: z.string(),
+  /** The market's Gemini event ticker; `marketUrl()` turns it into a link to the market. Optional so an older API still parses. */
+  marketTicker: z.string().optional(),
   /** The contract picked, e.g. "UConn". */
   pickLabel: z.string(),
   side: z.enum(["yes", "no"]).nullable(),

@@ -318,6 +318,7 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
       const tail = r.tail;
       const what = {
         eventName: r.eventName,
+        marketTicker: r.ticker,
         pickLabel: r.pickedOutcome,
         side: r.side,
         traderHandle: r.traderHandle,
@@ -715,6 +716,7 @@ function toTailResponse(
   },
   extra?: {
     eventName?: string;
+    marketTicker?: string;
     pickLabel?: string | null;
     side?: "yes" | "no" | null;
     traderHandle?: string;

@@ -1,4 +1,5 @@
 import Page from "@/components/Page";
+import { marketUrl } from "@copayme/shared/market";
 import Link from "next/link";
 import { fetchCopyMode, fetchCopyTrades, fetchTraderCalls, fetchTraderProfile, fetchWatches } from "@/lib/api";
 import { getFollowerId } from "@/lib/session";
@@ -107,6 +108,7 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
                   outcome={c.points !== null ? `${outcome} · ${timeAgo(c.tweetedAt)}` : timeAgo(c.tweetedAt)}
                   tweetText={c.tweetText}
                   tweetId={c.tweetId}
+                  marketUrl={c.marketTicker ? marketUrl(c.marketTicker) : undefined}
                   postedAt={c.tweetedAt}
                 />
               );
