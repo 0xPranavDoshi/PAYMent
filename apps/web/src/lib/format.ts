@@ -9,25 +9,6 @@ export function formatPct(fraction: number | null): string {
   return fraction === null ? "–" : `${Math.round(fraction * 100)}%`;
 }
 
-const HUE_STOPS: readonly (readonly [number, number])[] = [
-  [0, 4],
-  [35, 30],
-  [55, 48],
-  [75, 120],
-  [100, 145],
-];
-
-/** Ring hue for a score (red, orange, yellow, green), the same scale the extension uses. */
-export function scoreHue(score: number): number {
-  const s = Math.min(Math.max(score, 0), 100);
-  for (let i = 1; i < HUE_STOPS.length; i++) {
-    const [s1, h1] = HUE_STOPS[i]!;
-    const [s0, h0] = HUE_STOPS[i - 1]!;
-    if (s <= s1) return h0 + ((h1 - h0) * (s - s0)) / (s1 - s0);
-  }
-  return HUE_STOPS[HUE_STOPS.length - 1]![1];
-}
-
 /** "+8" / "−3", or null when there is no change worth showing (under 2 points, or none). */
 export function formatChange(change: number | null): { text: string; direction: "up" | "down" } | null {
   if (change === null || Math.abs(change) < 2) return null;
