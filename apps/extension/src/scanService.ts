@@ -15,7 +15,9 @@ export type ScanOutcome =
   | { status: "done"; badge: Badge | null }
   /** Scanned recently; nothing was asked. */
   | { status: "skipped" }
-  | { status: "failed" | "timeout"; error?: string };
+  | { status: "failed" | "timeout"; error?: string }
+  /** The user pressed Stop. */
+  | { status: "stopped" };
 
 /**
  * Runs in the background worker: asks the scout to scan a handle when someone opens its profile,
@@ -33,6 +35,8 @@ export function createScanService(opts: {
   const now = opts.now ?? Date.now;
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   const lastAsked = new Map<string, number>();
+  /** Handles whose running scan the user stopped; the polling loop checks this. */
+  const stoppedByUser = new Set<string>();
   /** One scan per handle at a time, shared by every tab that asks. */
   const inFlight = new Map<string, Promise<ScanOutcome>>();
 
@@ -53,6 +57,7 @@ export function createScanService(opts: {
       let state = await read(await fetcher(url(handle, newestTweetId), { method: "POST" }));
       const deadline = now() + POLL_FOR_MS;
       while (state.status === "running") {
+        if (stoppedByUser.has(handle)) return { status: "stopped" };
         if (now() >= deadline) return { status: "timeout" };
         await sleep(POLL_EVERY_MS);
         state = await read(await fetcher(url(handle)));
@@ -65,6 +70,20 @@ export function createScanService(opts: {
   }
 
   return {
+    /**
+     * Stops a scan for good: this side stops waiting at once, and the scout is told to skip the paid work
+     * it has not started yet (a stage already in flight still finishes). Asking again later is allowed.
+     */
+    async cancel(handle: string): Promise<void> {
+      stoppedByUser.add(handle);
+      lastAsked.delete(handle);
+      try {
+        await fetcher(url(handle), { method: "DELETE" });
+      } catch {
+        // The scout may be unreachable or never have heard of the handle: stopping the wait still worked.
+      }
+    },
+
     /** `newestTweetId`: the newest tweet by the handle shown on its profile, or null if none showed. */
     scan(handle: string, newestTweetId: string | null = null): Promise<ScanOutcome> {
       const pending = inFlight.get(handle);
@@ -72,7 +91,16 @@ export function createScanService(opts: {
       const last = lastAsked.get(handle);
       if (last !== undefined && now() - last < RESCAN_AFTER_MS) return Promise.resolve({ status: "skipped" });
       lastAsked.set(handle, now());
-      const job = run(handle, newestTweetId).finally(() => inFlight.delete(handle));
+      stoppedByUser.delete(handle);
+      const job = run(handle, newestTweetId)
+        .then((outcome) => {
+          // A scan that timed out or failed may still finish on the scout, or can be retried: Try again
+          // must reach the scout instead of being skipped for 10 minutes. (The scout then keeps one scan
+          // per handle: a still-running one is waited on, a finished one answers at once.)
+          if (outcome.status === "timeout" || outcome.status === "failed") lastAsked.delete(handle);
+          return outcome;
+        })
+        .finally(() => inFlight.delete(handle));
       inFlight.set(handle, job);
       return job;
     },

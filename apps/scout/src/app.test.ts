@@ -26,10 +26,11 @@ const post = (id: string, tweetedAt: string, o: Partial<ScoutPostRow> = {}): Sco
 function setup(opts: { dailyNewHandles?: number; allowedOrigin?: string } = {}) {
   const store = createMemoryStore();
   const startScan = vi.fn();
-  const app = createApp({ store, startScan, now: () => NOW, ...opts });
+  const cancelScan = vi.fn();
+  const app = createApp({ store, startScan, cancelScan, now: () => NOW, ...opts });
   const postHandle = (h: string, newest?: string) =>
     app.request(`/v1/scout/${encodeURIComponent(h)}${newest === undefined ? "" : `?newest=${newest}`}`, { method: "POST" });
-  return { store, startScan, app, postHandle };
+  return { store, startScan, cancelScan, app, postHandle };
 }
 
 describe("POST /v1/scout/:handle", () => {
@@ -188,5 +189,34 @@ describe("misc routes", () => {
     const { app } = setup();
     const res = await app.request("/health", { headers: { Origin: "https://copayme.test" } });
     expect(res.headers.get("access-control-allow-origin")).toBeNull();
+  });
+});
+
+describe("DELETE /v1/scout/:handle (stop a scan)", () => {
+  const del = (app: ReturnType<typeof setup>["app"], h: string) => app.request(`/v1/scout/${encodeURIComponent(h)}`, { method: "DELETE" });
+
+  it("asks a running scan to stop and answers 202 with its current state", async () => {
+    const { app, cancelScan, postHandle } = setup();
+    await postHandle("lebron"); // starts a scan: the handle is now running
+    const res = await del(app, "@LeBron");
+    expect(res.status).toBe(202);
+    expect((await res.json()).status).toBe("running");
+    expect(cancelScan).toHaveBeenCalledWith("lebron");
+  });
+
+  it("does nothing for a scan that is not running, and is safe to repeat", async () => {
+    const { app, cancelScan, store } = setup();
+    await store.tryLock("lebron", NOW);
+    await store.finishScan("lebron", { newestTweetId: null, xUserId: null, now: NOW, fetched: true });
+    const res = await del(app, "lebron");
+    expect(res.status).toBe(200);
+    await del(app, "lebron");
+    expect(cancelScan).not.toHaveBeenCalled();
+  });
+
+  it("is 404 for a handle never scanned and 400 for an invalid one", async () => {
+    const { app } = setup();
+    expect((await del(app, "nobody")).status).toBe(404);
+    expect((await del(app, "not valid!")).status).toBe(400);
   });
 });

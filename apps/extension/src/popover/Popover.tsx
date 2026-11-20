@@ -4,7 +4,8 @@ import { Gauge, Mark } from "../brand.js";
 import { REFRESH_MESSAGE, isContextInvalidated } from "../context.js";
 import { ArrowUpRightIcon, CheckIcon, ChevronDownIcon, CopyIcon, EyeIcon } from "../icons.js";
 import { SIGNED_OUT, type TradingActions, type TradingState } from "../trading.js";
-import { callRowView, formatAmount, formatTweetTime, parseAmount, profileView } from "./view.js";
+import { TweetCard } from "@copayme/tweet-card";
+import { callRowView, formatAmount, parseAmount, profileView } from "./view.js";
 
 export type PopoverState =
   | { status: "loading" }
@@ -384,7 +385,6 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
 /** One pick. "See tweet" flips the card over to show the tweet's text, instead of leaving the page. */
 function PickRow({ call, handle }: { call: CallEntry; handle: string }) {
   const row = callRowView(call);
-  const when = formatTweetTime(call.tweetedAt);
   const tone = row.points === null ? "none" : row.outcome.kind === "won" ? "won" : row.outcome.kind === "lost" ? "lost" : "none";
 
   const [flipped, setFlipped] = useState(false);
@@ -422,32 +422,22 @@ function PickRow({ call, handle }: { call: CallEntry; handle: string }) {
         </div>
 
         <div className="face back" ref={back} inert={!flipped}>
-          <div className="tweet">
-            <div className="avatar" aria-hidden="true">
-              {handle.charAt(0).toUpperCase()}
-            </div>
-            <div className="tmain">
-              <div className="thead">
-                <b>@{handle}</b>
-                <span>· {when.short}</span>
-              </div>
-              <p className="ttext">{call.tweetText}</p>
-              <div className="tmeta">{when.full}</div>
-            </div>
-          </div>
-          <div className="tfoot">
-            <span>
-              Pick: {row.pick} · {row.price}
-            </span>
-            <span className="acts">
-              <a className="link" href={row.tweetUrl} target="_blank" rel="noopener noreferrer">
-                Open on X ↗
-              </a>
+          <TweetCard
+            handle={handle}
+            text={call.tweetText}
+            postedAt={call.tweetedAt}
+            tweetId={call.tweetId}
+            note={
+              <>
+                Pick: {row.pick} · {row.price}
+              </>
+            }
+            actions={
               <button type="button" className="flipbtn" onClick={() => setFlipped(false)}>
                 Back
               </button>
-            </span>
-          </div>
+            }
+          />
         </div>
       </div>
     </li>

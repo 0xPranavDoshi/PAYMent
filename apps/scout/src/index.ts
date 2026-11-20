@@ -46,11 +46,18 @@ const scanDeps: ScanDeps = {
   model,
 };
 
+/** Handles whose running scan the user asked to stop; the scan checks this between its stages. */
+const stopRequested = new Set<string>();
+
 const app = createApp({
   store,
   startScan: (handle, opts) => {
-    void runScan(handle, scanDeps, opts).catch((e) => console.error(`[scout] scan crashed for ${handle}:`, e));
+    stopRequested.delete(handle);
+    void runScan(handle, scanDeps, { ...opts, shouldStop: () => stopRequested.has(handle) })
+      .catch((e) => console.error(`[scout] scan crashed for ${handle}:`, e))
+      .finally(() => stopRequested.delete(handle));
   },
+  cancelScan: (handle) => void stopRequested.add(handle),
   dailyNewHandles: positiveIntOr(env.SCOUT_DAILY_NEW_HANDLES, 30),
   ...(env.SCOUT_ALLOWED_ORIGIN ? { allowedOrigin: env.SCOUT_ALLOWED_ORIGIN } : {}),
 });

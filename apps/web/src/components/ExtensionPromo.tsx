@@ -1,3 +1,4 @@
+import { TweetCard } from "@copayme/tweet-card";
 import { scoreHue } from "@/lib/format";
 import Mark from "./Mark";
 
@@ -16,21 +17,20 @@ export default function ExtensionPromo() {
           <span className="muted" style={{ fontSize: 13 }}>Coming soon</span>
         </div>
       </div>
-      <article className="xtweet demo" aria-label="Example tweet with a coPAYMe badge">
-        <div className="xt-av" aria-hidden="true">S</div>
-        <div className="xt-body">
-          <div className="xt-head">
-            <b>@sharp_example</b>
-            <span className="xbadge" style={{ ["--h" as string]: scoreHue(82) }}>
-              <Mark />
-              82
-              <i>▲ 16</i>
-            </span>
-            <span>· 3h</span>
-          </div>
-          <p>Bucks −3.5 tonight. Their defence has been the story all week.</p>
-        </div>
-      </article>
+      <TweetCard
+        className="demo"
+        handle="sharp_example"
+        text="Bucks −3.5 tonight. Their defence has been the story all week."
+        postedAt={new Date(Date.now() - 3 * 3_600_000).toISOString()}
+        tweetId="0"
+        afterName={
+          <span className="xbadge" style={{ ["--h" as string]: scoreHue(82) }}>
+            <Mark />
+            82
+            <i>▲ 16</i>
+          </span>
+        }
+      />
     </section>
   );
 }

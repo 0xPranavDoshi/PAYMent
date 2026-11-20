@@ -36,8 +36,16 @@ export interface ScanRequest {
 export type ScanReply =
   /** `badge`: the handle's fresh badge (null: still no score) when the scan finished. */
   | { ok: true; status: "done"; badge: Badge | null }
-  | { ok: true; status: "skipped" | "failed" | "timeout" }
+  | { ok: true; status: "skipped" | "failed" | "timeout" | "stopped" }
   | { ok: false; error: string };
+
+/** Sent when the user presses Stop on a running scan: stop waiting, and tell the scout to stop paying for it. */
+export interface ScanCancelRequest {
+  type: "scan-cancel";
+  handle: string;
+}
+
+export type ScanCancelReply = { ok: true } | { ok: false; error: string };
 
 /** The popover's trading buttons: read or change this user's watch and copy-trade settings for a trader. */
 export type TradingRequest =
@@ -48,4 +56,4 @@ export type TradingRequest =
 
 export type TradingReply = ({ ok: true } & { state?: TradingState }) | { ok: false; error: string };
 
-export type ExtensionRequest = BadgesRequest | ProfileRequest | ScanRequest | TradingRequest;
+export type ExtensionRequest = BadgesRequest | ProfileRequest | ScanRequest | ScanCancelRequest | TradingRequest;

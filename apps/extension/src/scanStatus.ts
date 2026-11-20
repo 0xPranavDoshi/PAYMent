@@ -13,7 +13,9 @@ export type ScanStatus =
   /** Did not finish; the user can try again. */
   | { phase: "failed"; handle: string }
   /** Asked for too recently to ask again. */
-  | { phase: "recent"; handle: string };
+  | { phase: "recent"; handle: string }
+  /** The user pressed Stop. */
+  | { phase: "stopped"; handle: string };
 
 /** The one scan status shown on the page (null: nothing to show). */
 export function createScanStatusStore() {

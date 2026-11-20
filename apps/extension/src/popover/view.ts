@@ -1,4 +1,5 @@
 import { NEW_BADGE_MIN_RESOLVED, type CallEntry, type UserProfile } from "@copayme/shared";
+import { tweetUrl } from "@copayme/shared/tweet-text";
 import { badgeView, type BadgeView } from "../badgeView.js";
 
 /**
@@ -44,7 +45,7 @@ export function callRowView(call: CallEntry): CallRowView {
     price: call.oddsAtCall === null ? "unpriced" : `${Math.round(call.oddsAtCall * 100)}¢`,
     outcome,
     points: call.points === null ? null : formatCents(call.points),
-    tweetUrl: `https://x.com/i/status/${encodeURIComponent(call.tweetId)}`,
+    tweetUrl: tweetUrl(call.tweetId),
   };
 }
 
@@ -97,15 +98,6 @@ export function profileView(profile: UserProfile, now: Date = new Date()): Profi
     lastPick: profile.lastCallAt ? `Last pick ${timeAgo(profile.lastCallAt, now)}` : null,
     note: isNew ? `A score appears after ${NEW_BADGE_MIN_RESOLVED} resolved picks.` : null,
   };
-}
-
-/** A tweet's time the way X writes it: "Nov 19" beside the name, "7:03 AM · Nov 19, 2026" under the text. */
-export function formatTweetTime(iso: string): { short: string; full: string } {
-  const date = new Date(iso);
-  const day = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const time = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-  const year = date.toLocaleDateString("en-US", { year: "numeric" });
-  return { short: day, full: `${time} · ${day}, ${year}` };
 }
 
 /**
