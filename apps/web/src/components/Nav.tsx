@@ -19,6 +19,10 @@ export default async function Nav() {
         <div className="spacer" />
         {signedIn ? (
           <form action={signOut}>
+            <Link href="/portfolio" className="acct" aria-label="Your portfolio">
+              <i>Y</i>
+              <span>You</span>
+            </Link>
             <button className="btn sm" type="submit">Sign out</button>
           </form>
         ) : (
