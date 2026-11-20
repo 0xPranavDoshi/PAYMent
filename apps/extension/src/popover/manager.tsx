@@ -2,7 +2,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { isContextInvalidated } from "../context.js";
 import type { ProfileData, Rank } from "../messages.js";
 import { POPOVER_CSS } from "../styles.js";
-import type { Theme, ThemeStore } from "../theme.js";
+import type { ThemeStore } from "../theme.js";
 import type { TradingActions } from "../trading.js";
 import { Popover, type PopoverState } from "./Popover.js";
 
@@ -32,7 +32,7 @@ export function createPopoverManager(opts: {
   /** Called with each profile the card loads, which is newer than the badge it was opened from. */
   onLoaded?: (handle: string, data: ProfileData) => void;
   webUrl: string;
-  /** Keeps the card in step with X's theme. Without it the card is light. */
+  /** X's page background, used for the ticket's notches. The card itself is always light. */
   theme?: ThemeStore;
   /** What the Watch and Copy trade buttons do. */
   trading?: TradingActions;
@@ -81,9 +81,8 @@ export function createPopoverManager(opts: {
 
     const host = doc.createElement("div");
     host.dataset.copayme = "popover";
-    host.dataset.theme = theme?.get() ?? "light";
     host.style.cssText = "position:fixed;z-index:2147483647;"; // sets the whole style, so anything else goes after it
-    if (theme) host.style.setProperty("--tw-bg", theme.surface());
+    if (theme) host.style.setProperty("--page-bg", theme.surface());
     const shadow = host.attachShadow({ mode: "open" });
     const style = doc.createElement("style");
     style.textContent = POPOVER_CSS;
@@ -167,10 +166,7 @@ export function createPopoverManager(opts: {
         place(host, anchor, side);
       });
     };
-    const stopTheme = theme?.subscribe((next: Theme) => {
-      host.dataset.theme = next;
-      host.style.setProperty("--tw-bg", theme.surface()); // Dim and Lights Out are both dark but not the same colour
-    });
+    const stopTheme = theme?.subscribe(() => host.style.setProperty("--page-bg", theme.surface()));
 
     doc.addEventListener("pointerdown", onPointerDown, true);
     doc.addEventListener("keydown", onKeyDown, true);
