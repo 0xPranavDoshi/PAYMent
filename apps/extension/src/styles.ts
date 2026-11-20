@@ -147,10 +147,10 @@ export const POPOVER_CSS = `
   .delta.down { color: var(--loss); }
   .note { margin: 8px 16px 0; color: var(--ink-2); font-size: 12px; }
 
-  .kv { display: grid; grid-template-columns: repeat(3, 1fr); margin: 14px 16px 0; border: 2px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .kv { display: grid; grid-template-columns: 1fr 1fr 1.35fr; margin: 14px 16px 0; border: 2px solid var(--line); border-radius: 10px; overflow: hidden; }
   .kv > div { min-width: 0; padding: 8px 10px; }
   .kv > div + div { border-left: 2px solid var(--line); }
-  .kv > div > span { display: block; font: 700 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+  .kv > div > span { display: block; font: 700 10px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
   .kv b { display: block; margin-top: 5px; font: 800 18px/1.2 var(--font); font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; }
   .kv .w { color: var(--win); }
   .kv .l { color: var(--loss); }
@@ -172,10 +172,12 @@ export const POPOVER_CSS = `
   .tweetcard-acts .flipbtn:hover { color: var(--tw-ink); }
   .front { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 10px 0; }
   .pick .t { font: 700 13.5px/1.3 var(--font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pick .s { display: flex; gap: 8px; align-items: baseline; margin-top: 2px; font: 500 11.5px/1.3 var(--mono); color: var(--ink-2); }
-  .pick .s > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* The pick and price, with its links (See tweet, View market) on a line of their own below. */
+  .pick .s { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; margin-top: 2px; font: 500 11.5px/1.3 var(--mono); color: var(--ink-2); }
+  .pick .s > span { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .flipbtn { all: unset; cursor: pointer; flex: none; color: var(--ink-3); font: 600 11.5px/1.3 var(--font); text-decoration: underline; text-underline-offset: 2px; }
   .flipbtn:hover { color: var(--ink); }
+  .rowlinks { display: inline-flex; gap: 12px; align-items: baseline; white-space: nowrap; }
   .pts { font: 700 14px/1 var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
   .pts.won { color: var(--win); }
   .pts.lost { color: var(--loss); }

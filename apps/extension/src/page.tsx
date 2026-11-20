@@ -1,4 +1,4 @@
-import type { Badge as BadgeData, BadgesResponse } from "@copayme/shared";
+import { MAX_BADGE_HANDLES, badgeFromProfile, type Badge as BadgeData, type BadgesResponse } from "@copayme/shared";
 import { createRoot, type Root } from "react-dom/client";
 import type { ProfileData, Rank } from "./messages.js";
 import { createPopoverManager } from "./popover/manager.js";
@@ -34,6 +34,11 @@ export interface StartOptions {
    * sports picks, so the user chooses. Without it, there is no scan button.
    */
   scan?: (handle: string, newestTweetId: string | null, opts?: { force?: boolean }) => Promise<ScanResult>;
+  /**
+   * Hands the page a function to call when another tab's scan produced a new badge for a handle; returns
+   * how to stop listening. Without it, a scan in one tab does not update the badges in the others.
+   */
+  subscribeBadgeUpdates?: (apply: (handle: string, badge: BadgeData | null) => void) => () => void;
   /** Tells the scout to stop a running scan (the user pressed Stop). Without it, Stop only stops waiting. */
   cancelScan?: (handle: string) => Promise<void>;
   /**
@@ -43,6 +48,8 @@ export interface StartOptions {
   timelineWaitMs?: number;
   timelinePollMs?: number;
   timelineSettleMs?: number;
+  /** How often the badges on screen are checked against the API again (a score changes when picks settle). */
+  revalidateMs?: number;
 }
 
 /** What a scan reports back to the page. */
@@ -59,12 +66,29 @@ export function startBadges({
   delayMs = 150,
   scan,
   cancelScan,
+  subscribeBadgeUpdates,
   timelineWaitMs = 4000,
   timelinePollMs = 250,
   timelineSettleMs = 500,
+  revalidateMs = 60_000,
 }: StartOptions): () => void {
   const store = createBadgeStore();
   const scanStatus = createScanStatusStore();
+  /** How many badges for each handle are on the page right now. */
+  const onScreen = new Map<string, number>();
+
+  /**
+   * Shows a newer badge for a handle (from another tab's scan, a re-check, or a card that just loaded the
+   * profile). It never touches a scan in progress, never replaces a score with "no data", and does nothing
+   * when the badge is unchanged, so badges do not redraw for no reason.
+   */
+  function applyBadge(rawHandle: string, badge: BadgeData | null): void {
+    const handle = rawHandle.toLowerCase();
+    const now = store.get(handle);
+    if (now === "scanning" || badge === null) return;
+    if (typeof now === "object" && now !== null && JSON.stringify(now) === JSON.stringify(badge)) return;
+    store.set(handle, badge);
+  }
   const requested = new Set<string>();
   const mounted = new WeakMap<Element, { host: HTMLElement; root: Root; handle: string }>();
   const roots = new Set<Root>();
@@ -83,10 +107,21 @@ export function startBadges({
         theme,
         trading,
         doc,
+        // A card that just loaded the profile knows a newer score than the badge it was opened from.
+        onLoaded: (h: string, data: ProfileData) => {
+          if (data.profile) applyBadge(h, badgeFromProfile(data.profile));
+        },
         // The card's Rescan button: scan this handle again now (startScan is hoisted).
         ...(scan ? { rescan: (h: string) => void startScan(h, { force: true }) } : {}),
       })
     : null;
+
+  // A scan in another tab (or this one) produced a new badge: show it here too, and re-read an open card.
+  const unsubscribeUpdates = subscribeBadgeUpdates?.((rawHandle, badge) => {
+    if (stopped) return;
+    applyBadge(rawHandle, badge);
+    popover?.refresh(rawHandle.toLowerCase());
+  });
 
   const batcher = createBatcher(async (handles) => {
     try {
@@ -135,6 +170,7 @@ export function startBadges({
     );
     mounted.set(article, { host, root, handle });
     roots.add(root);
+    onScreen.set(handle, (onScreen.get(handle) ?? 0) + 1);
 
     if (store.get(handle) === undefined && !requested.has(handle)) {
       requested.add(handle);
@@ -147,6 +183,9 @@ export function startBadges({
     if (!entry) return;
     entry.root.unmount();
     roots.delete(entry.root);
+    const left = (onScreen.get(entry.handle) ?? 1) - 1;
+    if (left <= 0) onScreen.delete(entry.handle);
+    else onScreen.set(entry.handle, left);
     entry.host.remove();
     hosts.delete(entry.host);
     mounted.delete(article);
@@ -181,6 +220,34 @@ export function startBadges({
     }
     refreshProfileHeaders();
   });
+  /**
+   * A score changes whenever picks settle, and nothing tells this page. Without this, a badge kept the
+   * value from its first lookup until the tab was reloaded. Every so often (and when you return to the
+   * tab) the badges on screen are looked up again, and any that changed are updated.
+   */
+  let revalidating = false;
+  async function revalidate() {
+    if (stopped || revalidating || doc.visibilityState === "hidden") return;
+    revalidating = true;
+    try {
+      const handles = [...onScreen.keys()];
+      for (let i = 0; i < handles.length; i += MAX_BADGE_HANDLES) {
+        const chunk = handles.slice(i, i + MAX_BADGE_HANDLES);
+        const fresh = await lookup(chunk);
+        if (stopped) return;
+        for (const handle of chunk) applyBadge(handle, fresh[handle] ?? null);
+      }
+    } catch (err) {
+      if (isContextInvalidated(err)) stopAll();
+      // anything else: keep what is shown and try again at the next check
+    } finally {
+      revalidating = false;
+    }
+  }
+  const revalidateTimer = setInterval(() => void revalidate(), revalidateMs);
+  const onVisible = () => void revalidate();
+  doc.addEventListener("visibilitychange", onVisible);
+
   // X also changes pages without touching the header's own nodes, so check the address too.
   let lastPath = doc.defaultView?.location.pathname ?? "";
   const pathTimer = setInterval(() => {
@@ -246,6 +313,7 @@ export function startBadges({
         result = { status: "failed" };
       }
       if (!isCurrent()) return; // the user stopped it (and may have started another): ignore this result
+      popover?.refresh(handle); // the scan may have stored picks: an open card must not keep showing the old ones
       if (result.status === "done" && result.badge) {
         store.set(handle, result.badge);
         scanStatus.set({ phase: "done", handle, badge: result.badge });
@@ -302,6 +370,9 @@ export function startBadges({
     stopped = true;
     observer.disconnect();
     clearInterval(pathTimer);
+    clearInterval(revalidateTimer);
+    doc.removeEventListener("visibilitychange", onVisible);
+    unsubscribeUpdates?.();
     popover?.close();
     scanRoot?.unmount();
     scanHost?.remove();

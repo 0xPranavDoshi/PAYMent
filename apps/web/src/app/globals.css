@@ -228,6 +228,12 @@ a.who:hover { color: var(--ember); }
 .seetweet { all: unset; cursor: pointer; margin-top: 8px; font: 700 12.5px var(--font); color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
 .seetweet:hover { color: var(--ink); }
 .seetweet:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
+/* "See tweet" and "View market ↗" side by side under a pick */
+.pickacts { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+.marketlink { margin-left: 12px; font: 700 12.5px var(--font); color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.pickacts .marketlink { margin-left: 0; }
+.marketlink:hover { color: var(--ink); }
+.marketlink:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
 /* the shared tweet card (@copayme/tweet-card) defaults to X's dark theme; light follows the system */
 .tweetcard { --tweetcard-accent: var(--ember); }
 .tweetcard { --tweetcard-bg: #fff; --tweetcard-ink: #0f1419; --tweetcard-ink-2: #536471; --tweetcard-line: #eff3f4; --tweetcard-avatar: #eff3f4; --tweetcard-avatar-ink: #536471; }

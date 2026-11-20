@@ -44,3 +44,45 @@ export const ocSetOptIn = (userId: string, optIn: boolean) =>
 
 export const ocRedeem = (userId: string, amountUsdc?: number) =>
   call<RedeemResponse>("/v1/redeem", { method: "POST", body: JSON.stringify(amountUsdc ? { amountUsdc } : {}) }, userId);
+
+// ── Daily revenue share (admin) ──────────────────────────────────────────────
+
+export interface PayoutLine {
+  creatorId: string;
+  creatorHandle: string;
+  tails: number;
+  followerProfitUsdc: number;
+  feeUsdc: number;
+  credited: boolean;
+}
+export interface PayoutPreview {
+  day: string;
+  alreadyRanToday: boolean;
+  feeRate: number;
+  tails: number;
+  followerProfitUsdc: number;
+  feeTotalUsdc: number;
+  feeCreditedUsdc: number;
+  feeRetainedUsdc: number;
+  lines: PayoutLine[];
+}
+export interface PayoutRun {
+  id: string;
+  day: string;
+  runBy: string;
+  tails: number;
+  followerProfitUsdc: number;
+  feeTotalUsdc: number;
+  feeCreditedUsdc: number;
+  feeRetainedUsdc: number;
+  createdAt: string;
+}
+
+export const ocPayoutPreview = () => call<PayoutPreview>("/v1/payouts/preview", { method: "POST" });
+export const ocPayoutRun = (runBy: string) =>
+  call<PayoutPreview & { ran: boolean; reason?: string; runId?: string }>("/v1/payouts/run", {
+    method: "POST",
+    body: JSON.stringify({ runBy }),
+  });
+export const ocPayoutRuns = () => call<PayoutRun[]>("/v1/payouts/runs");
+export const ocTreasury = () => call<{ provider: string; balanceUsdc: number | null }>("/v1/treasury");

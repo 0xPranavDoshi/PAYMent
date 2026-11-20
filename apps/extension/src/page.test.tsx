@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { BadgesResponse } from "@copayme/shared";
+import type { BadgesResponse, CallEntry, UserProfile } from "@copayme/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { startBadges, type ScanResult } from "./page.js";
 
@@ -453,5 +453,193 @@ describe("when the extension is reloaded under an open page", () => {
     stop();
     stop();
     expect(document.querySelectorAll("[data-copayme=badge]")).toHaveLength(0);
+  });
+});
+
+describe("a scan elsewhere updates this page", () => {
+  let stop: () => void;
+  afterEach(() => stop?.());
+  const badge = { score: 72, change14d: 8, tier: "scored" as const, nResolved: 42, hitRate: 0.69 };
+  const fresh = { score: 80, change14d: 8, tier: "scored" as const, nResolved: 44, hitRate: 0.7 };
+  const profile = (handle: string): UserProfile => ({ ...badge, handle, nWins: 29, skill: 0.1, lastCallAt: null, updatedAt: "2026-11-19T12:00:00.000Z", latestSnapshot: null });
+  const call = (n: number): CallEntry => ({
+    callId: `00000000-0000-4000-8000-00000000000${n}`, tweetId: `100${n}`, tweetText: `Tweet ${n}`, tweetedAt: "2026-11-19T12:03:00.000Z",
+    eventName: `Game ${n}`, pickLabel: "UConn", side: "yes", oddsAtCall: 0.62, oddsSource: "snapshot", status: "pending", result: null, points: null,
+  });
+  const texts = () => [...document.querySelectorAll<HTMLElement>("[data-copayme=badge]")].map((h) => h.shadowRoot?.querySelector(".pill")?.textContent ?? "");
+  const cardText = () => document.querySelector("[data-copayme=popover]")?.shadowRoot?.querySelector(".card")?.textContent ?? "";
+  const tweet = (handle: string) => `<article data-testid="tweet"><div data-testid="User-Name"><div><a href="/${handle}"><span>N</span></a></div><div><a href="/${handle}"><span>@${handle}</span></a></div></div></article>`;
+
+  function mountWith(extra: Parameters<typeof startBadges>[0] extends infer O ? Partial<O> : never) {
+    document.body.innerHTML = `<main>${tweet("alice")}${tweet("bob")}</main>`;
+    let apply!: (handle: string, badge: typeof fresh | null) => void;
+    let unsubscribed = false;
+    stop = startBadges({
+      lookup: async (hs) => Object.fromEntries(hs.map((h) => [h, badge])) as BadgesResponse,
+      delayMs: 5,
+      subscribeBadgeUpdates: (fn) => {
+        apply = fn;
+        return () => void (unsubscribed = true);
+      },
+      ...extra,
+    });
+    return { apply: (h: string, b: typeof fresh | null) => apply(h, b), isUnsubscribed: () => unsubscribed };
+  }
+
+  it("shows a badge another tab's scan produced, for that handle only", async () => {
+    const t = mountWith({});
+    await vi.waitFor(() => expect(texts()).toEqual(["72▲8", "72▲8"]));
+    t.apply("Alice", fresh); // the handle arrives in any case
+    await vi.waitFor(() => expect(texts()).toEqual(["80▲8", "72▲8"]));
+  });
+
+  it("ignores an update that carries no badge", async () => {
+    const t = mountWith({});
+    await vi.waitFor(() => expect(texts()).toEqual(["72▲8", "72▲8"]));
+    t.apply("alice", null);
+    expect(texts()).toEqual(["72▲8", "72▲8"]);
+  });
+
+  it("does not overwrite a handle this tab is scanning right now", async () => {
+    (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM.setURL("https://x.com/dana");
+    document.body.innerHTML = '<main><div data-testid="UserName"><div><span>Dana</span></div><div><span>@dana</span></div></div></main>';
+    let apply!: (handle: string, b: typeof fresh | null) => void;
+    stop = startBadges({
+      lookup: async () => ({ dana: null }),
+      scan: () => new Promise(() => {}), // a scan that never ends
+      delayMs: 5,
+      timelineWaitMs: 20,
+      timelinePollMs: 5,
+      timelineSettleMs: 5,
+      subscribeBadgeUpdates: (fn) => ((apply = fn), () => {}),
+    });
+    const pill = () => document.querySelector("[data-copayme=badge]")?.shadowRoot?.querySelector<HTMLButtonElement>(".pill");
+    await vi.waitFor(() => expect(pill()?.textContent).toBe("Scan picks"));
+    pill()!.click();
+    await vi.waitFor(() => expect(pill()?.textContent).toMatch(/^Scanning…/));
+    apply("dana", fresh); // another tab finished a scan of the same handle
+    await new Promise((r) => setTimeout(r, 30));
+    expect(pill()?.textContent).toMatch(/^Scanning…/); // this tab's own scan keeps its state
+  });
+
+  it("re-reads an open card, so new picks show without closing and reopening it", async () => {
+    let picks = 1;
+    const loadProfile = vi.fn(async () => ({ profile: profile("alice"), calls: Array.from({ length: picks }, (_, i) => call(i + 1)) }));
+    const t = mountWith({ loadProfile });
+    await vi.waitFor(() => expect(texts()[0]).toBe("72▲8"));
+    document.querySelector("[data-copayme=badge]")!.shadowRoot!.querySelector<HTMLButtonElement>(".pill")!.click();
+    await vi.waitFor(() => expect(cardText()).toContain("Game 1"));
+    expect(cardText()).not.toContain("Game 2");
+
+    picks = 2; // another scan stored a second pick
+    t.apply("alice", fresh);
+    await vi.waitFor(() => expect(cardText()).toContain("Game 2"));
+    expect(loadProfile).toHaveBeenCalledTimes(2);
+
+    t.apply("bob", fresh); // a card open for alice does not re-read for bob
+    await new Promise((r) => setTimeout(r, 30));
+    expect(loadProfile).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops listening when the page stops", async () => {
+    const t = mountWith({});
+    await vi.waitFor(() => expect(texts()).toHaveLength(2));
+    stop();
+    expect(t.isUnsubscribed()).toBe(true);
+  });
+});
+
+describe("badges stay current while the page is open", () => {
+  let stop: () => void;
+  afterEach(() => {
+    stop?.();
+    delete (document as unknown as { visibilityState?: string }).visibilityState;
+  });
+  const at = (score: number) => ({ score, change14d: null, tier: "scored" as const, nResolved: 6, hitRate: 0.83 });
+  const tweet = (handle: string) => `<article data-testid="tweet"><div data-testid="User-Name"><div><a href="/${handle}"><span>N</span></a></div><div><a href="/${handle}"><span>@${handle}</span></a></div></div></article>`;
+  const texts = () => [...document.querySelectorAll<HTMLElement>("[data-copayme=badge]")].map((h) => h.shadowRoot?.querySelector(".pill")?.textContent ?? "");
+  const setVisibility = (state: "hidden" | "visible") =>
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => state });
+
+  it("picks up a score that changed since the badge was first shown, with no reload", async () => {
+    document.body.innerHTML = `<main>${tweet("mugdha")}</main>`;
+    let score = 50;
+    const lookup = vi.fn(async (hs: string[]): Promise<BadgesResponse> => Object.fromEntries(hs.map((h) => [h, at(score)])));
+    stop = startBadges({ lookup, delayMs: 5, revalidateMs: 25 });
+    await vi.waitFor(() => expect(texts()).toEqual(["50"]));
+    score = 60; // the scoring worker settled a pick; nothing told this page
+    await vi.waitFor(() => expect(texts()).toEqual(["60"]), { timeout: 2_000 });
+  });
+
+  it("re-checks only the handles that are on the page now", async () => {
+    document.body.innerHTML = `<main>${tweet("alice")}${tweet("bob")}</main>`;
+    const lookup = vi.fn(async (hs: string[]): Promise<BadgesResponse> => Object.fromEntries(hs.map((h) => [h, at(50)])));
+    stop = startBadges({ lookup, delayMs: 5, revalidateMs: 25 });
+    await vi.waitFor(() => expect(texts()).toEqual(["50", "50"]));
+    document.querySelectorAll("article")[1]!.remove(); // bob's tweet scrolled away
+    lookup.mockClear();
+    await vi.waitFor(() => expect(lookup).toHaveBeenCalled(), { timeout: 2_000 });
+    expect(lookup.mock.calls.every(([hs]) => hs.length === 1 && hs[0] === "alice")).toBe(true);
+  });
+
+  it("never replaces a score with 'no data', and keeps the badge when a re-check fails", async () => {
+    document.body.innerHTML = `<main>${tweet("mugdha")}</main>`;
+    let mode: "same" | "unknown" | "fail" = "same";
+    const lookup = vi.fn(async (hs: string[]): Promise<BadgesResponse> => {
+      if (mode === "fail") throw new Error("api down");
+      return Object.fromEntries(hs.map((h) => [h, mode === "unknown" ? null : at(50)]));
+    });
+    stop = startBadges({ lookup, delayMs: 5, revalidateMs: 20 });
+    await vi.waitFor(() => expect(texts()).toEqual(["50"]));
+    for (const next of ["unknown", "fail"] as const) {
+      mode = next;
+      const before = lookup.mock.calls.length;
+      await vi.waitFor(() => expect(lookup.mock.calls.length).toBeGreaterThan(before + 1), { timeout: 2_000 });
+      expect(texts()).toEqual(["50"]);
+    }
+  });
+
+  it("does not ask while the tab is hidden, and checks straight away when it becomes visible", async () => {
+    document.body.innerHTML = `<main>${tweet("mugdha")}</main>`;
+    let score = 50;
+    const lookup = vi.fn(async (hs: string[]): Promise<BadgesResponse> => Object.fromEntries(hs.map((h) => [h, at(score)])));
+    stop = startBadges({ lookup, delayMs: 5, revalidateMs: 20 });
+    await vi.waitFor(() => expect(texts()).toEqual(["50"]));
+    setVisibility("hidden");
+    await new Promise((r) => setTimeout(r, 40));
+    const whileHidden = lookup.mock.calls.length;
+    score = 60;
+    await new Promise((r) => setTimeout(r, 80));
+    expect(lookup.mock.calls.length).toBe(whileHidden); // no requests from a tab nobody is looking at
+    expect(texts()).toEqual(["50"]);
+
+    setVisibility("visible");
+    document.dispatchEvent(new Event("visibilitychange")); // the user came back
+    await vi.waitFor(() => expect(texts()).toEqual(["60"]), { timeout: 2_000 });
+  });
+
+  it("stops re-checking when the page stops", async () => {
+    document.body.innerHTML = `<main>${tweet("mugdha")}</main>`;
+    const lookup = vi.fn(async (hs: string[]): Promise<BadgesResponse> => Object.fromEntries(hs.map((h) => [h, at(50)])));
+    stop = startBadges({ lookup, delayMs: 5, revalidateMs: 15 });
+    await vi.waitFor(() => expect(texts()).toEqual(["50"]));
+    stop();
+    const after = lookup.mock.calls.length;
+    await new Promise((r) => setTimeout(r, 80));
+    expect(lookup.mock.calls.length).toBe(after);
+  });
+
+  it("opening the card updates a badge that is behind the profile it loads", async () => {
+    document.body.innerHTML = `<main>${tweet("mugdha")}</main>`;
+    const profile: UserProfile = { ...at(60), handle: "mugdha", nWins: 5, skill: 0.03, lastCallAt: null, updatedAt: "2026-11-19T12:00:00.000Z", latestSnapshot: null };
+    stop = startBadges({
+      lookup: async (hs) => Object.fromEntries(hs.map((h) => [h, at(50)])) as BadgesResponse, // an out-of-date badge
+      loadProfile: async () => ({ profile, calls: [] }),
+      delayMs: 5,
+      revalidateMs: 60_000, // so only the card can fix it
+    });
+    await vi.waitFor(() => expect(texts()).toEqual(["50"]));
+    document.querySelector("[data-copayme=badge]")!.shadowRoot!.querySelector<HTMLButtonElement>(".pill")!.click();
+    await vi.waitFor(() => expect(texts()).toEqual(["60"])); // the badge now agrees with the card
   });
 });

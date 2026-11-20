@@ -73,4 +73,11 @@ export interface RankRequest {
 /** Null when the handle is not on the leaderboard, or the leaderboard could not be read. */
 export type RankReply = Rank | null;
 
+/** Background worker to every x.com tab: a scan finished and this is the handle's fresh badge. */
+export interface BadgeUpdatedMessage {
+  type: "badge-updated";
+  handle: string;
+  badge: Badge | null;
+}
+
 export type ExtensionRequest = BadgesRequest | ProfileRequest | ScanRequest | ScanCancelRequest | TradingRequest | RankRequest;

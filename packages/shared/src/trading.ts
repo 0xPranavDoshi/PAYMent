@@ -31,6 +31,8 @@ export const TailResponse = z.object({
   settledAt: z.string().datetime().nullable().optional(),
   // What the trade was on, so a portfolio can say more than an id. Only on the portfolio endpoint.
   eventName: z.string().optional(),
+  /** The market's Gemini event ticker, for a link to the market (`marketUrl()`). */
+  marketTicker: z.string().optional(),
   pickLabel: z.string().nullable().optional(),
   side: z.enum(["yes", "no"]).nullable().optional(),
   traderHandle: z.string().optional(),

@@ -1,4 +1,5 @@
 import Page from "@/components/Page";
+import { marketUrl } from "@copayme/shared/market";
 import Link from "next/link";
 import { fetchCopyTrades, fetchLeaderboard, fetchTails } from "@/lib/api";
 import { formatSignedPct, formatUsd, shortDate, tone } from "@/lib/format";
@@ -14,13 +15,15 @@ export default async function PortfolioPage() {
   const followerId = await getFollowerId();
   if (!followerId) return <SignInPrompt title="Your portfolio" body="Sign in to see the trades you have copied and how they are doing." />;
 
+  // Only trades placed by copy trading. Watching a trader also records $1 tracking trades (they feed the
+  // Watchlist's projected P&L), but those are not trades you are making and do not belong here.
   let tails: Awaited<ReturnType<typeof fetchTails>> = [];
   let copies: Awaited<ReturnType<typeof fetchCopyTrades>> = [];
   let error: string | null = null;
   const board = await fetchLeaderboard().catch(() => []);
   const byHandle = new Map(board.map((e) => [e.handle.toLowerCase(), e]));
   try {
-    [tails, copies] = await Promise.all([fetchTails(followerId), fetchCopyTrades(followerId)]);
+    [tails, copies] = await Promise.all([fetchTails(followerId, "copy"), fetchCopyTrades(followerId)]);
   } catch (e) {
     error = e instanceof Error ? e.message : "Could not load your portfolio.";
   }
@@ -41,9 +44,9 @@ export default async function PortfolioPage() {
     });
 
   return (
-    <Page>
+    <Page live>
       <h1 className="pt">Portfolio</h1>
-      <p className="psub">Trades from the traders you copy and watch.</p>
+      <p className="psub">Trades from the traders you copy.</p>
 
       {error ? (
         <p className="down" style={{ marginTop: 20 }}>{error}</p>
@@ -91,7 +94,7 @@ export default async function PortfolioPage() {
           <div className="sech"><h2 className="h2">Trades</h2></div>
           <div className="card hm-rows pf-rows">
             {tails.length === 0 ? (
-              <div className="empty">No trades yet. They appear when a trader you copy or watch posts a new pick.</div>
+              <div className="empty">No trades yet. They appear when a trader you copy posts a new pick.</div>
             ) : (
               tails.map((t, i) => {
                 const pnl = pnlOf(t);
@@ -99,7 +102,14 @@ export default async function PortfolioPage() {
                 return (
                   <div className={`r${i === 0 ? " flush" : ""}`} key={t.tailId}>
                     <div>
-                      <div className="t">{t.eventName ?? "Trade"}</div>
+                      <div className="t">
+                        {t.eventName ?? "Trade"}
+                        {t.marketTicker && (
+                          <a className="marketlink" href={marketUrl(t.marketTicker)} target="_blank" rel="noopener noreferrer" aria-label={`View ${t.eventName ?? "this market"} on Gemini (opens in a new tab)`}>
+                            View market ↗
+                          </a>
+                        )}
+                      </div>
                       <div className="s mono">
                         {t.traderHandle ? `@${t.traderHandle} · ` : ""}
                         {t.pickLabel ?? ""}{t.side ? ` · ${t.side.toUpperCase()}` : ""} · bought {Math.round(t.entryOdds * 100)}¢

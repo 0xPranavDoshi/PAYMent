@@ -1,10 +1,13 @@
 import { Badge } from "@copayme/shared";
 import { z } from "zod";
 
-/** A known handle's badge is reused for this long. */
-export const BADGE_TTL_MS = 10 * 60_000;
-/** A handle we have no data on is reused longer: it is the common case and changes rarely. */
-export const NEGATIVE_TTL_MS = 30 * 60_000;
+/**
+ * A known handle's badge is reused for this long. A score changes whenever the scoring worker settles a
+ * pick, which nothing tells the extension about, so this is kept short (the API itself caches 60 s).
+ */
+export const BADGE_TTL_MS = 45_000;
+/** A handle we have no data on is reused a little longer: it is the common case, but a scan can change it. */
+export const NEGATIVE_TTL_MS = 3 * 60_000;
 /** Expired entries are kept this long, to show something if the API is down. */
 export const STALE_MAX_MS = 24 * 60 * 60_000;
 

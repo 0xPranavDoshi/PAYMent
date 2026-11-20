@@ -36,7 +36,14 @@ describe("callRowView", () => {
       outcome: { kind: "won", text: "Won" },
       points: "+38¢",
       tweetUrl: "https://x.com/i/status/1001",
+      marketUrl: null, // this fixture has no market ticker
     });
+  });
+
+  it("links to the pick's market on Gemini when the ticker is known", () => {
+    expect(callRowView(call({ marketTicker: "NCAAM-2611200300-ETAM-CAL-S" })).marketUrl).toBe(
+      "https://www.gemini.com/predictions/NCAAM-2611200300-ETAM-CAL-S",
+    );
   });
 
   it("shows a lost NO pick with negative points", () => {

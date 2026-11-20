@@ -162,7 +162,7 @@ describe("GET /v1/users/:id/tails — portfolio with live PnL", () => {
     // tail B: 10 * (0.70 - 0.4) / 0.4 = 7.5
     expect(body[1]).toMatchObject({ realized: false, markPrice: 0.7, unrealizedPnlUsdc: 7.5 });
     // each trade says what it was on and whose pick it copied
-    expect(body[0]).toMatchObject({ eventName: "UConn vs Arizona", pickLabel: "UConn", side: "yes", traderHandle: "sharp" });
+    expect(body[0]).toMatchObject({ eventName: "UConn vs Arizona", marketTicker: "NCAAM-UCONN", pickLabel: "UConn", side: "yes", traderHandle: "sharp" });
     expect(body[2]).toMatchObject({ eventName: "UConn vs Arizona", traderHandle: "sharp" });
     // settled tail keeps its persisted pnl
     expect(body[2]).toMatchObject({ realized: true, pnlUsdc: 5, exitOdds: 1 });
@@ -181,5 +181,40 @@ describe("GET /v1/users/:id/tails — portfolio with live PnL", () => {
     expect(store.listUserTailsForPnl).toHaveBeenCalledWith(USER_ID, undefined);
     // stored 0.6: pnl = 10 * (0.6 - 0.5) / 0.5 = 2.0
     expect(body[0]).toMatchObject({ realized: false, markPrice: 0.6, unrealizedPnlUsdc: 2 });
+  });
+  it("passes ?source=copy to the store, which is how the portfolio leaves out watch trades", async () => {
+    const store = { listUserTailsForPnl: vi.fn(async () => []) };
+    const app = createApp({
+      store: store as unknown as TradingStore,
+      gemini: { getEvent: vi.fn() } as unknown as GeminiClient,
+      serviceKey: "k",
+    });
+    await app.request(`/v1/users/${USER_ID}/tails?source=copy`);
+    expect(store.listUserTailsForPnl).toHaveBeenCalledWith(USER_ID, "copy");
+  });
+
+  it("a 0 quote is no price: it is not used as the mark, so no -100% appears", async () => {
+    const rows = [ctxRow({ id: TAIL_ID, entryOdds: 0.675, amountUsdc: 10 }, { storedMarkPrice: 0 })];
+    const gemini = { getEvent: vi.fn(async () => { throw new Error("down"); }) };
+    const store = { listUserTailsForPnl: vi.fn(async () => rows) };
+    const app = createApp({ store: store as unknown as TradingStore, gemini: gemini as unknown as GeminiClient, serviceKey: "k" });
+    const res = await app.request(`/v1/users/${USER_ID}/tails`);
+    expect(res.status).toBe(200);
+    expect((await res.json())[0]).toMatchObject({ markPrice: null, unrealizedPnlUsdc: null });
+  });
+
+  it("a trade stored with an entry price of 0 does not fail the whole list", async () => {
+    const rows = [
+      ctxRow({ id: TAIL_ID, entryOdds: 0, amountUsdc: 10 }, { storedMarkPrice: 0.6 }),
+      ctxRow({ id: "33333333-3333-4333-8333-333333333333", entryOdds: 0.5, amountUsdc: 10 }, { storedMarkPrice: 0.6 }),
+    ];
+    const gemini = { getEvent: vi.fn(async () => { throw new Error("down"); }) };
+    const store = { listUserTailsForPnl: vi.fn(async () => rows) };
+    const app = createApp({ store: store as unknown as TradingStore, gemini: gemini as unknown as GeminiClient, serviceKey: "k" });
+    const res = await app.request(`/v1/users/${USER_ID}/tails`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body[0]).toMatchObject({ unrealizedPnlUsdc: null });
+    expect(body[1]).toMatchObject({ unrealizedPnlUsdc: 2 });
   });
 });

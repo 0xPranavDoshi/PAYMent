@@ -1,4 +1,5 @@
 import Page from "@/components/Page";
+import { marketUrl } from "@copayme/shared/market";
 import Link from "next/link";
 import { fetchCopyTrades, fetchLeaderboard, fetchTraderCalls, fetchTraderProfile, fetchWatches } from "@/lib/api";
 import { rankOf } from "@/lib/leaderboard";
@@ -16,7 +17,7 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
   const profile = await fetchTraderProfile(handle);
   if (!profile) {
     return (
-      <Page>
+      <Page live>
         <div className="narrow" style={{ marginTop: 40 }}>
           <h1 className="ptitle">We haven&apos;t scored @{handle.replace(/^@/, "")} yet</h1>
           <p className="muted" style={{ marginTop: 10 }}>
@@ -49,7 +50,7 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
   const edgeCents = Math.round(profile.skill * 100);
 
   return (
-    <Page>
+    <Page live>
       <ProfileHead
         handle={profile.handle}
         copy={copy}
@@ -123,6 +124,7 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
                 result={result}
                 tweetText={c.tweetText}
                 tweetId={c.tweetId}
+                marketUrl={c.marketTicker ? marketUrl(c.marketTicker) : undefined}
                 postedAt={c.tweetedAt}
               />
             );

@@ -21,7 +21,7 @@ export default async function LeaderboardPage() {
   for (const c of copyTrades) copies[c.traderHandle.toLowerCase()] = { active: c.active, amountUsdc: c.amountUsdc, since: c.createdAt };
 
   return (
-    <Page>
+    <Page live>
       <h1 className="pt">Leaderboard</h1>
       <p className="psub">Traders ranked by score: how far their picks beat the market&apos;s odds.</p>
       {error ? (

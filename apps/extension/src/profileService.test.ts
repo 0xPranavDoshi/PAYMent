@@ -38,3 +38,35 @@ describe("createProfileService", () => {
     await expect(service.get("alice")).resolves.toEqual(data(1));
   });
 });
+
+describe("createProfileService: evict", () => {
+  it("forgets a handle so the next get reads the new picks, and leaves other handles cached", async () => {
+    let picks = 1;
+    const fetchProfileData = vi.fn(async () => data(picks));
+    const service = createProfileService({ fetchProfileData });
+    expect((await service.get("alice")).calls).toHaveLength(1);
+    await service.get("bob");
+    picks = 3; // a scan stored two more picks
+    expect((await service.get("alice")).calls).toHaveLength(1); // still the cached copy
+    service.evict("alice");
+    expect((await service.get("alice")).calls).toHaveLength(3);
+    await service.get("bob");
+    expect(fetchProfileData).toHaveBeenCalledTimes(3); // alice twice, bob once
+  });
+
+  it("does not cache the answer to a request that started before the eviction", async () => {
+    const releases: ((d: ProfileData) => void)[] = [];
+    const fetchProfileData = vi.fn(() => new Promise<ProfileData>((r) => releases.push(r)));
+    const service = createProfileService({ fetchProfileData });
+    const before = service.get("alice"); // in flight: will answer with the old picks
+    service.evict("alice"); // the scan finished meanwhile
+    const after = service.get("alice"); // a fresh request, not the stale one
+    expect(fetchProfileData).toHaveBeenCalledTimes(2);
+    releases[0]!(data(1)); // the stale answer arrives late
+    releases[1]!(data(3));
+    expect((await before).calls).toHaveLength(1);
+    expect((await after).calls).toHaveLength(3);
+    expect((await service.get("alice")).calls).toHaveLength(3); // cached the new one, not the stale one
+    expect(fetchProfileData).toHaveBeenCalledTimes(2);
+  });
+});

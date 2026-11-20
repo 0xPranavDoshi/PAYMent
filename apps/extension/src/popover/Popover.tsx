@@ -142,7 +142,7 @@ function Summary({ profile, calls, rank }: { profile: UserProfile; calls: CallEn
           <b>{view.hitRate}</b>
         </div>
         <div title="Average cents per $1 contract beyond the market price, shrunk for small samples">
-          <span>Edge</span>
+          <span>Edge per pick</span>
           <b className={view.edgeTone === "none" ? undefined : view.edgeTone === "up" ? "w" : "l"}>{view.edge}</b>
         </div>
       </div>
@@ -473,9 +473,16 @@ function PickRow({ call, handle }: { call: CallEntry; handle: string }) {
               <span>
                 {row.pick} · {row.price}
               </span>
-              <button type="button" className="flipbtn" onClick={() => setFlipped(true)}>
-                See tweet
-              </button>
+              <span className="rowlinks">
+                <button type="button" className="flipbtn" onClick={() => setFlipped(true)}>
+                  See tweet
+                </button>
+                {row.marketUrl && (
+                  <a className="flipbtn marketlink" href={row.marketUrl} target="_blank" rel="noopener noreferrer" aria-label={`View ${row.event} on Gemini`}>
+                    View market ↗
+                  </a>
+                )}
+              </span>
             </div>
           </div>
           {row.outcome.kind === "pending" ? (

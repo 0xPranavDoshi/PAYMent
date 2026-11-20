@@ -61,7 +61,7 @@ export default async function Home() {
               <div className="kv">
                 <div><span>RECORD</span><b><span className="g">24</span>–<span className="rd">16</span></b></div>
                 <div><span>HIT RATE</span><b>60%</b></div>
-                <div><span>EDGE</span><b className="g">+11¢</b></div>
+                <div><span>EDGE PER PICK</span><b className="g">+11¢</b></div>
               </div>
               <div className="ac"><span className="b">Watch</span><span className="b or">Copy trade</span></div>
             </div>
@@ -72,7 +72,8 @@ export default async function Home() {
 
       <PickTicker calls={recent} />
 
-      <Page>
+      {/* Re-reads the top traders and latest picks while the page is open. */}
+      <Page live>
         <div className="hm-steps">
           {STEPS.map((s, i) => (
             <div className="card hm-step" key={s.title}>
