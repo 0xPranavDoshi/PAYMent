@@ -169,6 +169,8 @@ a.who:hover { color: var(--ember); }
 .wpnl { text-align: right; min-width: 96px; }
 .wpnl b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .wpnl small { font-size: 12px; }
+.wpnl .wlabel { display: block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 2px; }
+.psub a.inline { color: var(--ember); text-decoration: underline; text-underline-offset: 3px; }
 .wact { display: flex; gap: 8px; align-items: flex-start; }
 @media (max-width: 760px) { .wrow { flex-wrap: wrap; } .wact { width: 100%; } .wpnl { text-align: left; } }
 .stats b.up { color: var(--win); } .stats b.down { color: var(--coral); }
