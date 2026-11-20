@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>coPAYMe D pages</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e8e8e5; color: #1d1d1b; font: 14px/1.5 -apple-system, "Helvetica Neue", Arial, sans-serif; }
+  .shell { max-width: 1280px; margin: 0 auto; padding: 36px 28px 96px; }
+  .top h1 { font: 600 26px/1.2 -apple-system, "Helvetica Neue", Arial, sans-serif; margin: 0; }
+  .top p { margin: 8px 0 0; color: #5d5d58; max-width: 860px; }
+  .tabs { display: flex; gap: 8px; margin: 26px 0 18px; position: sticky; top: 0; padding: 12px 0; background: #e8e8e5; z-index: 20; border-bottom: 1px solid #d3d3ce; }
+  .tab { all: unset; cursor: pointer; padding: 9px 16px; border-radius: 6px; font-weight: 600; color: #4a4a46; }
+  .tab:hover { background: #dcdcd8; } .tab.on { background: #1d1d1b; color: #fff; }
+  .dir { display: none; } .dir.on { display: block; }
+  .note { color: #3c3c38; font-size: 15px; max-width: 920px; margin-bottom: 18px; }
+  .frame { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 24px 60px -24px rgba(0,0,0,.35); }
+  .chrome { height: 34px; background: #d9d9d5; display: flex; align-items: center; gap: 7px; padding: 0 12px; }
+  .chrome i { width: 11px; height: 11px; border-radius: 50%; background: #bdbdb7; }
+  .chrome span { margin-left: 14px; background: #ececea; border-radius: 5px; padding: 3px 12px; font-size: 11.5px; color: #6b6b66; min-width: 300px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: start; }
+  .cap-label { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #6b6b66; margin: 0 0 10px; font-weight: 600; }
+  .choose { margin-top: 22px; display: flex; gap: 12px; align-items: center; }
+  .choose button { all: unset; cursor: pointer; background: #1d1d1b; color: #fff; padding: 10px 16px; border-radius: 7px; font-weight: 600; }
+  .choose button.selected { outline: 3px solid #4b8a4b; outline-offset: 2px; }
+  svg { display: block; }
+
+  /* ═════════ D system ═════════ */
+  .D { --bg:#f3f1ea; --card:#fbfaf6; --ink:#111; --ink2:#55524b; --ink3:#8b877d; --or:#ff6a1f; --or-soft:#ffe1cf; --win:#14894b; --win-soft:#c9efd6; --loss:#e0412d; --loss-soft:#fbd5cf; --amber:#e8a317;
+       background: var(--bg); color: var(--ink); font: 15px/1.45 "Archivo", sans-serif;
+       background-image: linear-gradient(rgba(17,17,17,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(17,17,17,.045) 1px, transparent 1px); background-size: 36px 36px; }
+  .D .mono { font-family: "JetBrains Mono", monospace; font-variant-numeric: tabular-nums; }
+  .D .nav { display: flex; align-items: center; gap: 28px; height: 70px; padding: 0 44px; border-bottom: 2.5px solid var(--ink); background: var(--bg); }
+  .D .wm { display: flex; align-items: center; gap: 9px; font: 800 20px/1 "Archivo"; letter-spacing: -.02em; }
+  .D .wm i { width: 22px; height: 22px; border: 2.5px solid var(--ink); background: var(--or); border-radius: 5px; display: block; box-shadow: 2px 2px 0 var(--ink); }
+  .D .search { border: 2px solid var(--ink); border-radius: 10px; padding: 7px 12px; width: 220px; color: var(--ink3); font-size: 14px; background: #fff; }
+  .D .nav a { font-weight: 600; font-size: 15px; }
+  .D .nav a.on { text-decoration: underline; text-decoration-thickness: 2.5px; text-underline-offset: 7px; }
+  .D .nav .sp { flex: 1; }
+  .D .acct { display: flex; align-items: center; gap: 8px; border: 2px solid var(--ink); border-radius: 999px; padding: 3px 12px 3px 3px; background: #fff; font-weight: 700; font-size: 14px; }
+  .D .acct i { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--ink); background: var(--or); display: grid; place-content: center; font-style: normal; font-size: 12px; font-weight: 800; }
+  .D .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 18px; border: 2px solid var(--ink); border-radius: 9px; background: #fff; font: 700 14.5px/1 "Archivo"; color: var(--ink); box-shadow: 3px 3px 0 var(--ink); white-space: nowrap; }
+  .D .btn.or { background: var(--or); }
+  .D .btn.blk { background: var(--ink); color: #fff; box-shadow: 3px 3px 0 var(--or); }
+  .D .btn.lg { height: 50px; font-size: 16.5px; padding: 0 24px; border-radius: 11px; box-shadow: 4px 4px 0 var(--ink); }
+  .D .btn.sm { height: 34px; font-size: 13.5px; padding: 0 14px; }
+  .D .card { background: var(--card); border: 2.5px solid var(--ink); border-radius: 14px; box-shadow: 6px 6px 0 var(--ink); }
+  .D .page { padding: 40px 44px 52px; }
+  .D h1.pt { margin: 0; font: 900 72px/0.95 "Archivo"; letter-spacing: -.045em; }
+  .D .sub { margin-top: 12px; color: var(--ink2); font-size: 17px; }
+  .D .h2 { font: 800 26px/1.1 "Archivo"; letter-spacing: -.025em; margin: 0; }
+  .D .sech { display: flex; justify-content: space-between; align-items: center; margin: 40px 0 16px; }
+  .D .up { color: var(--win); } .D .dn { color: var(--loss); } .D .mut { color: var(--ink3); }
+  .D .chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 2px solid var(--ink); border-radius: 8px; font: 800 13.5px/1 "Archivo"; background: #fff; white-space: nowrap; }
+  .D .chip.up { background: var(--win-soft); color: var(--win); border-color: var(--win); }
+  .D .chip.dn { background: var(--loss-soft); color: var(--loss); border-color: var(--loss); }
+  .D .chip.open { background: #fff; }
+  .D .chip.mono { font: 700 12px/1 "JetBrains Mono"; letter-spacing: .04em; }
+  .D .tag { font: 700 11.5px/1 "JetBrains Mono"; letter-spacing: .06em; border: 2px solid var(--ink); border-radius: 6px; padding: 5px 7px; background: var(--bg); white-space: nowrap; }
+  .D .tile { width: 46px; height: 46px; border: 2.5px solid var(--ink); border-radius: 10px; display: grid; place-content: center; font: 900 18px/1 "Archivo"; position: relative; overflow: hidden; background: #fff; flex: none; }
+  .D .tile::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--c); border-top: 2px solid var(--ink); }
+  .D .tile span { margin-top: -4px; }
+  .D .av { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--ink); background: #e9e4d6; display: grid; place-content: center; font: 800 12px "Archivo"; flex: none; }
+  .D .strip { display: grid; grid-template-columns: repeat(4,1fr); }
+  .D .strip > div { padding: 16px 20px; border-right: 2.5px solid var(--ink); }
+  .D .strip > div:last-child { border-right: 0; }
+  .D .strip > div > span { display: block; font: 700 11.5px/1 "JetBrains Mono"; letter-spacing: .08em; color: var(--ink2); text-transform: uppercase; }
+  .D .strip b { display: block; font: 900 34px/1 "Archivo"; letter-spacing: -.03em; margin-top: 10px; }
+  .D .rows > .r { display: grid; align-items: center; gap: 14px; padding: 14px 22px; border-top: 2px solid var(--ink); }
+  .D .rows > .r:first-child { border-top: 0; }
+  .D .rows .t { font: 700 16.5px/1.25 "Archivo"; }
+  .D .rows .s { color: var(--ink2); font-size: 13.5px; margin-top: 2px; }
+  .D .rows .s.mono { font-size: 12.5px; }
+  .D .pnl { text-align: right; }
+  .D .pnl b { display: block; font: 800 18px/1.1 "Archivo"; font-variant-numeric: tabular-nums; }
+  .D .pnl small { color: var(--ink3); font: 500 12px "JetBrains Mono"; }
+
+  /* home */
+  .D .hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 40px; align-items: center; padding: 56px 44px 48px; }
+  .D .hero h1 { margin: 0; font: 900 76px/.93 "Archivo"; letter-spacing: -.05em; }
+  .D .hero h1 mark { background: none; color: inherit; position: relative; white-space: nowrap; }
+  .D .hero h1 mark::before { content: ""; position: absolute; left: -4px; right: -6px; bottom: 4px; height: 26px; background: var(--or); z-index: -1; border-radius: 4px; transform: skew(-6deg); }
+  .D .hero h1 mark { z-index: 0; isolation: isolate; }
+  .D .hero p { margin: 22px 0 0; font-size: 19px; color: var(--ink2); max-width: 30em; line-height: 1.5; }
+  .D .hero .cta { display: flex; gap: 14px; margin-top: 30px; align-items: center; }
+  .D .hero .cta small { font: 500 12.5px "JetBrains Mono"; color: var(--ink3); margin-left: 6px; }
+  .D .shot { position: relative; height: 380px; }
+  .D .shot .tweet { position: absolute; left: 0; top: 10px; width: 400px; background: #fff; border: 2.5px solid var(--ink); border-radius: 14px; padding: 16px; font: 15px/1.4 -apple-system, sans-serif; box-shadow: 6px 6px 0 var(--ink); }
+  .D .shot .tweet .hd { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+  .D .shot .tweet .ta { width: 38px; height: 38px; border-radius: 50%; background: #1c3f2c; color: #fff; display: grid; place-content: center; font-weight: 700; font-size: 13px; }
+  .D .shot .pop { position: absolute; right: 0; top: 118px; width: 330px; transform: rotate(1.5deg); }
+  .D .sticker { position: absolute; left: 30px; bottom: 8px; transform: rotate(-4deg); background: var(--win-soft); border: 2.5px solid var(--ink); border-radius: 10px; padding: 8px 12px; font: 800 15px/1.2 "Archivo"; box-shadow: 4px 4px 0 var(--ink); }
+  .D .sticker small { display: block; font: 500 11.5px "JetBrains Mono"; color: var(--ink2); }
+  .D .ticker { display: flex; gap: 34px; align-items: center; height: 50px; padding: 0 44px; background: var(--ink); color: #f3f1ea; font: 500 14px "JetBrains Mono"; white-space: nowrap; overflow: hidden; border-top: 2.5px solid var(--ink); border-bottom: 2.5px solid var(--ink); }
+  .D .ticker .live { display: flex; align-items: center; gap: 8px; color: var(--or); font-weight: 700; }
+  .D .ticker b { color: #fff; }
+  .D .ticker .y { color: #6ee59c; } .D .ticker .n { color: #ff8a78; }
+  .D .steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 22px; }
+  .D .step { padding: 22px; }
+  .D .step .n { width: 44px; height: 44px; border: 2.5px solid var(--ink); border-radius: 10px; display: grid; place-content: center; font: 900 22px "Archivo"; background: var(--or); box-shadow: 3px 3px 0 var(--ink); }
+  .D .step:nth-child(2) .n { background: #fff; } .D .step:nth-child(3) .n { background: var(--win-soft); }
+  .D .step h3 { margin: 18px 0 0; font: 800 21px/1.15 "Archivo"; letter-spacing: -.02em; }
+  .D .step p { margin: 8px 0 0; color: var(--ink2); font-size: 15px; }
+  .D .two { display: grid; grid-template-columns: 1.5fr 1fr; gap: 26px; }
+  .D .mini .r { grid-template-columns: 30px 46px minmax(0,1fr) 70px 110px; }
+
+  /* profile */
+  .D .phead { display: grid; grid-template-columns: auto 1fr auto; gap: 26px; align-items: center; padding: 26px 28px; }
+  .D .bigtile { width: 128px; height: 128px; border: 3px solid var(--ink); border-radius: 18px; background: #fff; position: relative; overflow: hidden; display: grid; place-content: center; text-align: center; box-shadow: 5px 5px 0 var(--ink); }
+  .D .bigtile b { font: 900 66px/.9 "Archivo"; letter-spacing: -.05em; margin-top: -10px; }
+  .D .bigtile small { display: block; font: 700 11px/1 "JetBrains Mono"; letter-spacing: .1em; color: var(--ink2); margin-top: 6px; }
+  .D .bigtile::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 14px; background: var(--win); border-top: 3px solid var(--ink); }
+  .D .phead h1 { margin: 0; font: 900 52px/1 "Archivo"; letter-spacing: -.04em; }
+  .D .phead .meta { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+  .D .phead .meta span.m { color: var(--ink2); font-size: 14.5px; margin-left: 4px; }
+  .D .phead .acts { display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+  .D .picks .r { grid-template-columns: 74px minmax(0,1fr) 110px 120px; }
+  .D .picks .d { font: 600 13px "JetBrains Mono"; color: var(--ink2); }
+
+  /* portfolio */
+  .D .paper { display: inline-flex; align-items: center; gap: 8px; transform: rotate(-2deg); background: #fff3a8; border: 2.5px solid var(--ink); border-radius: 8px; padding: 6px 12px; font: 700 13px/1 "JetBrains Mono"; letter-spacing: .06em; box-shadow: 3px 3px 0 var(--ink); }
+  .D .copies .r { grid-template-columns: 46px minmax(0,1fr) 130px 170px; }
+  .D .trades .r { grid-template-columns: minmax(0,1fr) 90px 150px; }
+
+  /* extension on X */
+  .xlight, .xdark { font: 15px/1.4 -apple-system, "Segoe UI", sans-serif; padding: 22px 22px 320px; position: relative; }
+  .xlight { background: #fff; color: #0f1419; } .xdark { background: #000; color: #e7e9ea; }
+  .tw { display: grid; grid-template-columns: 44px 1fr; gap: 12px; }
+  .tw .ta { width: 40px; height: 40px; border-radius: 50%; background: #1c3f2c; color: #fff; display: grid; place-content: center; font-weight: 700; font-size: 14px; }
+  .tw .hd { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .tw .hd b { font-weight: 700; } .xlight .tw .hd .h { color: #536471; } .xdark .tw .hd .h { color: #71767b; }
+  .tw p { margin: 3px 0 0; }
+  .tw .bar { display: flex; gap: 54px; margin-top: 12px; font-size: 13px; color: #71767b; }
+  .bd { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px 0 3px; border: 2px solid #111; background: #fff; border-radius: 7px; font: 800 13px/1 "Archivo"; color: #111; margin-left: 4px; box-shadow: 2px 2px 0 #111; }
+  .bd i { width: 16px; height: 16px; border-radius: 4px; background: #ff6a1f; border: 1.5px solid #111; display: block; }
+  .bd em { font-style: normal; color: #14894b; font-size: 12px; }
+  .bd.on-dark-a { box-shadow: 2px 2px 0 #ff6a1f; }
+  .bd.on-dark-b { background: #161616; color: #f3f1ea; border-color: #f3f1ea; box-shadow: 2px 2px 0 #ff6a1f; }
+  .bd.on-dark-b i { border-color: #f3f1ea; } .bd.on-dark-b em { color: #6ee59c; }
+  .pop { position: absolute; top: 56px; right: 18px; width: 340px; border: 2.5px solid #111; border-radius: 14px; box-shadow: 6px 6px 0 #111; padding: 16px 18px; background: #fbfaf6; color: #111; font: 14px/1.45 "Archivo", sans-serif; }
+  .pop.da { box-shadow: 6px 6px 0 #ff6a1f; }
+  .pop.db { background: #161616; color: #f3f1ea; border-color: #f3f1ea; box-shadow: 6px 6px 0 #ff6a1f; }
+  .pop .r1 { display: flex; justify-content: space-between; align-items: flex-start; }
+  .pop .r1 b { display: block; font: 800 22px/1.1 "Archivo"; letter-spacing: -.02em; }
+  .pop .r1 small { opacity: .65; font-size: 13px; }
+  .pop .s { font: 900 50px/.85 "Archivo"; letter-spacing: -.04em; }
+  .pop .kv { display: grid; grid-template-columns: repeat(3,1fr); margin-top: 14px; border: 2px solid currentColor; border-radius: 10px; overflow: hidden; }
+  .pop .kv > div { padding: 8px 10px; border-right: 2px solid currentColor; }
+  .pop .kv > div:last-child { border-right: 0; }
+  .pop .kv > div > span { display: block; font: 700 10.5px/1 "JetBrains Mono"; letter-spacing: .08em; opacity: .65; }
+  .pop .kv b { display: block; font: 800 18px/1.2 "Archivo"; margin-top: 5px; }
+  .pop .pk { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 2px dashed rgba(127,127,127,.35); font-weight: 600; }
+  .pop .pk small { display: block; font: 500 12px "JetBrains Mono"; opacity: .6; }
+  .pop .tg { font: 700 11px/1 "JetBrains Mono"; letter-spacing: .06em; border: 2px solid currentColor; border-radius: 6px; padding: 4px 6px; }
+  .pop .ac { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; margin-top: 14px; }
+  .pop .b { display: flex; align-items: center; justify-content: center; height: 40px; border: 2px solid #111; border-radius: 9px; font: 700 14.5px/1 "Archivo"; background: #fff; color: #111; box-shadow: 3px 3px 0 #111; }
+  .pop .b.or { background: #ff6a1f; }
+  .pop.db .b { border-color: #f3f1ea; background: #161616; color: #f3f1ea; box-shadow: 3px 3px 0 #f3f1ea; }
+  .pop.db .b.or { background: #ff6a1f; color: #111; border-color: #ff6a1f; box-shadow: 3px 3px 0 #f3f1ea; }
+  .pop .g { color: #14894b; } .pop .rd { color: #e0412d; }
+  .pop.db .g { color: #6ee59c; } .pop.db .rd { color: #ff8a78; }
+
+  /* leaderboard (round 2) */
+  .D .podium { display: grid; grid-template-columns: 1fr 1.12fr 1fr; gap: 22px; margin-top: 30px; align-items: end; }
+  .D .pc { background: var(--card); border: 2.5px solid var(--ink); border-radius: 14px; box-shadow: 6px 6px 0 var(--ink); padding: 18px 20px; }
+  .D .pc.first { padding: 22px; transform: translateY(-12px); background: #fff; }
+  .D .pc .r1 { display: flex; gap: 12px; align-items: flex-start; }
+  .D .pc .rk { font: 900 54px/.85 "Archivo"; letter-spacing: -.05em; }
+  .D .pc.first .rk { color: var(--or); font-size: 64px; }
+  .D .pc .nm b { display: block; font: 700 20px/1.15 "Archivo"; letter-spacing: -.015em; }
+  .D .pc .nm small { color: var(--ink2); font-size: 14px; }
+  .D .pc .r2 { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 16px; }
+  .D .pc .sc { font: 900 56px/.85 "Archivo"; letter-spacing: -.04em; display: flex; align-items: center; gap: 12px; }
+  .D .pc.first .sc { font-size: 68px; }
+  .D .pc .kv { text-align: right; font: 500 12px/1.7 "JetBrains Mono"; color: var(--ink2); letter-spacing: .04em; }
+  .D .pc .kv b { color: var(--ink); font-weight: 700; }
+  .D .pc .side { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+  .D .tbl { margin-top: 34px; border: 2.5px solid var(--ink); border-radius: 14px; background: #fff; box-shadow: 6px 6px 0 var(--ink); overflow: hidden; }
+  .D .tr { display: grid; grid-template-columns: 44px 64px minmax(0,1fr) 100px 80px 190px 90px 150px; align-items: center; gap: 12px; padding: 12px 22px; border-top: 2px solid var(--ink); }
+  .D .tr.h { border-top: 0; padding: 14px 22px; font: 700 12px/1 "JetBrains Mono"; letter-spacing: .08em; text-transform: uppercase; background: var(--bg); }
+  .D .tr.flush { border-top: 0; }
+  .D .tr .rank { font: 800 18px "Archivo"; }
+  .D .who { display: flex; align-items: center; gap: 12px; }
+  .D .who b { font: 700 17px "Archivo"; letter-spacing: -.01em; }
+  .D .who small { display: block; color: var(--ink3); font-size: 13px; font-weight: 500; margin-top: -2px; }
+  .D .num { text-align: right; font: 600 17px "Archivo"; font-variant-numeric: tabular-nums; }
+  .D .hit { display: flex; align-items: center; gap: 12px; justify-content: flex-end; }
+  .D .hit b { font: 600 17px "Archivo"; width: 44px; text-align: right; }
+  .D .hit i { width: 100px; height: 14px; border: 2px solid var(--ink); border-radius: 7px; position: relative; overflow: hidden; background: #fff; }
+  .D .hit i::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--v); background: var(--ink); }
+  .D .act { text-align: right; }
+  .D .btn.pressed { transform: translate(3px, 3px); box-shadow: none; }
+
+  /* the ticket */
+  .D .ticket { position: relative; display: grid; grid-template-columns: minmax(0,1fr) 390px; background: #f6f2e6; border-top: 2.5px dashed var(--ink); border-bottom: 2.5px dashed var(--ink); }
+  .D .ticket::before, .D .ticket::after { content: ""; position: absolute; top: 0; bottom: 0; width: 12px; }
+  .D .ticket::before { left: 0; background: radial-gradient(circle at 0 50%, #fff 0 7px, var(--ink) 7.5px 10px, transparent 10.5px) 0 2px / 12px 24px repeat-y; }
+  .D .ticket::after { right: 0; background: radial-gradient(circle at 100% 50%, #fff 0 7px, var(--ink) 7.5px 10px, transparent 10.5px) 0 2px / 12px 24px repeat-y; }
+  .D .tk-main { padding: 24px 34px 22px 46px; }
+  .D .tk-h { font: 700 15px/1 "JetBrains Mono"; letter-spacing: .08em; display: flex; justify-content: space-between; align-items: baseline; }
+  .D .tk-h small { font: 500 12px "JetBrains Mono"; color: var(--ink2); letter-spacing: .02em; }
+  .D .tk-tbl { width: 100%; border-collapse: collapse; margin-top: 16px; font: 500 14.5px/1.2 "JetBrains Mono"; font-variant-numeric: tabular-nums; }
+  .D .tk-tbl th { text-align: left; font: 700 11.5px "JetBrains Mono"; letter-spacing: .08em; color: var(--ink2); padding: 0 0 10px; }
+  .D .tk-tbl td { padding: 9px 0; border-top: 1.5px dashed rgba(17,17,17,.2); }
+  .D .tk-tbl th:last-child, .D .tk-tbl td:last-child { text-align: right; font-weight: 700; }
+  .D .tk-foot { margin-top: 14px; font: 700 13px "JetBrains Mono"; text-decoration: underline; text-underline-offset: 4px; }
+  .D .stub { position: relative; border-left: 2.5px dashed var(--ink); padding: 24px 42px 24px 30px; display: flex; flex-direction: column; gap: 12px; }
+  .D .stub::before, .D .stub::after { content: ""; position: absolute; left: -12.5px; width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 2.5px solid var(--ink); }
+  .D .stub::before { top: -13px; clip-path: inset(50% -4px -4px -4px); }
+  .D .stub::after { bottom: -13px; clip-path: inset(-4px -4px 50% -4px); }
+  .D .lbl { font: 700 11.5px/1 "JetBrains Mono"; letter-spacing: .08em; color: var(--ink2); }
+  .D .amts { display: flex; gap: 8px; }
+  .D .amt { flex: 1; height: 38px; border: 2px solid var(--ink); border-radius: 8px; display: grid; place-content: center; font: 700 14.5px "Archivo"; background: #fff; }
+  .D .amt.on { background: var(--ink); color: #fff; }
+  .D .bt { border: 2.5px solid var(--ink); border-radius: 10px; background: #fff; padding: 10px 14px; text-align: center; }
+  .D .bt b { display: block; font: 700 24px/1.1 "JetBrains Mono"; letter-spacing: -.01em; }
+  .D .bt small { display: block; font: 500 11.5px "JetBrains Mono"; color: var(--ink2); margin-top: 5px; }
+  .D .btn.xl { height: 54px; font-size: 18px; border-radius: 11px; box-shadow: 4px 4px 0 var(--ink); width: 100%; }
+  .D .fine { font: 500 12px "JetBrains Mono"; color: var(--ink2); text-align: center; }
+
+  /* ticket inside the extension popover */
+  .pop .perf { position: relative; margin: 14px -18px 0; border-top: 2.5px dashed #111; }
+  .pop .perf::before, .pop .perf::after { content: ""; position: absolute; top: -12px; width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 2.5px solid #111; }
+  .pop .perf::before { left: -12.5px; clip-path: inset(-4px -4px -4px 50%); }
+  .pop .perf::after { right: -12.5px; clip-path: inset(-4px 50% -4px -4px); }
+  .pop .pstub { padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .pop .ph { display: flex; justify-content: space-between; align-items: baseline; font: 700 13px/1 "JetBrains Mono"; letter-spacing: .08em; }
+  .pop .ph small { font: 500 11.5px "JetBrains Mono"; opacity: .6; letter-spacing: .02em; }
+  .pop .amts { display: flex; gap: 6px; }
+  .pop .amt { flex: 1; height: 34px; border: 2px solid #111; border-radius: 8px; display: grid; place-content: center; font: 700 13.5px "Archivo"; background: #fff; }
+  .pop .amt.on { background: #111; color: #fff; }
+  .pop .bt { border: 2px solid #111; border-radius: 9px; background: #fff; padding: 8px 10px; display: flex; justify-content: space-between; align-items: baseline; font: 500 12px "JetBrains Mono"; }
+  .pop .bt b { font: 700 16px "JetBrains Mono"; }
+  .pop .b.full { width: 100%; height: 46px; font-size: 16px; box-shadow: 4px 4px 0 #111; }
+  .pop .fine { font: 500 11.5px "JetBrains Mono"; opacity: .6; text-align: center; }
+  .pop .stamp { align-self: center; transform: rotate(-3deg); border: 3px solid #14894b; color: #14894b; background: #c9efd6; border-radius: 10px; padding: 8px 14px; text-align: center; font: 900 20px/1.05 "Archivo"; letter-spacing: -.01em; }
+  .pop .stamp small { display: block; font: 700 11.5px "JetBrains Mono"; letter-spacing: .06em; margin-top: 3px; }
+  .pop .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pop .b.sm { height: 36px; font-size: 13.5px; }
+  .pop .b.danger { color: #e0412d; }
+  .xtall { padding-bottom: 600px !important; }
+
+  .D .ticket { grid-template-columns: minmax(0,1fr) 430px; }
+  .D .tk-main { padding: 24px 30px 22px 46px; }
+  .D .stub { padding: 22px 44px 22px 30px; gap: 14px; }
+  .wrap { border: 2.5px solid #111; border-radius: 14px; background: #fff; box-shadow: 6px 6px 0 #111; overflow: hidden; }
+  .wrap .tr { grid-template-columns: 44px 64px minmax(0,1fr) 100px 80px 190px 90px 150px; }
+  .opt { margin-top: 44px; }
+  .opt:first-of-type { margin-top: 0; }
+  .opt-h { display: flex; gap: 16px; align-items: baseline; margin-bottom: 6px; }
+  .opt-h h2 { margin: 0; font: 600 20px/1.2 -apple-system, "Helvetica Neue", Arial, sans-serif; }
+  .opt-h span { color: #6b6b66; font-size: 13px; }
+  .why { color: #3c3c38; font-size: 14.5px; max-width: 940px; margin: 0 0 14px; }
+  .why b { font-weight: 600; }
+  .pad { padding: 26px 30px; }
+
+  /* option 1 · order slip */
+  .D .slip { font: 500 14px/1 "JetBrains Mono"; display: flex; flex-direction: column; gap: 0; }
+  .D .slip .li { display: flex; align-items: center; gap: 8px; padding: 9px 0; }
+  .D .slip .li span:first-child { white-space: nowrap; }
+  .D .slip .dots { flex: 1; border-bottom: 2px dotted rgba(17,17,17,.35); transform: translateY(4px); }
+  .D .slip .li b { font-weight: 700; white-space: nowrap; }
+  .D .slip .total { border-top: 2.5px solid #111; margin-top: 4px; padding-top: 12px; }
+  .D .slip .total b { font-size: 18px; }
+  .D .stp { display: inline-flex; align-items: center; border: 2px solid #111; border-radius: 8px; overflow: hidden; background: #fff; box-shadow: 2px 2px 0 #111; }
+  .D .stp i { font-style: normal; width: 30px; height: 30px; display: grid; place-content: center; font: 800 17px "Archivo"; }
+  .D .stp i:first-child { border-right: 2px solid #111; } .D .stp i:last-child { border-left: 2px solid #111; }
+  .D .stp b { padding: 0 12px; font: 800 16px "Archivo"; }
+
+  /* option 2 · replay */
+  .D .replay { border: 2.5px solid #111; border-radius: 10px; background: #fff; padding: 12px 14px 10px; }
+  .D .replay .cap { display: flex; justify-content: space-between; font: 700 11.5px "JetBrains Mono"; letter-spacing: .06em; color: var(--ink2); }
+  .D .replay .sum { display: grid; grid-template-columns: repeat(3,1fr); margin-top: 8px; border-top: 2px solid #111; padding-top: 8px; }
+  .D .replay .sum div span { display: block; font: 700 10.5px "JetBrains Mono"; letter-spacing: .08em; color: var(--ink2); }
+  .D .replay .sum div b { font: 800 18px "Archivo"; font-variant-numeric: tabular-nums; }
+  .D .replay .sum div:last-child { text-align: right; }
+
+  /* option 3 · one big number */
+  .D .bign { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .D .sq { width: 54px; height: 54px; border: 2.5px solid #111; border-radius: 12px; background: #fff; box-shadow: 3px 3px 0 #111; display: grid; place-content: center; font: 900 26px "Archivo"; }
+  .D .bign .v { text-align: center; }
+  .D .bign .v b { display: block; font: 900 64px/.9 "Archivo"; letter-spacing: -.04em; }
+  .D .bign .v span { font: 700 11.5px "JetBrains Mono"; letter-spacing: .1em; color: var(--ink2); }
+  .D .tri { display: grid; grid-template-columns: repeat(3,1fr); border: 2.5px solid #111; border-radius: 10px; overflow: hidden; background: #fff; }
+  .D .tri > div { padding: 9px 12px; border-right: 2px solid #111; }
+  .D .tri > div:last-child { border-right: 0; }
+  .D .tri > div > span { display: block; font: 700 10.5px "JetBrains Mono"; letter-spacing: .08em; color: var(--ink2); }
+  .D .tri b { font: 800 19px "Archivo"; font-variant-numeric: tabular-nums; }
+  .D .presets { display: flex; justify-content: center; gap: 6px; font: 600 12.5px "JetBrains Mono"; color: var(--ink2); }
+  .D .presets u { text-decoration: none; border-bottom: 2px solid transparent; padding: 0 3px; }
+  .D .presets u.on { color: #111; border-color: #111; }
+
+  .D .pnl-card { padding: 20px 24px 18px; }
+  .D .pnl-h { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .D .pnl-v { font: 900 46px/1 "Archivo"; letter-spacing: -.04em; }
+  .D .pnl-s { display: flex; align-items: center; gap: 10px; margin-top: 10px; color: var(--ink2); font-size: 14px; }
+  .D .seg2 { display: flex; border: 2px solid #111; border-radius: 9px; overflow: hidden; background: #fff; box-shadow: 3px 3px 0 #111; font-weight: 700; font-size: 13px; }
+  .D .seg2 span { padding: 6px 12px; border-right: 2px solid #111; }
+  .D .seg2 span:last-child { border-right: 0; }
+  .D .seg2 span.on { background: #111; color: #fff; }
+  .D .pnl-leg { display: flex; gap: 18px; font: 600 12.5px "JetBrains Mono"; color: var(--ink2); margin: 4px 0 2px; }
+  .D .pnl-leg span { display: flex; align-items: center; gap: 7px; }
+  .D .pnl-leg i { width: 14px; height: 14px; border: 2px solid #111; border-radius: 3px; display: block; }
+  .D .pnl-leg i.ln { width: 20px; height: 0; border: 0; border-top: 3px solid #111; border-radius: 0; }
+
+  .pop .pslip { font: 500 13px/1 "JetBrains Mono"; }
+  .pop .pslip .li { display: flex; align-items: center; gap: 8px; padding: 7px 0; }
+  .pop .pslip .li span:first-child { white-space: nowrap; }
+  .pop .pslip .dots { flex: 1; border-bottom: 2px dotted rgba(17,17,17,.35); transform: translateY(4px); }
+  .pop .pslip .li b { font-weight: 700; }
+  .pop .pslip .total { border-top: 2.5px solid #111; margin-top: 4px; padding-top: 10px; }
+  .pop .pslip .total b { font-size: 16px; }
+  .pop .stp { display: inline-flex; align-items: center; border: 2px solid #111; border-radius: 8px; overflow: hidden; background: #fff; box-shadow: 2px 2px 0 #111; }
+  .pop .stp i { font-style: normal; width: 28px; height: 28px; display: grid; place-content: center; font: 800 16px "Archivo"; }
+  .pop .stp i:first-child { border-right: 2px solid #111; } .pop .stp i:last-child { border-left: 2px solid #111; }
+  .pop .stp b { padding: 0 10px; font: 800 15px "Archivo"; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="top">
+    <h1>Final: style D, ready to write up</h1>
+    <p>The copy stub is now the order slip with only three things: amount per pick, how much copying made in the past week, and the Copy trade button. It matches in the extension. Portfolio uses P&amp;L chart A.</p>
+  </div>
+  <div class="tabs">
+            <button class="tab on" onclick="show('lb',this)">Leaderboard + copy ticket</button>
+    <button class="tab" onclick="show('ext',this)">Extension copy ticket</button>
+    <button class="tab" onclick="show('home',this)">Homepage</button>
+    <button class="tab" onclick="show('prof',this)">Trader profile</button>
+    <button class="tab" onclick="show('port',this)">Portfolio</button>
+    <button class="tab" onclick="show('dark',this)">Extension on dark X</button>
+  </div>
+
+  <!-- ═════════ HOME ═════════ -->
+  
+  <!-- ═════════ LEADERBOARD + TICKET ═════════ -->
+  
+  
+  <section class="dir on" id="d-lb">
+    <div class="note">Pressing <b>Copy trade</b> on a row tears open a ticket under it: the 3 most recent picks on the left, and a simple order slip on the right. "Past week" is what copying this trader at your amount would have earned over the last 7 days. It updates as you change the amount. A second press of the button closes the ticket.</div>
+    <div class="frame">
+      <div class="chrome"><i></i><i></i><i></i><span>copayme.com/leaderboard</span></div>
+      <div class="D">
+        <div class="nav">
+          <div class="wm"><i></i>coPAYMe</div>
+          <div class="search">⌕&nbsp; Search a handle</div>
+          <a class="on">Leaderboard</a><a>Watchlist</a><a>Portfolio</a><a>Rewards</a><a>How it works</a>
+          <div class="sp"></div>
+          <span class="acct"><i>P</i>@pranav</span>
+        </div>
+        <div class="page">
+          <h1 class="pt">Leaderboard</h1>
+          <div class="sub">Traders ranked by score: how far their picks beat the market's odds.</div>
+          <div class="podium">
+            <div class="pc">
+              <div class="r1"><span class="rk">#2</span><div class="nm"><b>@demo_steady</b><small>30 resolved picks</small></div></div>
+              <div class="r2"><span class="sc">50</span><div class="kv">HIT RATE <b>50%</b><br>EDGE <b>0¢</b> · 14D <b>+1</b></div></div>
+            </div>
+            <div class="pc first">
+              <div class="r1"><span class="rk">#1</span><div class="nm"><b>@demo_sharp</b><small>40 resolved picks</small></div></div>
+              <div class="r2">
+                <span class="sc">82 <span class="chip up" style="height:32px;font-size:16px;padding:0 11px;letter-spacing:0">+16</span></span>
+                <div class="side">
+                  <svg width="120" height="34"><polyline fill="none" stroke="#111" stroke-width="2.2" stroke-linejoin="round" points="0,28 12,26 22,29 34,22 44,24 56,17 66,19 78,12 88,15 100,7 110,9 120,4"/></svg>
+                  <span class="btn or sm">Copy trade</span>
+                </div>
+              </div>
+            </div>
+            <div class="pc">
+              <div class="r1"><span class="rk">#3</span><div class="nm"><b>@covers</b><small>7 resolved picks</small></div></div>
+              <div class="r2"><span class="sc">47</span><div class="kv">HIT RATE <b>29%</b><br>EDGE <b>−1¢</b> · <b>NEW</b></div></div>
+            </div>
+          </div>
+
+          <div class="tbl">
+            <div class="tr h"><span>#</span><span>Score</span><span>Trader</span><span style="text-align:right">14 days</span><span style="text-align:right">Picks</span><span style="text-align:right">Hit rate</span><span style="text-align:right">Edge</span><span style="text-align:right">Action</span></div>
+            <div class="tr"><span class="rank">1</span><span class="tile" style="--c:#14894b"><span>82</span></span><span class="who"><span class="av">DS</span><span><b>@demo_sharp</b><small>NFL · NBA</small></span></span><span class="num up">▲ 16</span><span class="num">40</span><span class="hit"><b>60%</b><i style="--v:60%"></i></span><span class="num up">+11¢</span><span class="act"><span class="btn or sm pressed">Copy trade ▴</span></span></div>
+            <div class="ticket">
+              <div class="tk-main">
+                <div class="tk-h">RECENT PICKS <small>price when posted · result per $1</small></div>
+                <table class="tk-tbl">
+                  <thead><tr><th>MARKET</th><th>POSTED AT</th><th>RESULT</th><th>EDGE</th></tr></thead>
+                  <tbody>
+                    <tr><td>Chiefs −2.5 vs Bills</td><td>YES 52¢</td><td>Won</td><td class="up">+48¢</td></tr>
+                    <tr><td>Celtics ML vs Knicks</td><td>YES 61¢</td><td>Won</td><td class="up">+39¢</td></tr>
+                    <tr><td>Lakers/Nuggets o224.5</td><td>NO 47¢</td><td>Lost</td><td class="dn">−47¢</td></tr>
+                  </tbody>
+                </table>
+                <div class="tk-foot">See all 40 picks →</div>
+              </div>
+              <div class="stub" style="justify-content:center">
+                <div class="tk-h">COPY TRADE <small>@demo_sharp</small></div>
+                <div class="slip">
+                  <div class="li"><span>Amount per pick</span><span class="dots"></span><span class="stp"><i>−</i><b>$10</b><i>+</i></span></div>
+                  <div class="li total"><span>Past week</span><span class="dots"></span><b class="up">+$15.81</b></div>
+                </div>
+                <span class="btn or xl">Copy trade</span>
+              </div>
+            </div>
+            <div class="tr flush"><span class="rank">2</span><span class="tile" style="--c:#e8a317"><span>50</span></span><span class="who"><span class="av">DS</span><span><b>@demo_steady</b><small>NBA</small></span></span><span class="num mut">+1</span><span class="num">30</span><span class="hit"><b>50%</b><i style="--v:50%"></i></span><span class="num mut">0¢</span><span class="act"><span class="btn sm">Copy trade</span></span></div>
+            <div class="tr"><span class="rank">3</span><span class="tile" style="--c:#e8a317"><span>47</span></span><span class="who"><span class="av" style="background:#1c3f2c;color:#fff">C</span><span><b>@covers</b><small>NCAAF · NBA · new</small></span></span><span class="num mut">—</span><span class="num">7</span><span class="hit"><b>29%</b><i style="--v:29%"></i></span><span class="num dn">−1¢</span><span class="act"><span class="btn sm">Copy trade</span></span></div>
+            <div class="tr"><span class="rank">4</span><span class="tile" style="--c:#e8a317"><span>44</span></span><span class="who"><span class="av">DC</span><span><b>@demo_chalk</b><small>picks favorites</small></span></span><span class="num dn">▼ 2</span><span class="num">35</span><span class="hit"><b>80%</b><i style="--v:80%"></i></span><span class="num dn">−3¢</span><span class="act"><span class="btn sm">Copy trade</span></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════ EXTENSION TICKET ═════════ -->
+  <section class="dir" id="d-ext">
+    <div class="note">The same slip inside the extension: a stub tears off the bottom of the popover. After you confirm, it turns into a green "Copying" stamp with buttons to change the amount or stop.</div>
+    <div class="grid2">
+      <div>
+        <div class="cap-label">1 · Choosing an amount</div>
+        <div class="frame">
+          <div class="xlight xtall">
+            <div class="tw"><div class="ta">DS</div><div>
+              <div class="hd"><b>Demo Sharp</b><span class="h">@demo_sharp · 1h</span><span class="bd"><i></i>82<em>▲16</em></span></div>
+              <p>Chiefs −2.5 tonight. Buffalo's run defense has been a sieve since Week 6.</p>
+              <div class="bar"><span>💬 18</span><span>⟲ 9</span><span>♡ 140</span></div>
+            </div></div>
+            <div class="pop">
+              <div class="r1"><div><b>@demo_sharp</b><small>40 resolved · top 5%</small></div><div class="s">82</div></div>
+              <div class="kv"><div><span>RECORD</span><b><span class="g">24</span>–<span class="rd">16</span></b></div><div><span>HIT RATE</span><b>60%</b></div><div><span>EDGE</span><b class="g">+11¢</b></div></div>
+              <div class="pk"><div>Chiefs −2.5 vs Bills<small>YES 52¢ · 1h</small></div><span class="tg">PENDING</span></div>
+              <div class="pk" style="border-bottom:0"><div>Celtics to beat Knicks<small>YES 61¢ · 2d</small></div><b class="g">+39¢</b></div>
+              <div class="perf"></div>
+              <div class="pstub">
+                <div class="ph">COPY TRADE <small>@demo_sharp</small></div>
+                <div class="pslip">
+                  <div class="li"><span>Amount per pick</span><span class="dots"></span><span class="stp"><i>−</i><b>$10</b><i>+</i></span></div>
+                  <div class="li total"><span>Past week</span><span class="dots"></span><b class="g">+$15.81</b></div>
+                </div>
+                <span class="b or full">Copy trade</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="cap-label">2 · After confirming</div>
+        <div class="frame">
+          <div class="xlight xtall">
+            <div class="tw"><div class="ta">DS</div><div>
+              <div class="hd"><b>Demo Sharp</b><span class="h">@demo_sharp · 1h</span><span class="bd"><i></i>82<em>▲16</em></span></div>
+              <p>Chiefs −2.5 tonight. Buffalo's run defense has been a sieve since Week 6.</p>
+              <div class="bar"><span>💬 18</span><span>⟲ 9</span><span>♡ 140</span></div>
+            </div></div>
+            <div class="pop">
+              <div class="r1"><div><b>@demo_sharp</b><small>40 resolved · top 5%</small></div><div class="s">82</div></div>
+              <div class="kv"><div><span>RECORD</span><b><span class="g">24</span>–<span class="rd">16</span></b></div><div><span>HIT RATE</span><b>60%</b></div><div><span>EDGE</span><b class="g">+11¢</b></div></div>
+              <div class="pk"><div>Chiefs −2.5 vs Bills<small>YES 52¢ · 1h</small></div><span class="tg">PENDING</span></div>
+              <div class="pk" style="border-bottom:0"><div>Celtics to beat Knicks<small>YES 61¢ · 2d</small></div><b class="g">+39¢</b></div>
+              <div class="perf"></div>
+              <div class="pstub">
+                <div class="stamp">Copying @demo_sharp<small>$10 PER PICK · SINCE NOV 19</small></div>
+                <div class="row2"><span class="b sm">Change amount</span><span class="b sm danger">Stop copying</span></div>
+                <div class="fine">See every copied pick in Portfolio.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="dir" id="d-home">
+    <div class="note">The homepage leads with what the product does: a headline, the extension shown on a real tweet, and one orange button. A black ticker of live picks shows activity. Then come three steps and a short leaderboard.</div>
+    <div class="frame">
+      <div class="chrome"><i></i><i></i><i></i><span>copayme.com</span></div>
+      <div class="D">
+        <div class="nav">
+          <div class="wm"><i></i>coPAYMe</div>
+          <div class="search">⌕&nbsp; Search a handle</div>
+          <a>Leaderboard</a><a>Watchlist</a><a>Portfolio</a><a>Rewards</a><a>How it works</a>
+          <div class="sp"></div>
+          <span class="btn or">Sign in</span>
+        </div>
+        <div class="hero">
+          <div>
+            <h1>Every pick on X, <mark>scored</mark> against the market.</h1>
+            <p>coPAYMe logs every pick at the price the market charged when it was posted. Then it grades the pick when the game settles. See who actually beats the odds, right on their tweets.</p>
+            <div class="cta"><span class="btn or lg">Add to Chrome</span><span class="btn lg">See the leaderboard</span><small>free · works on x.com</small></div>
+          </div>
+          <div class="shot">
+            <div class="tweet">
+              <div class="hd"><span class="ta">DS</span><b>Demo Sharp</b><span style="color:#536471">@demo_sharp</span><span class="bd"><i></i>82<em>▲16</em></span></div>
+              <p style="margin:10px 0 0">Chiefs −2.5 tonight. Buffalo's run defense has been a sieve since Week 6.</p>
+            </div>
+            <div class="pop">
+              <div class="r1"><div><b>@demo_sharp</b><small>40 resolved · top 5%</small></div><div class="s">82</div></div>
+              <div class="kv"><div><span>RECORD</span><b><span class="g">24</span>–<span class="rd">16</span></b></div><div><span>HIT RATE</span><b>60%</b></div><div><span>EDGE</span><b class="g">+11¢</b></div></div>
+              <div class="ac"><span class="b">Watch</span><span class="b or">Copy trade</span></div>
+            </div>
+            <div class="sticker">+11¢ per pick<small>beats the market</small></div>
+          </div>
+        </div>
+        <div class="ticker">
+          <span class="live">LIVE PICKS</span>
+          <span><b>@covers</b> Ohio State −3.5 <span class="y">YES 50¢</span></span>
+          <span><b>@covers</b> Golden State ML <span class="y">YES 31¢</span></span>
+          <span><b>@demo_sharp</b> Chiefs −2.5 <span class="y">YES 52¢</span></span>
+          <span><b>@demo_slump</b> Lakers o224.5 <span class="n">NO 47¢</span></span>
+          <span><b>@pickswise</b> Celtics ML <span class="y">YES 61¢</span></span>
+        </div>
+        <div class="page" style="padding-top:44px">
+          <div class="steps">
+            <div class="card step"><div class="n">1</div><h3>Add the extension</h3><p>A score badge appears next to every handle that posts picks on X.</p></div>
+            <div class="card step"><div class="n">2</div><h3>Check the record</h3><p>Tap a badge to see wins, losses, and whether their picks beat the price.</p></div>
+            <div class="card step"><div class="n">3</div><h3>Copy the good ones</h3><p>Mirror a trader's next picks with paper money, or watch them for free.</p></div>
+          </div>
+          <div class="two" style="margin-top:44px">
+            <div>
+              <div class="sech" style="margin-top:0"><h2 class="h2">Top traders</h2><span class="btn sm">Full leaderboard →</span></div>
+              <div class="card rows mini" style="background:#fff">
+                <div class="r"><b>1</b><span class="tile" style="--c:#14894b"><span>82</span></span><div><div class="t">@demo_sharp</div><div class="s">40 picks · 60% hit</div></div><span class="up" style="font-weight:800;text-align:right">▲ 16</span><span style="text-align:right"><span class="btn or sm">Copy trade</span></span></div>
+                <div class="r"><b>2</b><span class="tile" style="--c:#e8a317"><span>50</span></span><div><div class="t">@demo_steady</div><div class="s">30 picks · 50% hit</div></div><span class="mut" style="font-weight:800;text-align:right">+1</span><span style="text-align:right"><span class="btn sm">Copy trade</span></span></div>
+                <div class="r"><b>3</b><span class="tile" style="--c:#e8a317"><span>47</span></span><div><div class="t">@covers</div><div class="s">7 picks · 29% hit</div></div><span class="mut" style="font-weight:800;text-align:right">new</span><span style="text-align:right"><span class="btn sm">Copy trade</span></span></div>
+              </div>
+            </div>
+            <div>
+              <div class="sech" style="margin-top:0"><h2 class="h2">Latest picks</h2></div>
+              <div class="card rows" style="background:#fff">
+                <div class="r" style="grid-template-columns:1fr auto"><div><div class="t">Ohio State −3.5 vs Nebraska</div><div class="s mono">@covers · YES 50¢ · 2m</div></div><span class="tag">PENDING</span></div>
+                <div class="r" style="grid-template-columns:1fr auto"><div><div class="t">Golden State vs Memphis</div><div class="s mono">@covers · YES 31¢ · 14m</div></div><span class="tag">PENDING</span></div>
+                <div class="r" style="grid-template-columns:1fr auto"><div><div class="t">Chiefs −2.5 vs Bills</div><div class="s mono">@demo_sharp · YES 52¢ · 1h</div></div><span class="tag">PENDING</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════ PROFILE ═════════ -->
+  <section class="dir" id="d-prof">
+    <div class="note">The Score over time chart is gone. The big score tile is the anchor, the stats sit in one outlined strip, and the list of picks follows right after.</div>
+    <div class="frame">
+      <div class="chrome"><i></i><i></i><i></i><span>copayme.com/traders/demo_sharp</span></div>
+      <div class="D">
+        <div class="nav">
+          <div class="wm"><i></i>coPAYMe</div>
+          <div class="search">⌕&nbsp; Search a handle</div>
+          <a class="on">Leaderboard</a><a>Watchlist</a><a>Portfolio</a><a>Rewards</a><a>How it works</a>
+          <div class="sp"></div>
+          <span class="btn or">Sign in</span>
+        </div>
+        <div class="page">
+          <div class="card phead" style="background:#fff">
+            <div class="bigtile"><div><b>82</b><small>SCORE</small></div></div>
+            <div>
+              <h1>@demo_sharp</h1>
+              <div class="meta"><span class="chip up">▲ 16 in 14 days</span><span class="chip">Top 5%</span><span class="chip">NFL</span><span class="chip">NBA</span><span class="m">Last pick 1 day ago · <u>View on X ↗</u></span></div>
+            </div>
+            <div class="acts"><span class="btn or lg">Copy trade</span><span class="btn lg">Watch</span></div>
+          </div>
+          <div class="card strip" style="margin-top:26px">
+            <div><span>Record</span><b><span class="up">24</span>–<span class="dn">16</span></b></div>
+            <div><span>Hit rate</span><b>60%</b></div>
+            <div><span>Edge per pick</span><b class="up">+11¢</b></div>
+            <div><span>Resolved</span><b>40</b></div>
+          </div>
+          <div class="sech"><h2 class="h2">Picks</h2><span class="mono" style="font-size:13px;color:#55524b">Price when posted · result per $1</span></div>
+          <div class="card rows picks" style="background:#fff">
+            <div class="r"><span class="d">NOV 19</span><div><div class="t">Chiefs −2.5 vs Bills</div><div class="s">Point spread</div></div><span class="chip mono" style="justify-self:end">YES 52¢</span><span style="justify-self:end" class="tag">PENDING</span></div>
+            <div class="r"><span class="d">NOV 17</span><div><div class="t">Celtics to beat Knicks</div><div class="s">Moneyline</div></div><span class="chip mono" style="justify-self:end">YES 61¢</span><span style="justify-self:end" class="chip up">WON +39¢</span></div>
+            <div class="r"><span class="d">NOV 16</span><div><div class="t">Lakers vs Nuggets total</div><div class="s">Over 224.5</div></div><span class="chip mono" style="justify-self:end">NO 47¢</span><span style="justify-self:end" class="chip dn">LOST −47¢</span></div>
+            <div class="r"><span class="d">NOV 15</span><div><div class="t">Bills +3 at Dolphins</div><div class="s">Point spread</div></div><span class="chip mono" style="justify-self:end">YES 48¢</span><span style="justify-self:end" class="chip up">WON +52¢</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════ PORTFOLIO ═════════ -->
+  <section class="dir" id="d-port">
+    <div class="note">Portfolio with P&amp;L chart A, your copy trades, and individual trades marked Open, Won or Lost.</div>
+    <div class="frame">
+      <div class="chrome"><i></i><i></i><i></i><span>copayme.com/portfolio</span></div>
+      <div class="D">
+        <div class="nav">
+          <div class="wm"><i></i>coPAYMe</div>
+          <div class="search">⌕&nbsp; Search a handle</div>
+          <a>Leaderboard</a><a>Watchlist</a><a class="on">Portfolio</a><a>Rewards</a><a>How it works</a>
+          <div class="sp"></div>
+          <span class="acct"><i>P</i>@pranav</span>
+        </div>
+        <div class="page">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end">
+            <div><h1 class="pt">Portfolio</h1><div class="sub">Trades from the traders you copy and watch.</div></div>
+            
+          </div>
+          <div class="card strip" style="margin-top:28px;background:#fff">
+            <div><span>Total P&amp;L</span><b class="up">+$4.82</b></div>
+            <div><span>Return</span><b class="up">+12.1%</b></div>
+            <div><span>Open trades</span><b>3</b></div>
+            <div><span>Settled W–L</span><b><span class="up">7</span>–<span class="dn">3</span></b></div>
+          </div>
+          <div class="sech"><h2 class="h2">Profit and loss</h2></div>
+<div class="card pnl-card" style="background:#fff">
+  <div class="pnl-h"><div><div class="pnl-v up">+$4.82</div><div class="pnl-s"><span class="chip up" style="height:26px;font-size:13px">+12.1%</span> on $39.80 copied · last 14 days</div></div>
+  <div class="seg2"><span>1W</span><span class="on">2W</span><span>1M</span><span>All</span></div></div>
+  
+  <div style="padding:6px 6px 0"><svg width="100%" viewBox="0 0 1000 272" style="overflow:visible">
+<defs><clipPath id="ca"><rect x="0" y="0" width="1000" height="180"/></clipPath><clipPath id="cb"><rect x="0" y="180" width="1000" height="200"/></clipPath></defs>
+<line x1="0" y1="24" x2="930" y2="24" stroke="#111" stroke-opacity=".14" stroke-width="1.5" stroke-dasharray="5 6"/><text x="944" y="28" font-family="JetBrains Mono" font-size="12" font-weight="500" fill="#8b877d">$6</text><line x1="0" y1="76" x2="930" y2="76" stroke="#111" stroke-opacity=".14" stroke-width="1.5" stroke-dasharray="5 6"/><text x="944" y="80" font-family="JetBrains Mono" font-size="12" font-weight="500" fill="#8b877d">$4</text><line x1="0" y1="128" x2="930" y2="128" stroke="#111" stroke-opacity=".14" stroke-width="1.5" stroke-dasharray="5 6"/><text x="944" y="132" font-family="JetBrains Mono" font-size="12" font-weight="500" fill="#8b877d">$2</text><line x1="0" y1="180" x2="930" y2="180" stroke="#111" stroke-width="2.5"/><text x="944" y="184" font-family="JetBrains Mono" font-size="12" font-weight="500" fill="#8b877d">$0</text><line x1="0" y1="232" x2="930" y2="232" stroke="#111" stroke-opacity=".14" stroke-width="1.5" stroke-dasharray="5 6"/><text x="944" y="236" font-family="JetBrains Mono" font-size="12" font-weight="500" fill="#8b877d">−$2</text>
+<path d="M0,180 L0.0,180.0 L71.5,163.4 L143.1,171.2 L214.6,147.2 L286.2,199.2 L357.7,170.6 L429.2,158.2 L500.8,158.2 L572.3,123.1 L643.8,139.2 L715.4,94.7 L786.9,84.3 L858.5,94.2 L930.0,54.7 L930,180 Z" fill="#c9efd6" clip-path="url(#ca)"/>
+<path d="M0,180 L0.0,180.0 L71.5,163.4 L143.1,171.2 L214.6,147.2 L286.2,199.2 L357.7,170.6 L429.2,158.2 L500.8,158.2 L572.3,123.1 L643.8,139.2 L715.4,94.7 L786.9,84.3 L858.5,94.2 L930.0,54.7 L930,180 Z" fill="#fbd5cf" clip-path="url(#cb)"/>
+<polyline fill="none" stroke="#111" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round" points="0.0,180.0 71.5,163.4 143.1,171.2 214.6,147.2 286.2,199.2 357.7,170.6 429.2,158.2 500.8,158.2 572.3,123.1 643.8,139.2 715.4,94.7 786.9,84.3 858.5,94.2 930.0,54.7"/>
+<line x1="572.3" y1="24" x2="572.3" y2="232" stroke="#111" stroke-width="2" stroke-dasharray="4 5"/>
+<g transform="translate(586.3,141.1)"><rect x="4" y="4" width="200" height="58" rx="8" fill="#111"/><rect width="200" height="58" rx="8" fill="#fff" stroke="#111" stroke-width="2.5"/>
+<text x="12" y="20" font-family="JetBrains Mono" font-size="11" font-weight="700" letter-spacing=".8" fill="#55524b">NOV 14</text>
+<text x="12" y="44" font-family="Archivo" font-size="19" font-weight="800" fill="#14894b">+$1.35</text>
+<text x="188" y="44" text-anchor="end" font-family="JetBrains Mono" font-size="11.5" font-weight="500" fill="#55524b">total +$2.19</text></g>
+<g transform="translate(838,8.7)"><rect x="3" y="3" width="92" height="30" rx="7" fill="#111"/><rect width="92" height="30" rx="7" fill="#14894b" stroke="#111" stroke-width="2.5"/>
+<text x="46" y="20.5" text-anchor="middle" font-family="Archivo" font-size="15" font-weight="800" fill="#fff">+$4.82</text></g>
+<line x1="930" y1="41.7" x2="930" y2="54.7" stroke="#111" stroke-width="2.5"/>
+<text x="0.0" y="262" text-anchor="start" font-family="JetBrains Mono" font-size="12" font-weight="500" fill="#8b877d">NOV 6</text><text x="286.2" y="262" text-anchor="middle" font-family="JetBrains Mono" font-size="12" font-weight="500" fill="#8b877d">NOV 10</text><text x="572.3" y="262" text-anchor="middle" font-family="JetBrains Mono" font-size="12" font-weight="500" fill="#8b877d">NOV 14</text><text x="930.0" y="262" text-anchor="end" font-family="JetBrains Mono" font-size="12" font-weight="500" fill="#8b877d">NOV 19</text>
+</svg></div>
+</div>
+          <div class="sech"><h2 class="h2">Copy trading</h2></div>
+          <div class="card rows copies" style="background:#fff">
+            <div class="r"><span class="tile" style="--c:#14894b"><span>82</span></span><div><div class="t">@demo_sharp</div><div class="s">$1.00 per pick · 6 trades since Nov 8</div></div><div class="pnl"><b class="up">+$3.40</b><small>P&amp;L</small></div><span style="justify-self:end" class="btn blk sm">✓ Copying · $1</span></div>
+            <div class="r"><span class="tile" style="--c:#e8a317"><span>47</span></span><div><div class="t">@covers</div><div class="s">$2.00 per pick · 4 trades since Nov 12</div></div><div class="pnl"><b class="up">+$1.42</b><small>P&amp;L</small></div><span style="justify-self:end" class="btn blk sm">✓ Copying · $2</span></div>
+          </div>
+          <div class="sech"><h2 class="h2">Trades</h2></div>
+          <div class="card rows trades" style="background:#fff">
+            <div class="r"><div><div class="t">Chiefs −2.5 vs Bills</div><div class="s mono">@demo_sharp · YES · bought 52¢ · now 58¢</div></div><span class="chip open" style="justify-self:end">Open</span><div class="pnl"><b class="up">+$0.12</b><small>+11.5% on $1</small></div></div>
+            <div class="r"><div><div class="t">Celtics to beat Knicks</div><div class="s mono">@demo_sharp · YES · bought 61¢</div></div><span class="chip up" style="justify-self:end">Won</span><div class="pnl"><b class="up">+$0.64</b><small>+64% on $1</small></div></div>
+            <div class="r"><div><div class="t">Rams +6.5 at Seahawks</div><div class="s mono">@covers · YES · bought 55¢</div></div><span class="chip dn" style="justify-self:end">Lost</span><div class="pnl"><b class="dn">−$2.00</b><small>−100% on $2</small></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════ DARK X ═════════ -->
+  <section class="dir" id="d-dark">
+    <div class="note">Most people use X in dark mode, and a black shadow on a black page disappears. There are two ways to handle it. (Light-mode X keeps the version you've already seen.)</div>
+    <div class="grid2">
+      <div data-choice="dark-a" onclick="toggle(this)" style="cursor:pointer">
+        <div class="cap-label">A · Keep the paper card, swap the shadow to orange</div>
+        <div class="frame">
+          <div class="xdark">
+            <div class="tw"><div class="ta">DS</div><div>
+              <div class="hd"><b>Demo Sharp</b><span class="h">@demo_sharp · 1h</span><span class="bd on-dark-a"><i></i>82<em>▲16</em></span></div>
+              <p>Chiefs −2.5 tonight. Buffalo's run defense has been a sieve since Week 6.</p>
+              <div class="bar"><span>💬 18</span><span>⟲ 9</span><span>♡ 140</span></div>
+            </div></div>
+            <div class="pop da">
+              <div class="r1"><div><b>@demo_sharp</b><small>40 resolved · top 5%</small></div><div class="s">82</div></div>
+              <div class="kv"><div><span>RECORD</span><b><span class="g">24</span>–<span class="rd">16</span></b></div><div><span>HIT RATE</span><b>60%</b></div><div><span>EDGE</span><b class="g">+11¢</b></div></div>
+              <div class="pk"><div>Chiefs −2.5 vs Bills<small>YES 52¢ · 1h</small></div><span class="tg">PENDING</span></div>
+              <div class="pk"><div>Celtics to beat Knicks<small>YES 61¢ · 2d</small></div><b class="g">+39¢</b></div>
+              <div class="ac"><span class="b">Watch</span><span class="b or">Copy trade</span></div>
+            </div>
+          </div>
+        </div>
+        <p style="color:#3c3c38;margin:12px 0 0">The popover looks the same on both themes, like a sticker on top of X. Strongest brand presence. It's bright on a dark page, which some people will find loud.</p>
+      </div>
+      <div data-choice="dark-b" onclick="toggle(this)" style="cursor:pointer">
+        <div class="cap-label">B · Invert it: dark card, cream outlines, orange shadow</div>
+        <div class="frame">
+          <div class="xdark">
+            <div class="tw"><div class="ta">DS</div><div>
+              <div class="hd"><b>Demo Sharp</b><span class="h">@demo_sharp · 1h</span><span class="bd on-dark-b"><i></i>82<em>▲16</em></span></div>
+              <p>Chiefs −2.5 tonight. Buffalo's run defense has been a sieve since Week 6.</p>
+              <div class="bar"><span>💬 18</span><span>⟲ 9</span><span>♡ 140</span></div>
+            </div></div>
+            <div class="pop db">
+              <div class="r1"><div><b>@demo_sharp</b><small>40 resolved · top 5%</small></div><div class="s">82</div></div>
+              <div class="kv"><div><span>RECORD</span><b><span class="g">24</span>–<span class="rd">16</span></b></div><div><span>HIT RATE</span><b>60%</b></div><div><span>EDGE</span><b class="g">+11¢</b></div></div>
+              <div class="pk"><div>Chiefs −2.5 vs Bills<small>YES 52¢ · 1h</small></div><span class="tg">PENDING</span></div>
+              <div class="pk"><div>Celtics to beat Knicks<small>YES 61¢ · 2d</small></div><b class="g">+39¢</b></div>
+              <div class="ac"><span class="b">Watch</span><span class="b or">Copy trade</span></div>
+            </div>
+          </div>
+        </div>
+        <p style="color:#3c3c38;margin:12px 0 0">Fits in with dark X and still feels like the same brand. It also gives the website a ready-made dark mode if you want one later.</p>
+      </div>
+    </div>
+  </section>
+</div>
+<script>
+  function show(id, el) {
+    document.querySelectorAll('.dir').forEach(d => d.classList.toggle('on', d.id === 'd-' + id));
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t === el));
+    window.scrollTo({ top: document.querySelector('.tabs').offsetTop - 4, behavior: 'smooth' });
+  }
+  function toggle(el) {
+    document.querySelectorAll('[data-choice]').forEach(c => c.style.outline = c === el ? '3px solid #4b8a4b' : 'none');
+  }
+  function pick(el) { const g = el.closest(".opt") || el.closest("section"); g.querySelectorAll(".choose button").forEach(b => b.classList.toggle("selected", b === el)); }
+</script>
+</body>
+</html>
