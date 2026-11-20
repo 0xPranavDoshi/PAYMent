@@ -121,27 +121,26 @@ p { margin: 0; }
 .ticket::before { left: 0; background: radial-gradient(circle at 0 50%, var(--tk-hole) 0 7px, var(--ink) 7.5px 10px, transparent 10.5px) 0 2px / 12px 24px repeat-y; }
 .ticket::after { right: 0; background: radial-gradient(circle at 100% 50%, var(--tk-hole) 0 7px, var(--ink) 7.5px 10px, transparent 10.5px) 0 2px / 12px 24px repeat-y; }
 .tk-main { padding: 24px 30px 22px 46px; min-width: 0; }
-.tk-h { font: 700 15px/1 var(--mono); letter-spacing: .08em; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 12px; }
-.tk-h small { font: 500 12px var(--mono); color: var(--ink-2); letter-spacing: .02em; }
-.tk-tbl { width: 100%; border-collapse: collapse; margin-top: 16px; font: 500 14.5px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
-.tk-tbl th { text-align: left; font: 700 11.5px var(--mono); letter-spacing: .08em; color: var(--ink-2); padding: 0 0 10px; white-space: nowrap; }
-.tk-tbl td { padding: 9px 0; border-top: 1.5px dashed color-mix(in srgb, var(--ink) 20%, transparent); white-space: nowrap; }
+/* a receipt: monospaced, two sizes (13px text, 11px labels) */
+.tk-h { font: 700 13px/1 var(--mono); letter-spacing: .06em; }
+.tk-tbl { width: 100%; border-collapse: collapse; margin-top: 14px; font: 500 13px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+.tk-tbl th { text-align: left; font: 700 11px var(--mono); letter-spacing: .06em; color: var(--ink-3); padding: 0 0 8px; white-space: nowrap; }
+.tk-tbl td { padding: 10px 0; border-top: 1px dashed color-mix(in srgb, var(--ink) 22%, transparent); white-space: nowrap; }
 .tk-tbl th + th, .tk-tbl td + td { padding-left: 18px; }
 .tk-tbl td:first-child { max-width: 0; width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .tk-tbl th:last-child, .tk-tbl td:last-child { text-align: right; font-weight: 700; }
-.tk-note { margin-top: 16px; padding: 9px 0; font: 500 14.5px/1.2 var(--mono); color: var(--ink-2); }
-.tk-foot { display: inline-block; margin-top: 14px; font: 700 13px var(--mono); text-decoration: underline; text-underline-offset: 4px; }
+.tk-note { margin-top: 14px; padding: 10px 0; font: 500 13px/1.2 var(--mono); color: var(--ink-2); }
+.tk-foot { display: inline-block; margin-top: 14px; font: 700 12px var(--mono); text-decoration: underline; text-underline-offset: 4px; }
 .stub { position: relative; border-left: 2.5px dashed var(--ink); padding: 22px 44px 22px 30px; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
 .stub::before, .stub::after { content: ""; position: absolute; left: -12.5px; width: 20px; height: 20px; border-radius: 50%; background: var(--tk-hole); border: 2.5px solid var(--ink); }
 .stub::before { top: -13px; clip-path: inset(50% -4px -4px -4px); }
 .stub::after { bottom: -13px; clip-path: inset(-4px -4px 50% -4px); }
-.slip { font: 500 14px/1 var(--mono); display: flex; flex-direction: column; }
-.slip .li { display: flex; align-items: center; gap: 8px; padding: 9px 0; }
+.slip { font: 500 13px/1 var(--mono); display: flex; flex-direction: column; }
+.slip .li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0; }
 .slip .li > span:first-child { white-space: nowrap; }
-.slip .dots { flex: 1; border-bottom: 2px dotted color-mix(in srgb, var(--ink) 35%, transparent); transform: translateY(4px); }
 .slip .li b { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.slip .total { border-top: 2.5px solid var(--ink); margin-top: 4px; padding-top: 12px; }
-.slip .total b { font-size: 18px; }
+.slip .total { border-top: 2px solid var(--ink); margin-top: 4px; padding-top: 12px; }
+.slip .total b { font-size: 20px; }
 .stp { display: inline-flex; align-items: center; border: 2px solid var(--ink); border-radius: 8px; overflow: hidden; background: var(--surface); box-shadow: 2px 2px 0 var(--ink); }
 .stp button { appearance: none; margin: 0; padding: 0; border: 0; background: none; color: var(--ink); cursor: pointer; width: 30px; height: 30px; display: grid; place-content: center; font: 800 17px/1 var(--font); }
 .stp button:first-child { border-right: 2px solid var(--ink); }
@@ -158,9 +157,9 @@ p { margin: 0; }
 .stamp small { display: block; font: 700 11.5px var(--mono); letter-spacing: .06em; margin-top: 3px; }
 .tk-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .btn.tk-danger { color: var(--loss); }
-.tk-fine { font: 500 12px var(--mono); color: var(--ink-2); text-align: center; }
+.tk-fine { font: 500 11px var(--mono); color: var(--ink-2); text-align: center; }
 .tk-fine a { text-decoration: underline; text-underline-offset: 3px; }
-.tk-err { font: 500 12px var(--mono); color: var(--loss); text-align: center; }
+.tk-err { font: 500 11px var(--mono); color: var(--loss); text-align: center; }
 @media (max-width: 860px) {
   .ticket { grid-template-columns: minmax(0, 1fr); }
   .tk-main { padding: 22px 26px 20px 30px; }
@@ -241,10 +240,20 @@ a.who:hover { color: var(--ember); }
 .pickacts .marketlink { margin-left: 0; }
 .marketlink:hover { color: var(--ink); }
 .marketlink:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
-/* the shared tweet card (@copayme/tweet-card) defaults to X's dark theme; light follows the system */
-.tweetcard { --tweetcard-accent: var(--ember); }
-.tweetcard { --tweetcard-bg: #fff; --tweetcard-ink: #0f1419; --tweetcard-ink-2: #536471; --tweetcard-line: #eff3f4; --tweetcard-avatar: #eff3f4; --tweetcard-avatar-ink: #536471; }
-.tweetcard.inpick { margin-top: 12px; }
+/* "See tweet" on a profile: the tweet as a speech bubble from the trader's avatar */
+.pk-bubble { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: start; margin-top: 4px; }
+.pk-bubble .av { width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--ink); background: #e9e4d6; display: grid; place-content: center; font: 800 16px/1 var(--font); }
+.pk-bubble .bub { min-width: 0; background: var(--surface); border: 2px solid var(--ink); border-radius: 4px 16px 16px 16px; box-shadow: 3px 3px 0 var(--ink); padding: 14px 16px; }
+.pk-bubble .h { font: 500 13px/1.3 var(--font); color: var(--ink-2); }
+.pk-bubble .h b { color: var(--ink); font-weight: 800; }
+.pk-bubble .tx { margin: 6px 0 0; font: 600 18px/1.35 var(--font); color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.pk-bubble .tx a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--orange); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.pk-bubble .f { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; margin-top: 12px; padding-top: 10px; border-top: 1px dashed color-mix(in srgb, var(--ink) 22%, transparent); font: 500 13px/1.3 var(--font); color: var(--ink-2); }
+.pk-bubble .f b { color: var(--ink); font-weight: 700; }
+.pk-bubble .f a { font-weight: 700; color: var(--ink); text-decoration: none; white-space: nowrap; }
+.pk-bubble .f a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.pk-bubble .f a:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
+@media (max-width: 560px) { .pk-bubble { grid-template-columns: 32px minmax(0, 1fr); gap: 8px; } .pk-bubble .av { width: 32px; height: 32px; font-size: 13px; } .pk-bubble .tx { font-size: 16px; } }
 
 
 /* shared page header */

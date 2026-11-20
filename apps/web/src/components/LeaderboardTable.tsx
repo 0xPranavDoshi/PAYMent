@@ -116,7 +116,6 @@ export default function LeaderboardTable({
                     signedIn={signedIn}
                     viewerId={viewerId}
                     nPicks={e.nResolved}
-                    primary={rank === 1}
                     ticketPlacement="below"
                     open={open}
                     onOpenChange={(o) => setOpenHandle(o ? e.handle : null)}

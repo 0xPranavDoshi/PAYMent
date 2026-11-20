@@ -185,9 +185,7 @@ export default function CopyTicket({
     <div className={`tk-wrap ${variant === "card" ? "tk-card" : "tk-row"}`} onKeyDown={onKeyDown}>
       <div className="ticket" role="group" aria-label={`Copy trade @${handle}`}>
         <div className="tk-main">
-          <div className="tk-h">
-            RECENT PICKS <small>price when posted · result per $1</small>
-          </div>
+          <div className="tk-h">RECENT PICKS</div>
           {loaded === null ? (
             <p className="tk-note">Loading picks…</p>
           ) : calls === null ? (
@@ -197,7 +195,7 @@ export default function CopyTicket({
           ) : (
             <table className="tk-tbl">
               <thead>
-                <tr><th>MARKET</th><th>POSTED AT</th><th>RESULT</th><th>EDGE</th></tr>
+                <tr><th>MARKET</th><th>PRICE</th><th>RESULT</th><th>PER $1</th></tr>
               </thead>
               <tbody>
                 {recent.map((c) => (
@@ -243,13 +241,10 @@ export default function CopyTicket({
             </>
           ) : (
             <>
-              <div className="tk-h">
-                COPY TRADE <small>@{handle}</small>
-              </div>
+              <div className="tk-h">COPY TRADE</div>
               <div className="slip">
                 <div className="li">
                   <span>Amount per pick</span>
-                  <span className="dots" />
                   <span className="stp">
                     <button type="button" aria-label="Lower amount per pick" disabled={amount <= COPY_STEPS[0]!} onClick={() => setAmt(stepAmount(amount, -1))}>−</button>
                     <span className="stp-amt">
@@ -268,7 +263,6 @@ export default function CopyTicket({
                 </div>
                 <div className="li total">
                   <span>Past week</span>
-                  <span className="dots" />
                   <b className={week === null ? "muted" : tone(week)}>{week === null ? "—" : formatUsd(week)}</b>
                 </div>
               </div>
