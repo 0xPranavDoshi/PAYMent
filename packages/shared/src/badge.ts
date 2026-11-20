@@ -23,3 +23,8 @@ export const XHandle = z
   .string()
   .regex(/^@?[A-Za-z0-9_]{1,15}$/)
   .transform((h) => h.replace(/^@/, "").toLowerCase());
+
+/** The badge for a profile: the profile carries the same fields, so a fresher profile can refresh the badge. */
+export function badgeFromProfile(profile: Badge): Badge {
+  return { score: profile.score, change14d: profile.change14d, tier: profile.tier, nResolved: profile.nResolved, hitRate: profile.hitRate };
+}
