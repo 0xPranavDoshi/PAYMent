@@ -49,7 +49,7 @@ export default async function Home() {
                     <div className="f-meta">
                       <span><b className="w">{profile.nWins}</b>–<b className="l">{profile.nResolved - profile.nWins}</b> record</span>
                       <span><b>{formatPct(profile.hitRate)}</b> hit rate</span>
-                      <span><b className={Math.round(profile.skill * 100) >= 0 ? "w" : "l"}>{formatCents(profile.skill)}</b> edge</span>
+                      <span><b className={Math.round(profile.skill * 100) >= 0 ? "w" : "l"}>{formatCents(profile.skill)}</b> edge per pick</span>
                     </div>
                   </div>
                 </div>

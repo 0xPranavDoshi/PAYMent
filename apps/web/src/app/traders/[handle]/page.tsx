@@ -82,7 +82,7 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
         </div>
         <div>
           <b className={isNew || edgeCents === 0 ? undefined : edgeCents > 0 ? "w" : "l"}>{isNew ? "–" : formatCents(profile.skill)}</b>
-          <span>Edge</span>
+          <span>Edge per pick</span>
         </div>
       </div>
 

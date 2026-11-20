@@ -162,3 +162,11 @@ describe("createBadgeService", () => {
     expect(fetchBadges).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("badge lifetimes", () => {
+  it("are short enough that a score the worker just changed shows within about a minute", () => {
+    expect(BADGE_TTL_MS).toBeLessThanOrEqual(60_000);
+    expect(NEGATIVE_TTL_MS).toBeGreaterThan(BADGE_TTL_MS);
+    expect(NEGATIVE_TTL_MS).toBeLessThanOrEqual(5 * 60_000);
+  });
+});
