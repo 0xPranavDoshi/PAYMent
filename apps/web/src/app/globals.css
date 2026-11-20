@@ -510,3 +510,5 @@ a.who:hover { color: var(--ember); }
 .pf-rows .act { display: flex; justify-content: flex-end; }
 .pf-rows .who .t, .pf-rows .who .s { display: block; }
 .pf-rows .who .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pnl-hit:focus-visible { outline: 3px solid var(--orange); outline-offset: -3px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

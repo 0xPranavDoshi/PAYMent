@@ -54,3 +54,28 @@ export function pnlGeometry(points: { cumulative: number }[], width: number, hei
   const area = `${line} L${end.x},${zeroY} L${first.x},${zeroY} Z`;
   return { line, area, zeroY, ticks, xs, last: { x: end.x, y: end.y } };
 }
+
+export interface DayPoint {
+  label: string;
+  cumulative: number;
+  at?: string;
+  amount?: number;
+}
+
+/** One point per calendar day (local time): the running total at the end of the day and the day's summed stake. Points without a date stay separate. */
+export function aggregateByDay<T extends DayPoint>(points: T[]): T[] {
+  const out: T[] = [];
+  let lastKey: string | null = null;
+  for (const p of points) {
+    const d = p.at ? new Date(p.at) : null;
+    const key = d && !Number.isNaN(d.getTime()) ? `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}` : null;
+    if (key !== null && key === lastKey) {
+      const prev = out[out.length - 1]!;
+      out[out.length - 1] = { ...p, amount: (prev.amount ?? 0) + (p.amount ?? 0) };
+    } else {
+      out.push({ ...p });
+    }
+    lastKey = key;
+  }
+  return out;
+}

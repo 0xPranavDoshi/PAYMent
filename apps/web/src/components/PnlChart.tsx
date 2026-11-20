@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import { pnlGeometry } from "@/lib/pnlChart";
+import { aggregateByDay, pnlGeometry } from "@/lib/pnlChart";
 import { formatSignedPct, formatUsd } from "@/lib/format";
 
 export interface PnlPoint {
@@ -31,7 +31,8 @@ const DAY = 86_400_000;
 const money = (v: number) => (v < 0 ? "−" : "") + "$" + String(Math.round(Math.abs(v) * 100) / 100);
 
 /** Running P&L as a bold line, green above $0 and red below, with a latest-value tag and a hover readout. */
-export default function PnlChart({ points }: { points: PnlPoint[] }) {
+export default function PnlChart({ points: trades }: { points: PnlPoint[] }) {
+  const points = useMemo(() => aggregateByDay(trades), [trades]);
   const [range, setRange] = useState<RangeId>("All");
   const [hover, setHover] = useState<number | null>(null);
   const uid = useId().replace(/:/g, "");
@@ -58,6 +59,18 @@ export default function PnlChart({ points }: { points: PnlPoint[] }) {
 
   const labelIdx = shown.length < 2 ? [0] : [0, Math.round((shown.length - 1) / 3), Math.round(((shown.length - 1) * 2) / 3), shown.length - 1];
   const uniqueIdx = labelIdx.filter((v, i) => labelIdx.indexOf(v) === i);
+
+  function onKey(e: React.KeyboardEvent<SVGRectElement>) {
+    if (shown.length < 2) return;
+    const cur = hover ?? shown.length;
+    const step = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : e.key === "Home" ? -Infinity : e.key === "End" ? Infinity : 0;
+    if (step === 0) {
+      if (e.key === "Escape") setHover(null);
+      return;
+    }
+    e.preventDefault();
+    setHover(Math.min(shown.length - 1, Math.max(0, step === -Infinity ? 0 : step === Infinity ? shown.length - 1 : cur + step)));
+  }
 
   function onMove(e: React.PointerEvent<SVGRectElement>) {
     const box = e.currentTarget.getBoundingClientRect();
@@ -100,7 +113,11 @@ export default function PnlChart({ points }: { points: PnlPoint[] }) {
         </div>
       </div>
 
-      <svg viewBox={`0 0 1000 ${TOP + H + BOTTOM}`} width="100%" role="img" aria-label={`Running profit and loss, now ${tagText}`} className="pnl-svg">
+      <div className="sr-only" aria-live="polite">
+        {hp ? `${hp.label}: ${sign(delta)} that day, total ${sign(hp.cumulative)}` : ""}
+      </div>
+      <svg viewBox={`0 0 1000 ${TOP + H + BOTTOM}`} width="100%" role="group" aria-label={`Running profit and loss, now ${tagText}`} className="pnl-svg">
+        <title>{`Running profit and loss over ${shown.length} day${shown.length === 1 ? "" : "s"}, now ${tagText}`}</title>
         <defs>
           <clipPath id={`${uid}a`}><rect x="0" y="-100" width="1000" height={geo.zeroY + 100} /></clipPath>
           <clipPath id={`${uid}b`}><rect x="0" y={geo.zeroY} width="1000" height={H + 200} /></clipPath>
@@ -153,7 +170,7 @@ export default function PnlChart({ points }: { points: PnlPoint[] }) {
               </g>
             </g>
           )}
-          <rect x="0" y={-TOP} width={W + 1} height={H + TOP + BOTTOM} fill="transparent" onPointerMove={onMove} onPointerLeave={() => setHover(null)} />
+          <rect x="0" y={-TOP} width={W + 1} height={H + TOP + BOTTOM} fill="transparent" onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={(e) => { if (e.pointerType === "mouse") setHover(null); }} tabIndex={0} role="group" aria-label="Chart readout. Use the left and right arrow keys to step through days." onKeyDown={onKey} onBlur={() => setHover(null)} className="pnl-hit" />
         </g>
       </svg>
     </div>

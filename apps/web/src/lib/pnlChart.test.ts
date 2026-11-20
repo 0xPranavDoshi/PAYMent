@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pnlGeometry } from "./pnlChart";
+import { aggregateByDay, pnlGeometry } from "./pnlChart";
 
 const pts = (...v: number[]) => v.map((cumulative) => ({ cumulative }));
 const nums = (path: string) => (path.match(/-?\d+(\.\d+)?(e-?\d+)?/gi) ?? []).map(Number);
@@ -50,5 +50,24 @@ describe("pnlGeometry", () => {
     const g = pnlGeometry(pts(0, 0), 930, 208);
     expect(nums(g.line).every(Number.isFinite)).toBe(true);
     expect(g.ticks.map((t) => t.value)).toContain(0);
+  });
+});
+
+describe("aggregateByDay", () => {
+  it("collapses three trades on two days into two points", () => {
+    const at = (d: number, h: number) => new Date(2026, 10, d, h).toISOString();
+    const out = aggregateByDay([
+      { label: "Nov 6", cumulative: 1, at: at(6, 9), amount: 1 },
+      { label: "Nov 6", cumulative: 3, at: at(6, 15), amount: 2 },
+      { label: "Nov 7", cumulative: 2.5, at: at(7, 10), amount: 1 },
+    ]);
+    expect(out).toHaveLength(2);
+    expect(out.map((p) => p.cumulative)).toEqual([3, 2.5]);
+    expect(out.map((p) => p.amount)).toEqual([3, 1]);
+    expect(out.map((p) => p.label)).toEqual(["Nov 6", "Nov 7"]);
+  });
+
+  it("keeps undated points separate", () => {
+    expect(aggregateByDay([{ label: "", cumulative: 1 }, { label: "", cumulative: 2 }])).toHaveLength(2);
   });
 });
