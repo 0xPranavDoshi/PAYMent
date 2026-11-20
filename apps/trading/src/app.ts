@@ -47,6 +47,10 @@ function requireServiceKey(key: string) {
   };
 }
 
+/** A price we can trade or mark against. A quote of 0 means "no price yet", not "worth nothing". */
+export const usablePrice = (p: number | null | undefined): number | null =>
+  p !== null && p !== undefined && Number.isFinite(p) && p > 0 && p <= 1 ? p : null;
+
 export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }: AppDeps) {
   const app = new Hono();
 
@@ -134,6 +138,9 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
       call.side === "no" && outcome.noOdds !== null
         ? outcome.noOdds
         : outcome.currentOdds;
+    if (usablePrice(entryOdds) === null) {
+      return c.json({ error: "no usable price for this pick yet" }, 409);
+    }
 
     // Slippage check
     const priceDrift = Math.abs(entryOdds - req.quotedOdds);
@@ -250,7 +257,7 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
           ? outcome.noOdds
           : outcome.currentOdds
         : null;
-      let markPrice = storedMark;
+      let markPrice = usablePrice(storedMark);
       if (market) {
         const live = await liveMarkPrice(
           gemini,
@@ -261,7 +268,7 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
         if (live !== null) markPrice = live;
       }
       const unrealizedPnlUsdc =
-        markPrice !== null
+        markPrice !== null && usablePrice(tail.entryOdds) !== null
           ? paperPnlUsdc({ amountUsdc: tail.amountUsdc, entryOdds: tail.entryOdds, exitPrice: markPrice })
           : null;
       return c.json(toTailResponse(tail, { realized: false, markPrice, unrealizedPnlUsdc }));
@@ -311,6 +318,7 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
       const tail = r.tail;
       const what = {
         eventName: r.eventName,
+        marketTicker: r.ticker,
         pickLabel: r.pickedOutcome,
         side: r.side,
         traderHandle: r.traderHandle,
@@ -329,9 +337,9 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
         const live = event
           ? sidePriceFromEvent(event, { instrumentSymbol: r.instrumentSymbol, label: r.pickedOutcome }, r.side)
           : null;
-        const markPrice = live ?? r.storedMarkPrice;
+        const markPrice = live ?? usablePrice(r.storedMarkPrice);
         const unrealizedPnlUsdc =
-          markPrice !== null
+          markPrice !== null && usablePrice(tail.entryOdds) !== null
             ? paperPnlUsdc({ amountUsdc: tail.amountUsdc, entryOdds: tail.entryOdds, exitPrice: markPrice })
             : null;
         return toTailResponse(tail, { ...what, realized: false, markPrice, unrealizedPnlUsdc });
@@ -399,8 +407,8 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
       const live = event
         ? sidePriceFromEvent(event, { instrumentSymbol: m.instrumentSymbol, label: m.pickedOutcome }, m.side)
         : null;
-      const markPrice = live ?? m.storedMarkPrice;
-      if (markPrice === null) continue;
+      const markPrice = live ?? usablePrice(m.storedMarkPrice);
+      if (markPrice === null || usablePrice(m.entryOdds) === null) continue;
       const pnl = paperPnlUsdc({ amountUsdc: m.amountUsdc, entryOdds: m.entryOdds, exitPrice: markPrice });
       const key = m.traderHandle.toLowerCase();
       unrealizedByTrader.set(key, (unrealizedByTrader.get(key) ?? 0) + pnl);
@@ -543,8 +551,19 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
       return c.json({ error: "picked outcome not found in market" }, 422);
     }
 
-    const entryOdds =
-      call.side === "no" && outcome.noOdds !== null ? outcome.noOdds : outcome.currentOdds;
+    // A usable price is in (0, 1]. Gemini reports 0 when an outcome has no quote right now.
+    const usable = (p: number | null | undefined): number | null =>
+      typeof p === "number" && p > 0 && p <= 1 ? p : null;
+    // The market's live price for the picked side (what a real order is placed at).
+    const marketOdds = usable(
+      call.side === "no" && outcome.noOdds !== null ? outcome.noOdds : outcome.currentOdds,
+    );
+    // Paper watch/copy trades follow the pick at the price the author got (the same price the
+    // pick is scored at), falling back to the live price. Never 0: a 0 entry can't be settled.
+    const entryOdds = usable(call.oddsAtCall) ?? marketOdds;
+    if (entryOdds === null) {
+      return c.json({ error: "no price for the picked outcome; nothing was copied" }, 409);
+    }
 
     const errors: string[] = [];
     let alreadyNotified = 0;
@@ -605,8 +624,12 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
         else if (r.value) copyTails += 1;
         else alreadyNotified += 1;
       }
-    } else if (copyTraders.length > 0 && call.side) {
+    } else if (copyTraders.length > 0 && call.side && marketOdds === null) {
+      // A real order needs a real price. With no quote, don't place one at 0.
+      errors.push("copy: no live price for the picked outcome; no orders placed");
+    } else if (copyTraders.length > 0 && call.side && marketOdds !== null) {
       const side = call.side;
+      const liveOdds = marketOdds;
       const qtyIncrement = outcome.quantityIncrement ?? 0.01;
       const qtyMinimum = outcome.quantityMinimum ?? qtyIncrement;
       const priceIncrement = outcome.priceIncrement ?? 0.01;
@@ -618,7 +641,7 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
             callId: call.id,
             mode: "live",
             amountUsdc,
-            entryOdds,
+            entryOdds: liveOdds,
             geminiOrderId: null,
             status: "open",
             pnlUsdc: null,
@@ -626,7 +649,7 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
           });
           if (!tail) return false;
 
-          const quantity = snapDown(amountUsdc / entryOdds, qtyIncrement);
+          const quantity = snapDown(amountUsdc / liveOdds, qtyIncrement);
           if (quantity < qtyMinimum) {
             await store.updateTail(tail.id, { status: "cancelled" });
             throw new Error("amount too small to buy the minimum quantity at current odds");
@@ -639,7 +662,7 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
               side: "buy",
               outcome: side,
               quantity: formatToIncrement(quantity, qtyIncrement),
-              price: formatToIncrement(entryOdds, priceIncrement),
+              price: formatToIncrement(liveOdds, priceIncrement),
             });
           } catch (err) {
             // No order was placed. The cancelled row stays, so this follower is not retried
@@ -649,7 +672,7 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
           }
 
           const avg = order.avgExecutionPrice ? parseFloat(order.avgExecutionPrice) : NaN;
-          const filledOdds = Number.isFinite(avg) && avg > 0 ? avg : entryOdds;
+          const filledOdds = Number.isFinite(avg) && avg > 0 ? avg : liveOdds;
           try {
             await store.updateTail(tail.id, {
               geminiOrderId: String(order.orderId),
@@ -693,6 +716,7 @@ function toTailResponse(
   },
   extra?: {
     eventName?: string;
+    marketTicker?: string;
     pickLabel?: string | null;
     side?: "yes" | "no" | null;
     traderHandle?: string;

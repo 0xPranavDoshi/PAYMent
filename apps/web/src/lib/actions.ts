@@ -3,7 +3,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { addWatch, removeWatch, startCopyTrade, stopCopyTrade } from "./api";
+import type { CallEntry } from "@copayme/shared";
+import { addWatch, fetchTraderCalls, removeWatch, startCopyTrade, stopCopyTrade } from "./api";
 import { getFollowerId, isUuid, SESSION_COOKIE } from "./session";
 
 export interface ActionResult {
@@ -42,6 +43,8 @@ async function run(action: (followerId: string) => Promise<unknown>): Promise<Ac
   if (!followerId) return { ok: false, error: "Sign in first." };
   try {
     await action(followerId);
+    revalidatePath("/");
+    revalidatePath("/leaderboard");
     revalidatePath("/watchlist");
     revalidatePath("/portfolio");
     revalidatePath("/traders/[handle]", "page");
@@ -61,4 +64,13 @@ export async function startCopy(handle: string, amountUsdc: number): Promise<Act
 
 export async function stopCopy(handle: string): Promise<ActionResult> {
   return run((id) => stopCopyTrade(id, handle));
+}
+
+/** A trader's latest picks (up to 50) for the copy ticket; `{ ok: false }` if they can't be loaded. */
+export async function getTicketCalls(handle: string): Promise<{ ok: true; calls: CallEntry[] } | { ok: false }> {
+  try {
+    return { ok: true, calls: await fetchTraderCalls(handle, 50) };
+  } catch {
+    return { ok: false };
+  }
 }

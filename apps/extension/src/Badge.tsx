@@ -1,5 +1,4 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Mark } from "./brand.js";
 import { badgeView } from "./badgeView.js";
 import type { BadgeStore } from "./badgeStore.js";
 import { formatElapsed } from "./scanStatus.js";
@@ -65,16 +64,9 @@ export function Badge({
         if (event.key === "Enter" || event.key === " ") event.stopPropagation();
       }}
     >
-      <Mark />
-      {view.kind === "scored" && <span className="cap">SCORE</span>}
+      {view.meter && <span className={`meter ${view.meter.band}`} style={{ "--v": `${view.meter.pct}%` } as React.CSSProperties} />}
       <span className="num">{view.kind === "new" ? "NEW" : view.text}</span>
       {clock && <span className="clock">{clock}</span>}
-      {view.arrow && (
-        <span className={`arrow ${view.arrow.direction}`}>
-          {view.arrow.direction === "up" ? "▲" : "▼"}
-          {view.arrow.amount}
-        </span>
-      )}
     </button>
   );
 }

@@ -1,4 +1,4 @@
-import { changeArrow, type Badge, type ChangeArrow } from "@copayme/shared";
+import { scoreBand, type Badge, type ScoreBand } from "@copayme/shared";
 
 /**
  * undefined = not fetched yet, null = we have no data on this handle, "scanning" = reading their posts
@@ -10,7 +10,8 @@ export interface BadgeView {
   kind: "new" | "scored" | "scanning" | "offer" | "empty" | "failed";
   /** "New" or the score. */
   text: string;
-  arrow: ChangeArrow | null;
+  /** For a scored trader: a bar filled to the score, in the score's band colour. Null otherwise. */
+  meter: { pct: number; band: ScoreBand } | null;
   /** Hover text. */
   title: string;
 }
@@ -26,24 +27,24 @@ function plural(n: number, word: string): string {
  */
 export function badgeView(state: BadgeState, opts: { canScan?: boolean } = {}): BadgeView | null {
   if (state === null && opts.canScan) {
-    return { kind: "offer", text: "Scan picks", arrow: null, title: "Read this account's recent posts and score its picks" };
+    return { kind: "offer", text: "Scan picks", meter: null, title: "Read this account's recent posts and score its picks" };
   }
   if (!state) return null;
   if (state === "scanning") {
-    return { kind: "scanning", text: "Scanning…", arrow: null, title: "Reading this account's recent picks…" };
+    return { kind: "scanning", text: "Scanning…", meter: null, title: "Reading this account's recent picks…" };
   }
   if (state === "empty") {
-    return { kind: "empty", text: "No picks found", arrow: null, title: "We read their recent posts and found no sports picks on markets we track." };
+    return { kind: "empty", text: "No picks found", meter: null, title: "We read their recent posts and found no sports picks on markets we track." };
   }
   if (state === "failed") {
-    return { kind: "failed", text: "Scan failed · Retry", arrow: null, title: "The scan didn't finish. Click to try again." };
+    return { kind: "failed", text: "Scan failed · Retry", meter: null, title: "The scan didn't finish. Click to try again." };
   }
 
   if (state.tier === "new") {
     return {
       kind: "new",
       text: "New",
-      arrow: null,
+      meter: null,
       title: `${plural(state.nResolved, "resolved pick")} so far. A score appears at 5.`,
     };
   }
@@ -52,7 +53,7 @@ export function badgeView(state: BadgeState, opts: { canScan?: boolean } = {}): 
   return {
     kind: "scored",
     text: String(state.score),
-    arrow: changeArrow(state.change14d),
+    meter: { pct: Math.max(0, Math.min(100, state.score)), band: scoreBand(state.score) },
     title: `Score ${state.score} of 100 · ${plural(state.nResolved, "resolved pick")}${hit}`,
   };
 }

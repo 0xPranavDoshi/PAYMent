@@ -1,4 +1,4 @@
-import { NEW_BADGE_MIN_RESOLVED, type CallEntry, type UserProfile } from "@copayme/shared";
+import { NEW_BADGE_MIN_RESOLVED, changeArrow, marketUrl, type CallEntry, type UserProfile } from "@copayme/shared";
 import { tweetUrl } from "@copayme/shared/tweet-text";
 import { badgeView, type BadgeView } from "../badgeView.js";
 
@@ -23,6 +23,16 @@ export interface CallRowView {
   /** "+40¢", "−60¢", or null when the call earned no points. */
   points: string | null;
   tweetUrl: string;
+  /** The market on Gemini, where its price and result can be checked; null when the ticker is not known. */
+  marketUrl: string | null;
+}
+
+/** The newest picks first, at most n: pending ones included, void and rejected ones left out. */
+export function recentPicks(calls: readonly CallEntry[], n: number): CallEntry[] {
+  return calls
+    .filter((c) => c.status !== "void" && c.status !== "rejected")
+    .sort((a, b) => b.tweetedAt.localeCompare(a.tweetedAt))
+    .slice(0, n);
 }
 
 export function callRowView(call: CallEntry): CallRowView {
@@ -46,16 +56,8 @@ export function callRowView(call: CallEntry): CallRowView {
     outcome,
     points: call.points === null ? null : formatCents(call.points),
     tweetUrl: tweetUrl(call.tweetId),
+    marketUrl: call.marketTicker ? marketUrl(call.marketTicker) : null,
   };
-}
-
-/** "just now", "5m ago", "3h ago", "2d ago". */
-export function timeAgo(iso: string, now: Date = new Date()): string {
-  const seconds = Math.max(0, (now.getTime() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return "just now";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86_400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86_400)}d ago`;
 }
 
 export interface ProfileView {
@@ -74,14 +76,14 @@ export interface ProfileView {
   edgeTone: "up" | "down" | "none";
   /** The 14-day change as a chip, or null when there is none worth showing. */
   delta: { direction: "up" | "down"; text: string } | null;
-  lastPick: string | null;
   /** Shown when the user is still on the New badge. */
   note: string | null;
 }
 
-export function profileView(profile: UserProfile, now: Date = new Date()): ProfileView {
+export function profileView(profile: UserProfile): ProfileView {
   const badge = badgeView(profile)!;
   const isNew = profile.tier === "new";
+  const arrow = isNew ? null : changeArrow(profile.change14d);
   return {
     badge,
     gauge: isNew ? null : profile.score,
@@ -92,26 +94,19 @@ export function profileView(profile: UserProfile, now: Date = new Date()): Profi
     picks: String(profile.nResolved),
     edge: isNew ? "–" : formatCents(profile.skill),
     edgeTone: isNew || Math.round(profile.skill * 100) === 0 ? "none" : profile.skill > 0 ? "up" : "down",
-    delta: badge.arrow
-      ? { direction: badge.arrow.direction, text: `${badge.arrow.direction === "up" ? "▲" : "▼"} ${badge.arrow.amount} in 14 days` }
-      : null,
-    lastPick: profile.lastCallAt ? `Last pick ${timeAgo(profile.lastCallAt, now)}` : null,
+    delta: arrow ? { direction: arrow.direction, text: `${arrow.direction === "up" ? "▲" : "▼"} ${arrow.amount} in 14 days` } : null,
     note: isNew ? `A score appears after ${NEW_BADGE_MIN_RESOLVED} resolved picks.` : null,
   };
-}
-
-/**
- * An amount a user typed, in dollars: "7", "7.5", "$12.50" and "1,000" are fine. Anything that is not
- * a positive number with at most two decimals (empty, zero, negative, letters, "1e3") is null.
- */
-export function parseAmount(text: string): number | null {
-  const cleaned = text.trim().replace(/^\$/, "").replace(/,/g, "");
-  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
-  const value = Number(cleaned);
-  return value > 0 ? value : null;
 }
 
 /** A dollar amount the way a person writes it: "$25", "$7.50". */
 export function formatAmount(dollars: number): string {
   return Number.isInteger(dollars) ? `$${dollars}` : `$${dollars.toFixed(2)}`;
+}
+
+/** A signed dollar result to the cent, with a real minus sign: "+$9.23", "−$10.00", "$0.00". */
+export function formatUsd(dollars: number): string {
+  const cents = Math.round(dollars * 100);
+  const text = `$${(Math.abs(cents) / 100).toFixed(2)}`;
+  return cents > 0 ? `+${text}` : cents < 0 ? `−${text}` : text;
 }

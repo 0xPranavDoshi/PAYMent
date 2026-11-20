@@ -1,8 +1,8 @@
 import { createRoot, type Root } from "react-dom/client";
 import { isContextInvalidated } from "../context.js";
-import type { ProfileData } from "../messages.js";
+import type { ProfileData, Rank } from "../messages.js";
 import { POPOVER_CSS } from "../styles.js";
-import type { Theme, ThemeStore } from "../theme.js";
+import type { ThemeStore } from "../theme.js";
 import type { TradingActions } from "../trading.js";
 import { Popover, type PopoverState } from "./Popover.js";
 
@@ -15,6 +15,8 @@ const ESTIMATED_HEIGHT = 560;
 export interface PopoverManager {
   /** Opens the popover for this handle next to the badge, or closes it if it is already open there. */
   toggle(handle: string, anchor: Element): void;
+  /** Re-reads the card if it is open for this handle (a scan just changed what it shows), without a loading flash. */
+  refresh(handle: string): void;
   close(): void;
 }
 
@@ -25,8 +27,12 @@ export interface PopoverManager {
  */
 export function createPopoverManager(opts: {
   load: (handle: string) => Promise<ProfileData>;
+  /** The handle's leaderboard rank, fetched alongside the profile. Without it, no rank is shown. */
+  loadRank?: (handle: string) => Promise<Rank | null>;
+  /** Called with each profile the card loads, which is newer than the badge it was opened from. */
+  onLoaded?: (handle: string, data: ProfileData) => void;
   webUrl: string;
-  /** Keeps the card in step with X's theme. Without it the card is light. */
+  /** X's page background, used for the ticket's notches. The card itself is always light. */
   theme?: ThemeStore;
   /** What the Watch and Copy trade buttons do. */
   trading?: TradingActions;
@@ -34,10 +40,10 @@ export function createPopoverManager(opts: {
   rescan?: (handle: string) => void;
   doc?: Document;
 }): PopoverManager {
-  const { load, webUrl, theme, trading, rescan, doc = document } = opts;
+  const { load, loadRank, onLoaded, webUrl, theme, trading, rescan, doc = document } = opts;
   const win = doc.defaultView ?? window;
 
-  let current: { handle: string; anchor: Element; host: HTMLElement; root: Root; stop: () => void } | null = null;
+  let current: { handle: string; anchor: Element; host: HTMLElement; root: Root; reload: () => void; stop: () => void } | null = null;
 
   function close() {
     if (!current) return;
@@ -75,9 +81,8 @@ export function createPopoverManager(opts: {
 
     const host = doc.createElement("div");
     host.dataset.copayme = "popover";
-    host.dataset.theme = theme?.get() ?? "light";
     host.style.cssText = "position:fixed;z-index:2147483647;"; // sets the whole style, so anything else goes after it
-    if (theme) host.style.setProperty("--tw-bg", theme.surface());
+    if (theme) host.style.setProperty("--page-bg", theme.surface());
     const shadow = host.attachShadow({ mode: "open" });
     const style = doc.createElement("style");
     style.textContent = POPOVER_CSS;
@@ -88,12 +93,17 @@ export function createPopoverManager(opts: {
 
     const root = createRoot(container);
     let token = 0; // a newer request makes older answers irrelevant
+    // The rank arrives on its own (it never holds up the profile) and is drawn into whatever is showing.
+    let shown: PopoverState = { status: "loading" };
+    let rank: Rank | null = null;
 
-    const render = (state: PopoverState) =>
+    const render = (state: PopoverState) => {
+      shown = state;
       root.render(
         <Popover
           handle={handle}
           state={state}
+          rank={rank}
           webUrl={webUrl}
           trading={trading}
           onClose={close}
@@ -102,17 +112,35 @@ export function createPopoverManager(opts: {
           {...(rescan ? { onRescan: () => (close(), rescan(handle)) } : {})}
         />,
       );
+    };
 
     function fetchProfile() {
       const mine = ++token;
       render({ status: "loading" });
       load(handle).then(
         (data) => {
-          if (mine === token && current?.host === host) render({ status: "ready", ...data });
+          if (mine === token && current?.host === host) {
+            render({ status: "ready", ...data });
+            onLoaded?.(handle, data);
+          }
         },
         (err: unknown) => {
           if (mine === token && current?.host === host) render({ status: "error", stale: isContextInvalidated(err) });
         },
+      );
+    }
+
+    /** Reads the data again and swaps it in, keeping what is on screen if the read fails. */
+    function reload() {
+      const mine = ++token;
+      load(handle).then(
+        (data) => {
+          if (mine === token && current?.host === host) {
+            render({ status: "ready", ...data });
+            onLoaded?.(handle, data);
+          }
+        },
+        () => {},
       );
     }
 
@@ -138,10 +166,7 @@ export function createPopoverManager(opts: {
         place(host, anchor, side);
       });
     };
-    const stopTheme = theme?.subscribe((next: Theme) => {
-      host.dataset.theme = next;
-      host.style.setProperty("--tw-bg", theme.surface()); // Dim and Lights Out are both dark but not the same colour
-    });
+    const stopTheme = theme?.subscribe(() => host.style.setProperty("--page-bg", theme.surface()));
 
     doc.addEventListener("pointerdown", onPointerDown, true);
     doc.addEventListener("keydown", onKeyDown, true);
@@ -153,6 +178,7 @@ export function createPopoverManager(opts: {
       anchor,
       host,
       root,
+      reload,
       stop: () => {
         token++;
         stopTheme?.();
@@ -165,12 +191,23 @@ export function createPopoverManager(opts: {
     };
 
     fetchProfile();
+    loadRank?.(handle).then(
+      (answer) => {
+        if (current?.host !== host || !answer) return;
+        rank = answer;
+        render(shown);
+      },
+      () => {}, // no rank is shown
+    );
   }
 
   return {
     toggle(handle, anchor) {
       if (current && current.handle === handle && current.anchor === anchor) close();
       else open(handle, anchor);
+    },
+    refresh(handle) {
+      if (current?.handle === handle) current.reload();
     },
     close,
   };

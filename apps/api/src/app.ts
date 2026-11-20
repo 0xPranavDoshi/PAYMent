@@ -217,6 +217,11 @@ export function createApp({ store, ingest, serviceKey, notifyNewCall, worker, ca
       console.error(`[ingest] failed to store tweet ${post.tweetId}`, err),
     );
 
+    // New picks change what the badge, popover and profile show for these accounts, and the cache
+    // remembers an unknown account as "no data" for a minute: forget what it holds for each author,
+    // so a scan's result shows straight away.
+    for (const post of posts) badgeCache.delete(post.xHandle.replace(/^@/, "").toLowerCase());
+
     // Copy trading follows fresh picks only; a scan of an old tweet must never place orders.
     // Only newly created calls count: a re-sent or replaced pick was already notified, or is not new.
     if (notifyNewCall) {
@@ -254,7 +259,7 @@ export function createApp({ store, ingest, serviceKey, notifyNewCall, worker, ca
       limit = Math.min(Math.max(Number(raw), 1), MAX_LEADERBOARD_LIMIT);
     }
     const rows = await store.leaderboard(limit, NEW_BADGE_MIN_RESOLVED);
-    const board: LeaderboardEntry[] = rows.map((row) => ({ handle: row.handle, ...toBadge(row) }));
+    const board: LeaderboardEntry[] = rows.map((row) => ({ handle: row.handle, ...toBadge(row), skill: row.skill }));
     return c.json(board);
   });
 

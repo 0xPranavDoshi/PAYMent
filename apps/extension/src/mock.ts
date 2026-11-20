@@ -95,3 +95,11 @@ export function mockProfileData(handle: string): ProfileData {
   });
   return { profile, calls };
 }
+
+/** The demo users, best score first, so mock mode shows a rank ("#1 of 5") for them. */
+export function mockLeaderboard(): string[] {
+  return Object.entries(DEMO)
+    .filter(([, badge]) => badge.tier === "scored")
+    .sort(([, a], [, b]) => b.score - a.score)
+    .map(([handle]) => handle);
+}

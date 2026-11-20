@@ -7,6 +7,7 @@ interface Row {
   tweet_text: string;
   tweeted_at: Date;
   event_name: string;
+  market_ticker: string;
   picked_outcome: string;
   instrument_symbol: string | null;
   side: "yes" | "no" | null;
@@ -23,6 +24,7 @@ const toRow = (r: Row): LedgerRow => ({
   tweetText: r.tweet_text,
   tweetedAt: r.tweeted_at,
   eventName: r.event_name,
+  marketTicker: r.market_ticker,
   pickedOutcome: r.picked_outcome,
   instrumentSymbol: r.instrument_symbol,
   side: r.side,
@@ -37,7 +39,7 @@ export function createPostgresCallsStore(sql: postgres.Sql): CallsStore {
   return {
     async listRecent(limit) {
       const rows = await sql<(Row & { handle: string })[]>`
-        select c.id, p.tweet_id, p.tweet_text, c.tweeted_at, m.event_name, c.picked_outcome, c.instrument_symbol,
+        select c.id, p.tweet_id, p.tweet_text, c.tweeted_at, m.event_name, m.gemini_market_id as market_ticker, c.picked_outcome, c.instrument_symbol,
                c.side, c.odds_at_call, c.odds_source, c.status, c.points, m.outcomes, u.x_handle as handle
         from calls c
         join posts p on p.id = c.post_id
@@ -65,7 +67,7 @@ export function createPostgresCallsStore(sql: postgres.Sql): CallsStore {
       if (!user) return null;
 
       const rows = await sql<Row[]>`
-        select c.id, p.tweet_id, p.tweet_text, c.tweeted_at, m.event_name, c.picked_outcome, c.instrument_symbol,
+        select c.id, p.tweet_id, p.tweet_text, c.tweeted_at, m.event_name, m.gemini_market_id as market_ticker, c.picked_outcome, c.instrument_symbol,
                c.side, c.odds_at_call, c.odds_source, c.status, c.points, m.outcomes
         from calls c
         join posts p on p.id = c.post_id

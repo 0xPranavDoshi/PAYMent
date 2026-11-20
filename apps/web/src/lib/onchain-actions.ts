@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { getFollowerId } from "./session";
-import { ocLinkWallet, ocRedeem, ocSetOptIn } from "./onchain";
+import { ocLinkWallet, ocPayoutRun, ocRedeem, ocSetOptIn } from "./onchain";
+import { getAdmin } from "./admin";
 
 export interface OnchainResult {
   ok: boolean;
@@ -45,5 +46,23 @@ export async function redeemAction(): Promise<OnchainResult> {
     return { ok: true, amountUsdc: r.amountUsdc, txHash: r.txHash };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Couldn't cash out." };
+  }
+}
+
+/** Runs today's payout. Admins only (ADMIN_X_HANDLES). */
+export async function runPayoutAction(): Promise<OnchainResult & { message?: string }> {
+  const admin = await getAdmin();
+  if (!admin) return { ok: false, error: "Only admins can run payouts." };
+  try {
+    const r = await ocPayoutRun(admin.handle);
+    revalidatePath("/admin/payouts");
+    revalidatePath("/rewards");
+    if (!r.ran) return { ok: true, message: r.reason ?? "Nothing to pay out." };
+    return {
+      ok: true,
+      message: `Paid $${r.feeCreditedUsdc.toFixed(4)} to creators; treasury kept $${r.feeRetainedUsdc.toFixed(4)} from ${r.tails} trades.`,
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Couldn't run the payout." };
   }
 }

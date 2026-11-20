@@ -7,6 +7,8 @@ import { linkWalletAction, redeemAction, setOptInAction } from "@/lib/onchain-ac
 import { ARC, useWallets, type DiscoveredWallet } from "@/lib/useWallets";
 
 const short = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+const REASON: Record<string, string> = { copy_reward: "Copy reward", tail_reward: "Tail reward", redeem: "Cashed out" };
+const WEEK = 7 * 24 * 60 * 60 * 1000;
 
 export default function RewardsPanel({ user, earnings }: { user: AuthUser; earnings: EarningsSummary | null }) {
   const router = useRouter();
@@ -19,6 +21,10 @@ export default function RewardsPanel({ user, earnings }: { user: AuthUser; earni
   const available = earnings?.availableUsdc ?? 0;
   const linked = user.walletAddress;
   const ready = Boolean(linked && user.rewardsOptIn);
+  // Rewards earned in the last 7 days (cash-outs are not earnings).
+  const week = (earnings?.rows ?? [])
+    .filter((r) => r.reason !== "redeem" && Date.now() - new Date(r.createdAt).getTime() <= WEEK)
+    .reduce((sum, r) => sum + r.amountUsdc, 0);
   const differs = address && address.toLowerCase() !== linked?.toLowerCase();
 
   async function act(
@@ -42,73 +48,64 @@ export default function RewardsPanel({ user, earnings }: { user: AuthUser; earni
 
   return (
     <>
-      <div className="thead">
-        <div className="avatar">{user.handle.slice(0, 1).toUpperCase()}</div>
-        <div>
-          <h1>@{user.handle}</h1>
-          <div className="meta"><span className="chip">Signed in</span>Rewards paid in USDC on Arc</div>
-        </div>
-      </div>
+      <h1 className="pt">Rewards</h1>
+      <p className="psub">Earn USDC on Arc every time someone copies or tails one of your picks.</p>
 
-      {/* Hero: available to cash out */}
-      <div className="card" style={{ marginTop: 24 }}>
-        <div className="rw-hero">
-          <div>
-            <span className="muted" style={{ fontSize: 13 }}>Available to cash out</span>
-            <div className="rw-amt">${available.toFixed(2)}</div>
-          </div>
+      <div className="payout">
+        <div className="pmain">
+          <div className="lbl2">AVAILABLE TO CASH OUT</div>
+          <div className="amt-big">${available.toFixed(2)}<small>USDC</small></div>
+          {week > 0 && <div className="meta2"><span className="chip up">+${week.toFixed(2)} this week</span></div>}
+        </div>
+        <div className="pstub2">
           {ready ? (
-            <button className="btn primary lg" disabled={busy !== null || available <= 0}
-              onClick={() => act("redeem", redeemAction, (r) => setMsg(`Cashed out $${(r.amountUsdc ?? 0).toFixed(2)} to your wallet.`))}>
-              {busy === "redeem" ? "Cashing out…" : available > 0 ? "Cash out to wallet" : "Nothing to cash out"}
-            </button>
+            <>
+              <button className="btn primary xl" disabled={busy !== null || available <= 0}
+                onClick={() => act("redeem", redeemAction, (r) => setMsg(`Cashed out $${(r.amountUsdc ?? 0).toFixed(2)} to your wallet.`))}>
+                {busy === "redeem" ? "Cashing out…" : available > 0 ? "Cash out to wallet" : "Nothing to cash out"}
+              </button>
+              <div className="to">to <b>{short(linked!)}</b> on Arc</div>
+            </>
           ) : (
-            <span className="muted" style={{ fontSize: 14, maxWidth: 220 }}>
+            <p className="guide">
               {linked ? "Turn on rewards to start earning." : "Connect a wallet and turn on rewards to start earning."}
-            </span>
+            </p>
           )}
         </div>
-        {msg && <p className="fine" style={{ color: "var(--win)", marginTop: 12 }}>{msg}</p>}
-        {err && <p className="fine" style={{ color: "var(--coral)", marginTop: 12 }}>{err}</p>}
+      </div>
+      {msg && <p className="rw-note win">{msg}</p>}
+      {err && <p className="rw-note loss">{err}</p>}
+
+      <div className="card strip rw-strip">
+        <div><span>Earned</span><b>${(earnings?.totalEarnedUsdc ?? 0).toFixed(2)}</b></div>
+        <div><span>Cashed out</span><b>${(earnings?.redeemedUsdc ?? 0).toFixed(2)}</b></div>
+        <div><span>Rewards</span><b className={user.rewardsOptIn ? "up" : "muted"}>{user.rewardsOptIn ? "On" : "Off"}</b></div>
+        <div><span>Wallet</span><b className="wal">{linked ? short(linked) : "—"}</b></div>
       </div>
 
-      {/* Stats */}
-      <div className="stats">
-        <div><span>Earned</span><b className="num">${(earnings?.totalEarnedUsdc ?? 0).toFixed(2)}</b></div>
-        <div><span>Cashed out</span><b className="num">${(earnings?.redeemedUsdc ?? 0).toFixed(2)}</b></div>
-        <div><span>Rewards</span><b style={{ color: user.rewardsOptIn ? "var(--win)" : "var(--ink-3)" }}>{user.rewardsOptIn ? "On" : "Off"}</b></div>
-        <div><span>Wallet</span><b className="num">{linked ? short(linked) : "—"}</b></div>
-      </div>
-
-      {/* Two columns: wallet + rewards | activity */}
-      <div className="rw-cols">
-        <div className="card">
-          <div className="rw-row">
-            <h2 style={{ fontSize: 18 }}>Payout wallet</h2>
-            {linked && <span className="chip up">Linked</span>}
-          </div>
-          {linked && <p className="muted num" style={{ fontSize: 13, marginTop: 10, wordBreak: "break-all" }}>{linked}</p>}
-          {address && differs && <p className="muted num" style={{ fontSize: 13, marginTop: 6, wordBreak: "break-all" }}>Connected: {address}</p>}
+      <div className="rcols">
+        <div className="card pane">
+          <h3>Payout wallet {linked && <span className="chip up">Linked</span>}</h3>
+          {linked && <div className="addr">{linked}</div>}
+          {address && differs && <div className="addr">Connected: {address}</div>}
 
           {!address || picking ? (
-            <div className="wallets">
+            <div className="wpick">
               {wallets.length === 0 && (
-                <p className="muted" style={{ fontSize: 13 }}>No wallet found. Install MetaMask, Rabby, Coinbase, or Brave Wallet.</p>
+                <p className="muted">No wallet found. Install MetaMask, Rabby, Coinbase, or Brave Wallet.</p>
               )}
               {wallets.map((w) => (
-                <button key={w.info.rdns} className="wallet-btn" onClick={() => pick(w)} disabled={walletBusy}>
-                  {w.info.icon ? <img src={w.info.icon} alt="" /> : <span className="dot">◆</span>}
+                <button key={w.info.rdns} type="button" onClick={() => pick(w)} disabled={walletBusy}>
+                  {w.info.icon ? <img src={w.info.icon} alt="" /> : <span className="ic">◆</span>}
                   <span>{w.info.name}</span>
-                  <span className="muted" style={{ marginLeft: "auto", fontSize: 12 }}>Connect</span>
+                  <span className="go">Connect</span>
                 </button>
               ))}
             </div>
           ) : (
-            <div style={{ marginTop: 12 }}>
-              <div className="rw-row">
-                <span className="num" style={{ fontSize: 13 }}>{activeName}: {short(address)}</span>
-              </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+            <>
+              <div className="addr">{activeName}: {short(address)}</div>
+              <div className="brow">
                 {differs && (
                   <button className="btn sm primary" disabled={busy !== null}
                     onClick={() => act("link", () => linkWalletAction(address))}>
@@ -118,41 +115,41 @@ export default function RewardsPanel({ user, earnings }: { user: AuthUser; earni
                 <button className="btn sm" onClick={() => setPicking(true)} disabled={walletBusy}>Change wallet</button>
                 <button className="btn sm" onClick={disconnect}>Disconnect</button>
               </div>
-            </div>
+            </>
           )}
-          {walletErr && <p className="fine" style={{ color: "var(--coral)", marginTop: 10 }}>{walletErr}</p>}
+          {walletErr && <p className="rw-note loss">{walletErr}</p>}
 
-          <div className="rw-row" style={{ marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
-            <div>
-              <h2 style={{ fontSize: 18 }}>Rewards</h2>
-              <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
-                {user.rewardsOptIn ? "On — you earn when people tail your calls." : "Turn on to earn from your calls."}
-              </p>
-            </div>
-            <button className={`btn sm ${user.rewardsOptIn ? "" : "primary"}`}
+          <div className="divider" />
+          <h3>
+            Earn from your picks
+            <button type="button" role="switch" aria-checked={user.rewardsOptIn} aria-label="Earn from your picks"
+              className={`tgl${user.rewardsOptIn ? "" : " off"}`}
               disabled={busy !== null || (!linked && !user.rewardsOptIn)}
               onClick={() => act("optin", () => setOptInAction(!user.rewardsOptIn))}>
-              {busy === "optin" ? "…" : user.rewardsOptIn ? "Turn off" : "Turn on"}
+              <i />
             </button>
-          </div>
+          </h3>
+          <p className="tgl-note">
+            {user.rewardsOptIn ? "On. You get 2% of every copied or tailed pick, at least 1¢ each." : "Off. Turn on to get 2% of every copied or tailed pick, at least 1¢ each."}
+          </p>
         </div>
 
-        <div className="card">
-          <h2 style={{ fontSize: 18 }}>Activity</h2>
+        <div className="card pane">
+          <h3>Activity</h3>
           {!earnings || earnings.rows.length === 0 ? (
-            <p className="muted" style={{ fontSize: 14, marginTop: 12 }}>Nothing yet. Rewards appear here when someone tails your calls.</p>
+            <p className="muted" style={{ marginTop: 12 }}>Nothing yet. Rewards appear here when someone tails your calls.</p>
           ) : (
-            <table className="led" style={{ marginTop: 8 }}>
+            <table className="ledger">
               <tbody>
                 {earnings.rows.slice(0, 8).map((r) => (
                   <tr key={r.id}>
-                    <td className="muted">{new Date(r.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</td>
-                    <td style={{ textTransform: "capitalize" }}>{r.reason.replace(/_/g, " ")}</td>
-                    <td className="num" style={{ textAlign: "right", fontWeight: 600, color: r.amountUsdc >= 0 ? "var(--win)" : "var(--ember)" }}>
+                    <td className="d">{new Date(r.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }).toUpperCase()}</td>
+                    <td className="r">{REASON[r.reason] ?? r.reason.replace(/_/g, " ")}</td>
+                    <td className={`a${r.amountUsdc >= 0 ? " up" : ""}`}>
                       {r.amountUsdc >= 0 ? "+" : "−"}${Math.abs(r.amountUsdc).toFixed(2)}
                     </td>
-                    <td style={{ textAlign: "right" }}>
-                      {r.txHash ? <a className="muted" style={{ fontSize: 12 }} href={`${ARC.explorer}/tx/${r.txHash}`} target="_blank" rel="noreferrer">tx ↗</a> : <span className="muted">—</span>}
+                    <td className="x">
+                      {r.txHash ? <a href={`${ARC.explorer}/tx/${r.txHash}`} target="_blank" rel="noreferrer">tx ↗</a> : <span className="muted">—</span>}
                     </td>
                   </tr>
                 ))}
@@ -160,6 +157,13 @@ export default function RewardsPanel({ user, earnings }: { user: AuthUser; earni
             </table>
           )}
         </div>
+      </div>
+
+      <div className="sech"><h2 className="h2">How you earn</h2></div>
+      <div className="earn">
+        <div className="card"><b>2%</b><p>of every pick someone copies or tails from you, paid in USDC.</p></div>
+        <div className="card"><b>1¢</b><p>minimum per pick, so even a $1 tail shows up in your balance.</p></div>
+        <div className="card"><b>Any time</b><p>Cash out to your linked wallet on Arc whenever you like. No minimum.</p></div>
       </div>
     </>
   );

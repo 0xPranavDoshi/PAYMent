@@ -51,21 +51,20 @@ describe("createTradingService", () => {
     const { actions, fetcher } = service({
       "GET /v1/watches": [watchItem("other"), watchItem("Alice")],
       "GET /v1/copy-trades": [copyItem("other", true), copyItem("alice", true, 25)],
-      "GET /v1/config": { copyTradeMode: "paper" },
     });
-    expect(await actions.state("ALICE")).toEqual({ signedIn: true, watching: true, copy: { active: true, amountUsdc: 25 }, copyMode: "paper" });
+    expect(await actions.state("ALICE")).toEqual({
+      signedIn: true,
+      watching: true,
+      copy: { active: true, amountUsdc: 25, since: "2026-11-19T12:00:00.000Z" },
+    });
+    expect(fetcher.mock.calls.some(([url]) => String(url).includes("/v1/config"))).toBe(false); // how copies run is not the popover's business
     const watchesCall = fetcher.mock.calls.find(([url]) => String(url).endsWith("/v1/watches"))!;
     expect((watchesCall[1]!.headers as Record<string, string>)["x-follower-id"]).toBe(FOLLOWER);
   });
 
   it("is not watching or copying when the trader is in neither list", async () => {
-    const { actions } = service({ "GET /v1/watches": [], "GET /v1/copy-trades": [], "GET /v1/config": { copyTradeMode: "live" } });
-    expect(await actions.state("alice")).toEqual({ signedIn: true, watching: false, copy: null, copyMode: "live" });
-  });
-
-  it("assumes copy trades place real orders when the service does not say how it runs them", async () => {
-    const { actions } = service({ "GET /v1/watches": [], "GET /v1/copy-trades": [] }); // no /v1/config: the fake answers 404
-    expect((await actions.state("alice")).copyMode).toBe("live");
+    const { actions } = service({ "GET /v1/watches": [], "GET /v1/copy-trades": [] });
+    expect(await actions.state("alice")).toEqual({ signedIn: true, watching: false, copy: null });
   });
 
   it("starts and stops a watch", async () => {
@@ -97,7 +96,7 @@ describe("createTradingService", () => {
 describe("createMockTrading", () => {
   it("keeps choices in memory so the buttons can be tried without a backend", async () => {
     const mock = createMockTrading();
-    expect(await mock.state("alice")).toEqual({ signedIn: true, watching: false, copy: null, copyMode: "paper" });
+    expect(await mock.state("alice")).toEqual({ signedIn: true, watching: false, copy: null });
     await mock.setWatch("alice", true);
     await mock.startCopy("alice", 25);
     expect(await mock.state("alice")).toMatchObject({ watching: true, copy: { active: true, amountUsdc: 25 } });
@@ -113,9 +112,9 @@ describe("createTradingBridge", () => {
     const sent: TradingRequest[] = [];
     const bridge = createTradingBridge(async (request): Promise<TradingReply> => {
       sent.push(request);
-      return request.op === "state" ? { ok: true, state: { signedIn: true, watching: false, copy: null, copyMode: "paper" as const } } : { ok: true };
+      return request.op === "state" ? { ok: true, state: { signedIn: true, watching: false, copy: null } } : { ok: true };
     });
-    expect(await bridge.state("alice")).toEqual({ signedIn: true, watching: false, copy: null, copyMode: "paper" });
+    expect(await bridge.state("alice")).toEqual({ signedIn: true, watching: false, copy: null });
     await bridge.setWatch("alice", false);
     await bridge.startCopy("alice", 10);
     await bridge.stopCopy("alice");

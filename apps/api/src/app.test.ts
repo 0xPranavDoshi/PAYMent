@@ -148,8 +148,8 @@ describe("GET /v1/leaderboard", () => {
     const res = await app.request("/v1/leaderboard");
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual([
-      { handle: "alice", score: 72, change14d: 8, tier: "scored", nResolved: 30, hitRate: 19 / 30 },
-      { handle: "bob", score: 40, change14d: null, tier: "scored", nResolved: 30, hitRate: 19 / 30 },
+      { handle: "alice", score: 72, change14d: 8, tier: "scored", skill: 0.08, nResolved: 30, hitRate: 19 / 30 },
+      { handle: "bob", score: 40, change14d: null, tier: "scored", skill: 0.08, nResolved: 30, hitRate: 19 / 30 },
     ]);
     expect(leaderboard).toHaveBeenCalledWith(50, 5); // default limit; New threshold
   });

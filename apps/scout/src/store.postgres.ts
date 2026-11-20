@@ -46,6 +46,16 @@ function toPost(r: PostDb): ScoutPostRow {
   };
 }
 
+/**
+ * Handles of traders with an active copy trade (the copy_trades table is the trading service's), at most
+ * `limit`, in a stable order. Used by the optional auto-poll.
+ */
+export async function listCopiedHandles(sql: postgres.Sql, limit: number): Promise<string[]> {
+  const rows = await sql<{ h: string }[]>`
+    select distinct lower(trader_x_handle) as h from copy_trades where active = true order by h limit ${limit}`;
+  return rows.map((r) => r.h);
+}
+
 export function createPostgresStore(sql: postgres.Sql): ScoutStore {
   return {
     async getHandle(handle) {
