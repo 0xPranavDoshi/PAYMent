@@ -162,7 +162,7 @@ describe("GET /v1/users/:id/tails — portfolio with live PnL", () => {
     // tail B: 10 * (0.70 - 0.4) / 0.4 = 7.5
     expect(body[1]).toMatchObject({ realized: false, markPrice: 0.7, unrealizedPnlUsdc: 7.5 });
     // each trade says what it was on and whose pick it copied
-    expect(body[0]).toMatchObject({ eventName: "UConn vs Arizona", pickLabel: "UConn", side: "yes", traderHandle: "sharp" });
+    expect(body[0]).toMatchObject({ eventName: "UConn vs Arizona", marketTicker: "NCAAM-UCONN", pickLabel: "UConn", side: "yes", traderHandle: "sharp" });
     expect(body[2]).toMatchObject({ eventName: "UConn vs Arizona", traderHandle: "sharp" });
     // settled tail keeps its persisted pnl
     expect(body[2]).toMatchObject({ realized: true, pnlUsdc: 5, exitOdds: 1 });

@@ -8,6 +8,8 @@ export interface LedgerRow {
   tweetText: string;
   tweetedAt: Date;
   eventName: string;
+  /** markets.gemini_market_id: the Gemini event ticker. */
+  marketTicker: string;
   pickedOutcome: string;
   instrumentSymbol: string | null;
   side: "yes" | "no" | null;
@@ -50,6 +52,7 @@ export function toCallEntry(row: LedgerRow): CallEntry {
     tweetText: row.tweetText,
     tweetedAt: row.tweetedAt.toISOString(),
     eventName: row.eventName,
+    marketTicker: row.marketTicker,
     pickLabel: row.pickedOutcome,
     side: row.side,
     oddsAtCall: row.oddsAtCall,

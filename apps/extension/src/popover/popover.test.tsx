@@ -24,6 +24,7 @@ const call = (n: number, over: Partial<CallEntry> = {}): CallEntry => ({
   tweetText: `Tweet number ${n}`,
   tweetedAt: "2026-11-19T12:03:00.000Z",
   eventName: `Game ${n}`,
+  marketTicker: `NCAAM-2611200300-G${n}-M`,
   pickLabel: "UConn",
   side: "yes",
   oddsAtCall: 0.62,
@@ -371,6 +372,26 @@ describe("the popover", () => {
 
       click(back.querySelector<HTMLButtonElement>(".flipbtn")!);
       await vi.waitFor(() => expect(rows()[0]!.classList.contains("flipped")).toBe(false));
+    });
+
+    it("each pick links to its market on Gemini, in a new tab, without turning the card over", async () => {
+      await openCard();
+      const link = rows()[1]!.querySelector<HTMLAnchorElement>(".front a.marketlink")!;
+      expect(link.getAttribute("href")).toBe("https://www.gemini.com/predictions/NCAAM-2611200300-G2-M");
+      expect(link.getAttribute("target")).toBe("_blank");
+      expect(link.getAttribute("rel")).toContain("noopener");
+      expect(link.textContent).toContain("View market");
+      click(link);
+      expect(rows()[1]!.classList.contains("flipped")).toBe(false);
+      expect(popoverHosts()).toHaveLength(1);
+    });
+
+    it("shows no market link for a pick whose market is not known", async () => {
+      await start(async () => ({ profile: profile("alice"), calls: [call(1, { marketTicker: undefined }), call(2)] }));
+      click(badgeButton());
+      await vi.waitFor(() => expect(rows()).toHaveLength(2));
+      expect(rows()[0]!.querySelector("a.marketlink")).toBeNull();
+      expect(rows()[1]!.querySelector("a.marketlink")).not.toBeNull();
     });
 
     it("only the face that is showing can be reached by keyboard", async () => {

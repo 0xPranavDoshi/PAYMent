@@ -452,9 +452,16 @@ function PickRow({ call, handle }: { call: CallEntry; handle: string }) {
               <span>
                 {row.pick} · {row.price}
               </span>
-              <button type="button" className="flipbtn" onClick={() => setFlipped(true)}>
-                See tweet
-              </button>
+              <span className="rowlinks">
+                <button type="button" className="flipbtn" onClick={() => setFlipped(true)}>
+                  See tweet
+                </button>
+                {row.marketUrl && (
+                  <a className="flipbtn marketlink" href={row.marketUrl} target="_blank" rel="noopener noreferrer" aria-label={`View ${row.event} on Gemini`}>
+                    View market ↗
+                  </a>
+                )}
+              </span>
             </div>
           </div>
           <span className={`pts ${tone}`} >{row.points ?? row.outcome.text}</span>

@@ -210,9 +210,12 @@ export const POPOVER_CSS = `
   .front { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 9px 8px; }
   .front:hover { background: var(--chip); }
   .pick .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pick .s { color: var(--ink-2); font-size: 12px; margin-top: 1px; display: flex; gap: 8px; align-items: baseline; }
+  .pick .s { color: var(--ink-2); font-size: 12px; margin-top: 1px; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
   .flipbtn { all: unset; cursor: pointer; color: var(--ink-3); font-size: 12px; }
   .flipbtn:hover { color: var(--ember); text-decoration: underline; }
+  .rowlinks { display: inline-flex; gap: 12px; align-items: baseline; white-space: nowrap; }
+  a.flipbtn { text-decoration: none; }
+  a.flipbtn:hover { text-decoration: underline; }
   .pts { font: 700 13px/1 var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
   .pts.won { color: var(--win); }
   .pts.lost { color: var(--coral); }
