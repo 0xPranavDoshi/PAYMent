@@ -43,6 +43,8 @@ async function run(action: (followerId: string) => Promise<unknown>): Promise<Ac
   if (!followerId) return { ok: false, error: "Sign in first." };
   try {
     await action(followerId);
+    revalidatePath("/");
+    revalidatePath("/leaderboard");
     revalidatePath("/watchlist");
     revalidatePath("/portfolio");
     revalidatePath("/traders/[handle]", "page");

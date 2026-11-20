@@ -13,13 +13,9 @@ import {
 } from "@copayme/shared";
 import { getTicketCalls, startCopy, stopCopy, type ActionResult } from "@/lib/actions";
 import { formatCents, formatUsd, shortDate, tone } from "@/lib/format";
+import { copyBasis, resolveCopy, type CopyOverride, type CopyState } from "@/lib/copyOverride";
 
-/** What a page knows about the viewer copying a trader. `since` is when the copy started (ISO), if known. */
-export interface CopyState {
-  active: boolean;
-  amountUsdc: number;
-  since?: string;
-}
+export type { CopyState };
 
 /** "$10", or "$2.50" for amounts with cents. */
 const usd = (n: number) => (Number.isInteger(n) ? `$${n}` : formatUsd(n, false));
@@ -27,8 +23,10 @@ const usd = (n: number) => (Number.isInteger(n) ? `$${n}` : formatUsd(n, false))
 // ── Copy state shared by every toggle and ticket for a handle ────────────────
 // The toggle and its ticket can be rendered apart (the leaderboard puts the ticket in the next row),
 // so the result of a copy action is kept here, keyed by handle, until the page's own data catches up.
+// Page data wins as soon as it differs from what the override was set against (see resolveCopy),
+// stale entries are deleted, and the whole store is cleared whenever the viewer is signed out.
 
-const overrides = new Map<string, CopyState>();
+const overrides = new Map<string, CopyOverride>();
 const listeners = new Set<() => void>();
 const keyOf = (handle: string) => handle.toLowerCase();
 
@@ -37,15 +35,26 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-function setOverride(handle: string, value: CopyState | undefined) {
+function setOverride(handle: string, value: CopyOverride | undefined) {
   if (value) overrides.set(keyOf(handle), value);
   else overrides.delete(keyOf(handle));
   for (const l of listeners) l();
 }
 
-function useCopyState(handle: string, fromPage: CopyState | null): CopyState | null {
+function clearOverrides() {
+  if (overrides.size === 0) return;
+  overrides.clear();
+  for (const l of listeners) l();
+}
+
+function useCopyState(handle: string, fromPage: CopyState | null, signedIn: boolean): CopyState | null {
   const override = useSyncExternalStore(subscribe, () => overrides.get(keyOf(handle)), () => undefined);
-  return override ?? fromPage;
+  const { copy, drop } = resolveCopy(override, fromPage, signedIn);
+  useEffect(() => {
+    if (!signedIn) clearOverrides();
+    else if (drop && overrides.get(keyOf(handle)) === override) setOverride(handle, undefined);
+  }, [signedIn, drop, override, handle]);
+  return copy;
 }
 
 // ── Picks, loaded once per handle when a ticket first opens ──────────────────
@@ -93,7 +102,7 @@ export default function CopyTicket({
   variant: "row" | "card";
   onClose?: () => void;
 }) {
-  const copy = useCopyState(handle, copyFromPage);
+  const copy = useCopyState(handle, copyFromPage, signedIn);
   const copying = copy?.active === true;
   const calls = useTicketCalls(handle);
   const [editing, setEditing] = useState(false);
@@ -108,7 +117,7 @@ export default function CopyTicket({
     busy.current = true;
     const before = overrides.get(keyOf(handle));
     setError(null);
-    setOverride(handle, next);
+    setOverride(handle, { value: next, basis: copyBasis(copyFromPage) });
     setEditing(false);
     start(async () => {
       try {
@@ -259,7 +268,7 @@ export function CopyTradeToggle({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
-  const copy = useCopyState(handle, copyFromPage);
+  const copy = useCopyState(handle, copyFromPage, signedIn);
   const copying = copy?.active === true;
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
