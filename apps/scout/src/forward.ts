@@ -16,6 +16,8 @@ export const noopForwarder: Forwarder = { forward: async () => [] };
 const WORKER_RUN_ATTEMPTS = 4;
 const WORKER_BUSY_WAIT_MS = 2_000;
 const WORKER_RUN_TIMEOUT_MS = 30_000;
+/** How long one POST /v1/posts may take before the batch counts as not stored. */
+const INGEST_TIMEOUT_MS = 30_000;
 /** Posts priced at the same time when forwarding (Kalshi allows 20 reads/s; lookups are shared). */
 const FORWARD_CONCURRENCY = 4;
 
@@ -195,6 +197,8 @@ export function createForwarder(opts: {
         method: "POST",
         headers: { "content-type": "application/json", "x-service-key": opts.serviceKey },
         body: JSON.stringify(batch),
+        // An ingest that never answers must not hang the scan; the posts stay unforwarded and are retried.
+        signal: AbortSignal.timeout(INGEST_TIMEOUT_MS),
       });
       if (!res.ok) {
         log(`[scout] ingest returned HTTP ${res.status}`);

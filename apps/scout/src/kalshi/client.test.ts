@@ -177,3 +177,16 @@ describe("candlePrice / priceAt", () => {
     expect(priceAt(rows, 99)).toBeNull();
   });
 });
+
+describe("request time limit", () => {
+  it("treats a Kalshi request that never answers as no data instead of hanging", async () => {
+    const silent = vi.fn(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(init.signal!.reason));
+        }),
+    );
+    const client = createKalshiClient({ fetch: silent as unknown as typeof fetch, timeoutMs: 30, sleep: async () => {} });
+    expect(await client.findMarket(msuGame, msuSpread, msu35)).toMatchObject({ series: null });
+  });
+});

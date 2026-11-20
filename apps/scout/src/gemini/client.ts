@@ -40,13 +40,18 @@ const SEARCH_TTL_MS = 5 * 60 * 1000;
 const MIN_SEARCH_LENGTH = 3;
 /** Gemini's maximum page size. */
 const PAGE_SIZE = 500;
+/** How long one Gemini request may take before it counts as failed. */
+export const GEMINI_TIMEOUT_MS = 20_000;
 /** Backstop only: game-only searches are far smaller than one page. */
 const MAX_PAGES = 4;
 
 export function createGeminiClient(
-  opts: { fetch?: typeof fetch; baseUrl?: string; now?: () => number } = {},
+  opts: { fetch?: typeof fetch; baseUrl?: string; now?: () => number; timeoutMs?: number } = {},
 ): GeminiClient {
-  const doFetch = opts.fetch ?? fetch;
+  // Every request has a time limit: one that never answers would otherwise hang the whole scan, which
+  // then stays "running" with nothing saved (seen Nov 19 on @covers, cause unconfirmed).
+  const timeoutMs = opts.timeoutMs ?? GEMINI_TIMEOUT_MS;
+  const doFetch = (url: string, init: RequestInit) => (opts.fetch ?? fetch)(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
   const baseUrl = opts.baseUrl ?? "https://api.gemini.com";
   const now = opts.now ?? Date.now;
   // expiresAt === null means cached indefinitely (settled events from getEvent)
