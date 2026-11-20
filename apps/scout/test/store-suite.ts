@@ -167,6 +167,28 @@ export function describeStore(make: () => ScoutStore): void {
       expect(ids).toEqual(["live"]);
     });
 
+    it("pendingPosts re-checks a college 'no line' pick once if it wasn't checked in both college sports", async () => {
+      const noMarket = (reason: string) => [
+        { predictionIndex: 0, status: "no_market" as const, reason, geminiEventTicker: null, gameTicker: null, instrumentSymbol: null, contractLabel: null, side: null, gameStartTime: null, marketStatus: null, resolutionSide: null },
+      ];
+      const college = (text: string, league: string): Sentiment => ({
+        isPrediction: true,
+        confidence: 0.9,
+        model: "test",
+        predictions: [
+          { betType: "spread", league, team: { name: "Temple Owls", aliases: ["Temple"] }, opponent: null, player: null, metric: null, line: 4.5, claim: "covers", lineAsWritten: "-4.5", conviction: "lean", quote: text },
+        ],
+      });
+      await store.upsertPosts([
+        post({ tweetId: "old", text: "take temple -4.5", sentiment: college("take temple -4.5", "NCAAM"), matches: noMarket("no contract at the tweet's line") }),
+        post({ tweetId: "named", text: "CBB 🏀 take temple -4.5", sentiment: college("take temple -4.5", "NCAAM"), matches: noMarket("no contract at the tweet's line") }),
+        post({ tweetId: "checked", text: "take temple -4.5", sentiment: college("take temple -4.5", "NCAAM"), matches: noMarket("no contract at the tweet's line in football or basketball") }),
+        post({ tweetId: "pro", text: "Lakers -4.5", sentiment: college("Lakers -4.5", "NBA"), matches: noMarket("no contract at the tweet's line") }),
+      ]);
+      const ids = (await store.pendingPosts("alice")).map((r) => r.tweetId);
+      expect(ids).toEqual(["old"]);
+    });
+
     it("unforwardedPosts and markForwarded", async () => {
       await store.upsertPosts([post({ tweetId: "1" }), post({ tweetId: "2" })]);
       await store.markForwarded(["1"], T0);

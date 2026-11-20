@@ -197,6 +197,16 @@ Adi's first scan of @Pickswise: 98 posts, 18 predictions, 15 picks forwarded, sc
 - **Stored posts with the old "tweet during game" result** (`OBSOLETE_MATCH_REASONS`) are re-matched on their next scan, keeping Grok's reading (free).
   - Mugdha's tweet re-matched against live Gemini (dry run): Spurs ML → `LAC-SAS-M-SAS` YES; Knicks −7.5 → `NYK-MIN-S-NYK7` YES.
 
+### College picks that don't name the sport (Nov 20, team decision)
+- **Trigger:** @MugdhaPatil17's "take temple -4.5" was sent during Rice vs Temple **football**, which had a Temple 4.5 line. Grok guessed college **basketball**, where Temple–Middle Tennessee had no 4.5 line, so the result was "no contract at the tweet's line".
+- **Rule:** a school name covers both sports. A NCAAM/NCAAF pick whose post (text + quoted text + quote) has no sport cue (CBB, CFB, NCAAB, NCAAF, basketball, hoops, football, 🏀, 🏈…) is matched in **both** college leagues.
+  - Exactly one match → that one.
+  - Both match → dropped: `ambiguous: the bet is on both the team's football and basketball games` (Pranav: drop ambiguous ones).
+  - Neither → `no contract at the tweet's line in football or basketball`.
+  - Pro teams and posts that name the sport keep Grok's league.
+- **Stored posts with the plain single-sport "no line" result** on such a pick are re-matched once (`hasObsoleteMatch`). The new reason text differs, so they aren't re-matched forever.
+- **Dry run on her stored tweet:** → `GEMI-NCAAF-2611200030-RIC-TEM-S-TEM4` YES ("Temple wins by more than 4.5 points").
+
 ### A scan that never ended (@covers, Nov 19)
 - **What we saw:**
   - @covers started at 20:45:52 UTC and Apify returned its posts (2.5¢), but the scan stayed "running" for 5+ hours with nothing saved and no error.

@@ -234,3 +234,88 @@ describe("matchPrediction", () => {
     await expect(matchPrediction(pred(), 0, TWEET, { gemini: boom, grok })).rejects.toThrow("boom");
   });
 });
+
+describe("a college pick that doesn't say its sport (school names cover football and basketball)", () => {
+  const HOUR = 3_600_000;
+  const at = (h: number) => new Date(TWEET.getTime() + h * HOUR).toISOString();
+  const templeGame = (ticker: string, start: string, opponent: [string, string], spreads: string[]): GeminiEvent => ({
+    id: ticker,
+    ticker: `${ticker}-M`,
+    title: `Temple vs ${opponent[0]}`,
+    status: "active",
+    template: "sports-game",
+    startTime: start,
+    participants: [
+      { name: "Temple Owls", abbreviation: "TEM", side: "home" },
+      { name: opponent[0], abbreviation: opponent[1], side: "away" },
+    ],
+    contracts: [
+      { instrumentSymbol: `${ticker}-M-TEM`, label: "Temple", abbreviatedName: "TEM", marketState: "open" },
+      { instrumentSymbol: `${ticker}-M-${opponent[1]}`, label: opponent[0], abbreviatedName: opponent[1], marketState: "open" },
+    ],
+    events: [
+      {
+        id: `${ticker}-S`,
+        ticker: `${ticker}-S`,
+        title: "spread",
+        status: "active",
+        template: "sports-spread",
+        contracts: spreads.map((v) => ({
+          instrumentSymbol: `${ticker}-S-TEM${v}`,
+          label: `Temple wins by more than ${v} points`,
+          abbreviatedName: "Temple",
+          marketState: "open",
+          strike: { type: "spread", value: v },
+        })),
+      },
+    ],
+  });
+  // Real case (Nov 20): "take temple -4.5" during Rice-Temple football; Grok guessed college basketball.
+  const football = templeGame("NCAAF-RIC-TEM", at(-3), ["Rice", "RIC"], ["3.5", "4.5", "5.5"]);
+  const basketball = templeGame("NCAAM-TEM-MTSU", at(14), ["Middle Tennessee", "MTSU"], ["3.5", "6.5"]);
+  const gem = (games: GeminiEvent[]) =>
+    ({
+      searchGames: vi.fn(async (_term: string, o: { sport?: string } = {}) =>
+        games.filter((g) => !o.sport || (o.sport === "basketball") === g.ticker.startsWith("NCAAM")),
+      ),
+      getEvent: vi.fn(async (t: string) => games.find((g) => g.ticker === t)!),
+    }) as unknown as GeminiClient;
+  const temple = (o: Partial<Prediction> = {}) =>
+    pred({
+      betType: "spread",
+      claim: "covers",
+      line: 4.5,
+      lineAsWritten: "-4.5",
+      league: "NCAAM",
+      team: { name: "Temple Owls", aliases: ["Temple", "TEM"] },
+      quote: "take temple -4.5",
+      ...o,
+    });
+
+  it("matches the one game (in either sport) that has the exact bet", async () => {
+    const r = await matchPrediction(temple(), 0, TWEET, { gemini: gem([football, basketball]), grok, text: "take temple -4.5" });
+    expect(r).toMatchObject({ status: "matched", instrumentSymbol: "NCAAF-RIC-TEM-S-TEM4.5", gameTicker: "NCAAF-RIC-TEM-M" });
+  });
+
+  it("drops it as ambiguous when both sports have the bet", async () => {
+    const both = templeGame("NCAAM-TEM-MTSU", at(14), ["Middle Tennessee", "MTSU"], ["4.5"]);
+    const r = await matchPrediction(temple(), 0, TWEET, { gemini: gem([football, both]), grok, text: "take temple -4.5" });
+    expect(r).toMatchObject({ status: "no_market", reason: "ambiguous: the bet is on both the team's football and basketball games" });
+  });
+
+  it("keeps Grok's sport when the tweet names it", async () => {
+    const r = await matchPrediction(temple(), 0, TWEET, {
+      gemini: gem([football, basketball]),
+      grok,
+      text: "CBB BEST BET 🏀 take temple -4.5",
+    });
+    expect(r).toMatchObject({ status: "no_market", reason: "no contract at the tweet's line" });
+  });
+
+  it("leaves pro teams alone", async () => {
+    const g = gem([football]);
+    await matchPrediction(pred({ league: "NBA" }), 0, TWEET, { gemini: g, grok, text: "Lakers ML" });
+    const sports = (g.searchGames as ReturnType<typeof vi.fn>).mock.calls.map((c) => (c[1] as { sport?: string } | undefined)?.sport);
+    expect(sports.includes("american_football")).toBe(false);
+  });
+});

@@ -138,7 +138,7 @@ export async function runScan(handle: string, deps: ScanDeps, opts: ScanOptions 
       try {
         const matches: PickMatch[] = [];
         for (const [i, p] of row.sentiment!.predictions.entries()) {
-          matches.push(await matchPrediction(p, i, row.tweetedAt, { gemini, grok }));
+          matches.push(await matchPrediction(p, i, row.tweetedAt, { gemini, grok, text: `${row.text} ${row.quotedText ?? ""}` }));
         }
         // Gemini may not have listed the game (or its sub-markets) yet: keep the post pending while the
         // window is still open.
