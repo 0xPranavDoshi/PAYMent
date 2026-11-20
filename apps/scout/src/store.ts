@@ -85,11 +85,23 @@ export interface ScoutStore {
   marketsToRefresh(now: Date, limit: number): Promise<MarketToRefresh[]>;
 }
 
+/**
+ * Match reasons that older code gave and the current rules no longer would: a post with one is matched
+ * again on its next scan (free: no Grok, no X). "tweet during game" was the rule that live picks didn't
+ * count, replaced on Nov 19 by "live picks count until settlement".
+ */
+export const OBSOLETE_MATCH_REASONS = ["tweet during game"] as const;
+
+export function hasObsoleteMatch(row: Pick<ScoutPostRow, "matches">): boolean {
+  return (row.matches ?? []).some((m) => (OBSOLETE_MATCH_REASONS as readonly string[]).includes(m.reason ?? ""));
+}
+
 export function isPending(row: Pick<ScoutPostRow, "sentiment" | "matches" | "pipelineVersion">): boolean {
   return (
     row.pipelineVersion < PIPELINE_VERSION ||
     row.sentiment === null ||
-    (row.matches === null && countsAsPrediction(row.sentiment))
+    (row.matches === null && countsAsPrediction(row.sentiment)) ||
+    hasObsoleteMatch(row)
   );
 }
 

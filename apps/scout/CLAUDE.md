@@ -184,6 +184,19 @@ Adi's first scan of @Pickswise: 98 posts, 18 predictions, 15 picks forwarded, sc
   - **Brags are recaps too:** "44 winning picks on Saturday ✅ Indiana -8.5, Iowa State -3, Heat +4.5, Sharks ML" had become two picks, Heat +4.5 on Miami's next game and Sharks ML. The Heat pick was unpriced because that market opened on Kalshi 6.4 h after the tweet. The prompt now names lists of past winners; real Grok rejects 3/3 brags and keeps 2/2 picks.
   - Stored rows made under the old rule: 4 of 27 line picks used a different line, all forwarded: Booker u23.5 → 24.5, total 44 → 44.5, Adebayo o17.5 → 14.5, Grambling +37.5 → 40.5.
 
+### Live picks count until settlement (Nov 19, team decision)
+- **Trigger:** @MugdhaPatil17 tweeted "Take Spurs ML / Take Knicks -7.5 spread" 2.2 h into both games; the old rule ("tweet during game": no pick within 6 h after the team's game started) dropped both.
+- **Cutoff:** Pranav asked for "before expiryDate". But Gemini's `expiryDate` is always **start + 36 h** (checked on NBA, NFL and NHL games), so it would accept picks made the morning after a game. **Settlement** happens at the final whistle: contracts' `resolvedAt` lands 2.5–3.8 h after the start on 8 games checked. Pranav chose settlement.
+- **Rule now:**
+  - A game that started before the tweet is the pick's game if it hadn't settled by the tweet, or still hasn't settled.
+  - If the team's game had already settled (within 6 h of its start) → `tweet after the game settled`, no match. A post-game reaction still can't land on the team's next game.
+  - `validateChoice` rejects only a game or contract settled at or before the tweet.
+  - Live picks are priced at the live odds at the tweet, so a near-decided pick earns almost nothing.
+  - Ingest locks at `expiryDate` (later than settlement), so it accepts these picks unchanged.
+- **Prompt:** live reactions that pick nothing ("what a shot!") aren't predictions; a pick made during the game is. Real Grok: 6/6 (two live picks kept, a live reaction, a recap and a brag rejected, a pre-game pick kept).
+- **Stored posts with the old "tweet during game" result** (`OBSOLETE_MATCH_REASONS`) are re-matched on their next scan, keeping Grok's reading (free).
+  - Mugdha's tweet re-matched against live Gemini (dry run): Spurs ML → `LAC-SAS-M-SAS` YES; Knicks −7.5 → `NYK-MIN-S-NYK7` YES.
+
 ### A scan that never ended (@covers, Nov 19)
 - **What we saw:**
   - @covers started at 20:45:52 UTC and Apify returned its posts (2.5¢), but the scan stayed "running" for 5+ hours with nothing saved and no error.

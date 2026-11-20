@@ -60,10 +60,32 @@ describe("pickGame", () => {
     expect(pickGame([], pred(["Lakers"]), TWEET)).toEqual({ game: null, reason: "no game within 7 days" });
   });
 
-  it("a tweet 1 h after the team's game started -> no game, 'tweet during game'", () => {
+  /** A Lakers game whose moneyline settled at `settled` (ISO), e.g. 2.5 h after the start. */
+  const settledGame = (startTime: string, settled: string, ticker: string): GeminiEvent => ({
+    ...lakersGame(startTime, ticker),
+    status: "settled",
+    contracts: [
+      { instrumentSymbol: `${ticker}-LAL`, label: "Los Angeles L", marketState: "closed", resolutionSide: "yes", resolvedAt: settled },
+      { instrumentSymbol: `${ticker}-CHA`, label: "Charlotte", marketState: "closed", resolutionSide: "no", resolvedAt: settled },
+    ],
+  });
+
+  it("a tweet 1 h into the team's game, not yet settled -> that live game (live picks count until settlement)", () => {
     const live = lakersGame(at(-HOUR), "LIVE");
     const next = lakersGame(at(2 * 86_400_000), "NEXT");
-    expect(pickGame([live, next], pred(["Lakers"]), TWEET)).toEqual({ game: null, reason: "tweet during game" });
+    expect(pickGame([live, next], pred(["Lakers"]), TWEET)).toEqual({ game: live });
+  });
+
+  it("a tweet 2.2 h into the game, which settled later -> still the live game", () => {
+    // Real case: "Take Spurs ML" tweeted 2.2 h after tip-off; Gemini settles at the final whistle.
+    const live = settledGame(at(-2.2 * HOUR), at(0.5 * HOUR), "LIVE");
+    expect(pick([live, lakersGame(at(2 * 86_400_000), "NEXT")], pred(["Lakers"]))?.ticker).toBe("LIVE");
+  });
+
+  it("a tweet after the team's game settled -> no game, and not the team's next game (a post-game reaction)", () => {
+    const over = settledGame(at(-3 * HOUR), at(-0.5 * HOUR), "OVER");
+    const next = lakersGame(at(2 * 86_400_000), "NEXT");
+    expect(pickGame([over, next], pred(["Lakers"]), TWEET)).toEqual({ game: null, reason: "tweet after the game settled" });
   });
 
   it("a tweet 7 h after the team's game started -> the next game is eligible", () => {
@@ -115,12 +137,9 @@ describe("pickGame", () => {
     expect(pick([ncaa], pred(["Lakers"], null, "NFL"))?.ticker).toBe("NCAAM-1-X");
   });
 
-  it("excludes a game whose startTime equals tweetedAt", () => {
-    expect(pick([lakersGame(TWEET.toISOString())], pred(["Lakers"]))).toBeNull();
-  });
-
-  it("excludes a game that started before the tweet", () => {
-    expect(pick([lakersGame(at(-60_000))], pred(["Lakers"]))).toBeNull();
+  it("includes a game starting exactly at the tweet, or a minute before (live)", () => {
+    expect(pick([lakersGame(TWEET.toISOString())], pred(["Lakers"]))?.ticker).toBe("G1");
+    expect(pick([lakersGame(at(-60_000))], pred(["Lakers"]))?.ticker).toBe("G1");
   });
 
   it("includes a game exactly 7 days after the tweet; excludes 7 days + 1 ms", () => {
@@ -268,10 +287,14 @@ describe("findGame", () => {
     expect(result.game?.ticker).toBe("NCAAM-B");
   });
 
-  it("stops at the first tier that finds the team playing (in-game tweets aren't pushed to a later tier)", async () => {
-    const live = lakersGame(at(-1), "NBA-LIVE");
-    const g = gemini((term) => (term.startsWith("NBA-26") ? [live] : [lakersGame(at(1000))]));
-    expect(await findGame(pred(["Lakers", "LAL"], null, "NBA"), TWEET, g)).toEqual({ game: null, reason: "tweet during game" });
+  it("stops at the first tier that finds the team's game already settled (post-game tweets aren't pushed to a later tier)", async () => {
+    const over: GeminiEvent = {
+      ...lakersGame(at(-3 * HOUR), "NBA-OVER"),
+      status: "settled",
+      contracts: [{ instrumentSymbol: "S-LAL", label: "Los Angeles L", marketState: "closed", resolutionSide: "yes", resolvedAt: at(-HOUR) }],
+    };
+    const g = gemini((term) => (term.startsWith("NBA-26") ? [over] : [lakersGame(at(1000))]));
+    expect(await findGame(pred(["Lakers", "LAL"], null, "NBA"), TWEET, g)).toEqual({ game: null, reason: "tweet after the game settled" });
     expect(g.searchGames.mock.calls.every((c) => (c[0] as string).startsWith("NBA-26"))).toBe(true);
   });
 
