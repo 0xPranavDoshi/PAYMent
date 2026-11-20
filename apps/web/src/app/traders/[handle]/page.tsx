@@ -1,8 +1,9 @@
 import Page from "@/components/Page";
 import Link from "next/link";
-import { fetchCopyMode, fetchCopyTrades, fetchTraderCalls, fetchTraderProfile, fetchWatches } from "@/lib/api";
+import { fetchCopyTrades, fetchTraderCalls, fetchTraderProfile, fetchWatches } from "@/lib/api";
 import { getFollowerId } from "@/lib/session";
-import { CopyButton, WatchButton } from "@/components/TradeButtons";
+import { WatchButton } from "@/components/TradeButtons";
+import { CopyTradeToggle } from "@/components/CopyTicket";
 import { formatCents, formatChange, formatPct, timeAgo } from "@/lib/format";
 import ScoreTile from "@/components/ScoreTile";
 import PickRow from "@/components/PickRow";
@@ -32,11 +33,12 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
 
   const followerId = await getFollowerId();
   const key = profile.handle.toLowerCase();
-  const [watches, copies, mode] = followerId
-    ? await Promise.all([fetchWatches(followerId).catch(() => []), fetchCopyTrades(followerId).catch(() => []), fetchCopyMode()])
-    : [[], [], "paper" as const];
+  const [watches, copies] = followerId
+    ? await Promise.all([fetchWatches(followerId).catch(() => []), fetchCopyTrades(followerId).catch(() => [])])
+    : [[], []];
   const watching = watches.some((w) => w.traderHandle.toLowerCase() === key);
-  const copy = copies.find((c) => c.traderHandle.toLowerCase() === key) ?? null;
+  const copyTrade = copies.find((c) => c.traderHandle.toLowerCase() === key);
+  const copy = copyTrade ? { active: copyTrade.active, amountUsdc: copyTrade.amountUsdc, since: copyTrade.createdAt } : null;
 
   const isNew = profile.tier === "new";
   const change = formatChange(profile.change14d);
@@ -58,7 +60,7 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
           </div>
           <div className="actions">
             <WatchButton handle={profile.handle} watching={watching} signedIn={followerId !== null} />
-            <CopyButton handle={profile.handle} copy={copy} signedIn={followerId !== null} paper={mode === "paper"} />
+            <CopyTradeToggle handle={profile.handle} copy={copy} signedIn={followerId !== null} nPicks={calls.length} primary ticketPlacement="inline" />
           </div>
         </div>
       </div>

@@ -3,7 +3,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { addWatch, removeWatch, startCopyTrade, stopCopyTrade } from "./api";
+import type { CallEntry } from "@copayme/shared";
+import { addWatch, fetchTraderCalls, removeWatch, startCopyTrade, stopCopyTrade } from "./api";
 import { getFollowerId, isUuid, SESSION_COOKIE } from "./session";
 
 export interface ActionResult {
@@ -61,4 +62,13 @@ export async function startCopy(handle: string, amountUsdc: number): Promise<Act
 
 export async function stopCopy(handle: string): Promise<ActionResult> {
   return run((id) => stopCopyTrade(id, handle));
+}
+
+/** A trader's latest picks (up to 50) for the copy ticket; an empty list if they can't be loaded. */
+export async function getTicketCalls(handle: string): Promise<CallEntry[]> {
+  try {
+    return await fetchTraderCalls(handle, 50);
+  } catch {
+    return [];
+  }
 }

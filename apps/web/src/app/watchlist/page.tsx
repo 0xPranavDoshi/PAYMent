@@ -1,10 +1,11 @@
 import Page from "@/components/Page";
 import Link from "next/link";
-import { fetchCopyMode, fetchCopyTrades, fetchWatches } from "@/lib/api";
+import { fetchCopyTrades, fetchWatches } from "@/lib/api";
 import { formatSignedPct, formatUsd, shortDate, tone } from "@/lib/format";
 import { getFollowerId } from "@/lib/session";
 import ScoreTile from "@/components/ScoreTile";
-import { CopyButton, WatchButton } from "@/components/TradeButtons";
+import { WatchButton } from "@/components/TradeButtons";
+import { CopyTradeToggle } from "@/components/CopyTicket";
 import SignInPrompt from "@/components/SignInPrompt";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,6 @@ export default async function WatchlistPage() {
   let watches: Awaited<ReturnType<typeof fetchWatches>> = [];
   let copies: Awaited<ReturnType<typeof fetchCopyTrades>> = [];
   let error: string | null = null;
-  const paper = (await fetchCopyMode()) === "paper";
   try {
     [watches, copies] = await Promise.all([fetchWatches(followerId), fetchCopyTrades(followerId)]);
   } catch (e) {
@@ -82,7 +82,7 @@ export default async function WatchlistPage() {
                     <small className={tone(w.projectedPnlUsdc)}>{w.projectedPnlUsdc === null ? (w.nPicks === 0 ? "No picks yet" : "Not priced yet") : formatUsd(w.projectedPnlUsdc)}</small>
                   </div>
                   <div className="wact">
-                    <CopyButton handle={w.traderHandle} copy={copy} signedIn paper={paper} />
+                    <CopyTradeToggle handle={w.traderHandle} copy={copy ? { active: copy.active, amountUsdc: copy.amountUsdc, since: copy.createdAt } : null} signedIn nPicks={0} ticketPlacement="inline" />
                     <WatchButton handle={w.traderHandle} watching signedIn />
                   </div>
                 </div>

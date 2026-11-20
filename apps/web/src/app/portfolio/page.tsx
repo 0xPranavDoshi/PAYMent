@@ -1,10 +1,10 @@
 import Page from "@/components/Page";
 import Link from "next/link";
-import { fetchCopyMode, fetchCopyTrades, fetchTails } from "@/lib/api";
+import { fetchCopyTrades, fetchTails } from "@/lib/api";
 import { formatSignedPct, formatUsd, shortDate, tone } from "@/lib/format";
 import { getFollowerId } from "@/lib/session";
 import PnlChart from "@/components/PnlChart";
-import { CopyButton } from "@/components/TradeButtons";
+import { CopyTradeToggle } from "@/components/CopyTicket";
 import SignInPrompt from "@/components/SignInPrompt";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +14,6 @@ export default async function PortfolioPage() {
   const followerId = await getFollowerId();
   if (!followerId) return <SignInPrompt title="Your portfolio" body="Sign in to see the trades you have copied and how they are doing." />;
 
-  const paper = (await fetchCopyMode()) === "paper";
   let tails: Awaited<ReturnType<typeof fetchTails>> = [];
   let copies: Awaited<ReturnType<typeof fetchCopyTrades>> = [];
   let error: string | null = null;
@@ -43,7 +42,7 @@ export default async function PortfolioPage() {
     <Page>
       <h1 className="ptitle">Portfolio</h1>
       <p className="psub">
-        {paper ? "Simulated trades from the traders you copy and watch. No real money moves." : "Trades from the traders you copy and watch."}
+        Trades from the traders you copy and watch.
       </p>
 
       {error ? (
@@ -84,7 +83,7 @@ export default async function PortfolioPage() {
                       <b className={tone(c.livePnlUsdc)}>{c.livePnlUsdc === null ? "–" : formatUsd(c.livePnlUsdc)}</b>
                       <small className="muted">P&amp;L</small>
                     </div>
-                    <div className="wact"><CopyButton handle={c.traderHandle} copy={c} signedIn paper={paper} /></div>
+                    <div className="wact"><CopyTradeToggle handle={c.traderHandle} copy={{ active: c.active, amountUsdc: c.amountUsdc, since: c.createdAt }} signedIn nPicks={0} ticketPlacement="inline" /></div>
                   </div>
                 ))
               )}
