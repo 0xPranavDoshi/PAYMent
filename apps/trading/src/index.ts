@@ -4,7 +4,7 @@ import { createApp } from "./app.js";
 import { createPostgresStore } from "./store.postgres.js";
 import { GeminiClient } from "./gemini.js";
 import { syncMarkets } from "./sync.js";
-import { dbPoolMax } from "@copayme/shared";
+import { dbIdleTimeout, dbPoolMax } from "@copayme/shared";
 
 const {
   DATABASE_URL,
@@ -27,7 +27,7 @@ if (COPY_TRADE_MODE !== "paper" && COPY_TRADE_MODE !== "live") {
   throw new Error(`COPY_TRADE_MODE must be "paper" or "live", got "${COPY_TRADE_MODE}"`);
 }
 
-const sql = postgres(DATABASE_URL, { max: dbPoolMax(process.env.DB_POOL_MAX) });
+const sql = postgres(DATABASE_URL, { max: dbPoolMax(process.env.DB_POOL_MAX), idle_timeout: dbIdleTimeout(process.env.DB_IDLE_TIMEOUT_S) });
 const store = createPostgresStore(sql);
 const gemini = new GeminiClient({
   apiKey: GEMINI_API_KEY,

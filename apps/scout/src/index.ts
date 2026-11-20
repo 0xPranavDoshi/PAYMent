@@ -10,7 +10,7 @@ import { createApifySource } from "./posts/apify.js";
 import { refreshMarkets } from "./refresh.js";
 import { runScan, type ScanDeps } from "./scan.js";
 import { createPostgresStore } from "./store.postgres.js";
-import { dbPoolMax } from "@copayme/shared";
+import { dbIdleTimeout, dbPoolMax } from "@copayme/shared";
 
 const env = process.env;
 const missing = ["DATABASE_URL", "APIFY_TOKEN", "XAI_API_KEY"].filter((k) => !env[k]);
@@ -19,7 +19,7 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-const store = createPostgresStore(postgres(env.DATABASE_URL as string, { max: dbPoolMax(env.DB_POOL_MAX) }));
+const store = createPostgresStore(postgres(env.DATABASE_URL as string, { max: dbPoolMax(env.DB_POOL_MAX), idle_timeout: dbIdleTimeout(env.DB_IDLE_TIMEOUT_S) }));
 const gemini = createGeminiClient();
 const model = env.XAI_MODEL || "grok-4-1-fast-reasoning";
 
