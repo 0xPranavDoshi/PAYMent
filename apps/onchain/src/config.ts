@@ -27,3 +27,12 @@ export const explorerTx = (h: string) => `${ARC_TESTNET.explorer}/tx/${h}`;
  */
 export const REWARD_RATE = 0.02; // 2%
 export const REWARD_MIN_USDC = 0.01; // 1 cent floor
+
+/**
+ * Daily revenue share: the fee taken from each follower trade that settled in profit, credited to
+ * the pick's creator (if opted in from a previous day) or kept by the treasury. Default 0.7%.
+ */
+export const PAYOUT_FEE_RATE = Number(process.env.PAYOUT_FEE_RATE ?? 0.007);
+
+/** Payouts use real trades only. Set PAYOUT_INCLUDE_DEMO=true to also count demo accounts' trades (local testing). */
+export const PAYOUT_INCLUDE_DEMO = process.env.PAYOUT_INCLUDE_DEMO === "true";
