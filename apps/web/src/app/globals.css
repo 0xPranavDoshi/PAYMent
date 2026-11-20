@@ -427,7 +427,7 @@ a.who:hover { color: var(--ember); }
 .hm-two > div { min-width: 0; }
 .hm-rows { padding: 0; background: var(--surface); overflow: hidden; }
 .hm-rows .r { display: grid; align-items: center; gap: 14px; padding: 14px 22px; border-top: 2px solid var(--ink); }
-.hm-rows .r:first-child, .hm-rows .r.flush { border-top: 0; }
+.hm-rows .r.flush, .hm-latest .r:first-child { border-top: 0; }
 .hm-rows .t { font: 700 16.5px/1.25 var(--font); }
 .hm-rows .s { color: var(--ink-2); font-size: 13.5px; margin-top: 2px; }
 .hm-rows .s.mono { font-size: 12.5px; }

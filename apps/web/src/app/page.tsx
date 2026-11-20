@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 const STEPS = [
   { title: "Add the extension", body: "A score badge appears next to every handle that posts picks on X." },
   { title: "Check the record", body: "Tap a badge to see wins, losses, and whether their picks beat the price." },
-  { title: "Copy the good ones", body: "Mirror a trader's next picks with paper money, or watch them for free." },
+  { title: "Copy the good ones", body: "Mirror a trader's next picks automatically, or watch them for free." },
 ];
 
 export default async function Home() {

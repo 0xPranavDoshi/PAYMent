@@ -43,8 +43,7 @@ export default function TopTraders({
                   signedIn={signedIn}
                   viewerId={viewerId}
                   nPicks={e.nResolved}
-                  primary={i === 0}
-                  ticketPlacement="below"
+                                    ticketPlacement="below"
                   open={open}
                   onOpenChange={(o) => setOpenHandle(o ? e.handle : null)}
                 />
