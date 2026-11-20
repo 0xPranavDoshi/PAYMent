@@ -98,6 +98,44 @@ describe("POST /v1/calls/notify", () => {
     expect(tails).toHaveLength(3);
   });
 
+  describe("entry price", () => {
+    const noQuote = { outcomes: [{ ...market.outcomes[0]!, currentOdds: 0, noOdds: null }] };
+
+    it("paper copy and watch trades enter at the pick's price, not the live quote", async () => {
+      const { notify, tails } = setup({ copyTradeMode: "paper" });
+      expect((await notify()).status).toBe(200);
+      expect(tails.map((t) => t.entryOdds)).toEqual([0.6, 0.6, 0.6]);
+    });
+
+    it("uses the pick's price when Gemini shows 0 (no quote) — never enters at 0", async () => {
+      const { notify, tails } = setup({ copyTradeMode: "paper", market: noQuote });
+      expect((await notify()).status).toBe(200);
+      expect(tails).toHaveLength(3);
+      expect(tails.every((t) => t.entryOdds === 0.6)).toBe(true);
+    });
+
+    it("falls back to the live quote when the pick has no price", async () => {
+      const { notify, tails } = setup({ copyTradeMode: "paper", call: { oddsAtCall: null } });
+      expect((await notify()).status).toBe(200);
+      expect(tails.every((t) => t.entryOdds === 0.62)).toBe(true);
+    });
+
+    it("creates nothing when there's no price at all", async () => {
+      const { notify, tails } = setup({ copyTradeMode: "paper", call: { oddsAtCall: null }, market: noQuote });
+      expect((await notify()).status).toBe(409);
+      expect(tails).toHaveLength(0);
+    });
+
+    it("live: places no real order at 0, but watchers still get paper trades", async () => {
+      const { notify, gemini, tails } = setup({ market: noQuote });
+      const body = await (await notify()).json();
+      expect(gemini.placeOrder).not.toHaveBeenCalled();
+      expect(body.copyTails).toBe(0);
+      expect(body.errors[0]).toContain("no live price");
+      expect(tails.filter((t) => t.source === "watch")).toHaveLength(2);
+    });
+  });
+
   it("refuses an old pick: no tails, no orders, nothing looked up", async () => {
     const { notify, gemini, tails, store } = setup({
       call: { tweetedAt: new Date(NOW.getTime() - 3 * 24 * 3600 * 1000) },

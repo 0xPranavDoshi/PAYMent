@@ -543,8 +543,19 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
       return c.json({ error: "picked outcome not found in market" }, 422);
     }
 
-    const entryOdds =
-      call.side === "no" && outcome.noOdds !== null ? outcome.noOdds : outcome.currentOdds;
+    // A usable price is in (0, 1]. Gemini reports 0 when an outcome has no quote right now.
+    const usable = (p: number | null | undefined): number | null =>
+      typeof p === "number" && p > 0 && p <= 1 ? p : null;
+    // The market's live price for the picked side (what a real order is placed at).
+    const marketOdds = usable(
+      call.side === "no" && outcome.noOdds !== null ? outcome.noOdds : outcome.currentOdds,
+    );
+    // Paper watch/copy trades follow the pick at the price the author got (the same price the
+    // pick is scored at), falling back to the live price. Never 0: a 0 entry can't be settled.
+    const entryOdds = usable(call.oddsAtCall) ?? marketOdds;
+    if (entryOdds === null) {
+      return c.json({ error: "no price for the picked outcome; nothing was copied" }, 409);
+    }
 
     const errors: string[] = [];
     let alreadyNotified = 0;
@@ -605,8 +616,12 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
         else if (r.value) copyTails += 1;
         else alreadyNotified += 1;
       }
-    } else if (copyTraders.length > 0 && call.side) {
+    } else if (copyTraders.length > 0 && call.side && marketOdds === null) {
+      // A real order needs a real price. With no quote, don't place one at 0.
+      errors.push("copy: no live price for the picked outcome; no orders placed");
+    } else if (copyTraders.length > 0 && call.side && marketOdds !== null) {
       const side = call.side;
+      const liveOdds = marketOdds;
       const qtyIncrement = outcome.quantityIncrement ?? 0.01;
       const qtyMinimum = outcome.quantityMinimum ?? qtyIncrement;
       const priceIncrement = outcome.priceIncrement ?? 0.01;
@@ -618,7 +633,7 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
             callId: call.id,
             mode: "live",
             amountUsdc,
-            entryOdds,
+            entryOdds: liveOdds,
             geminiOrderId: null,
             status: "open",
             pnlUsdc: null,
@@ -626,7 +641,7 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
           });
           if (!tail) return false;
 
-          const quantity = snapDown(amountUsdc / entryOdds, qtyIncrement);
+          const quantity = snapDown(amountUsdc / liveOdds, qtyIncrement);
           if (quantity < qtyMinimum) {
             await store.updateTail(tail.id, { status: "cancelled" });
             throw new Error("amount too small to buy the minimum quantity at current odds");
@@ -639,7 +654,7 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
               side: "buy",
               outcome: side,
               quantity: formatToIncrement(quantity, qtyIncrement),
-              price: formatToIncrement(entryOdds, priceIncrement),
+              price: formatToIncrement(liveOdds, priceIncrement),
             });
           } catch (err) {
             // No order was placed. The cancelled row stays, so this follower is not retried
@@ -649,7 +664,7 @@ export function createApp({ store, gemini, serviceKey, copyTradeMode = "paper" }
           }
 
           const avg = order.avgExecutionPrice ? parseFloat(order.avgExecutionPrice) : NaN;
-          const filledOdds = Number.isFinite(avg) && avg > 0 ? avg : entryOdds;
+          const filledOdds = Number.isFinite(avg) && avg > 0 ? avg : liveOdds;
           try {
             await store.updateTail(tail.id, {
               geminiOrderId: String(order.orderId),
