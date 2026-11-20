@@ -49,8 +49,11 @@ export interface OnchainStore {
   earningsFor(userId: string): Promise<EarningsTotals>;
 
   // ── Daily revenue share ──
-  /** Settled, profitable follower trades that no payout run has processed yet. */
-  listUnprocessedWinningTails(): Promise<UnprocessedTail[]>;
+  /**
+   * Settled, profitable follower trades that no payout run has processed yet. Trades by demo
+   * accounts (x_user_id 'demo:…') are excluded unless includeDemo — real trades only by default.
+   */
+  listUnprocessedWinningTails(opts?: { includeDemo?: boolean }): Promise<UnprocessedTail[]>;
   /** Whether a payout run already happened on this UTC day (YYYY-MM-DD). */
   hasPayoutRun(day: string): Promise<boolean>;
   /**

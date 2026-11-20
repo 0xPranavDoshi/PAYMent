@@ -33,3 +33,6 @@ export const REWARD_MIN_USDC = 0.01; // 1 cent floor
  * the pick's creator (if opted in from a previous day) or kept by the treasury. Default 0.7%.
  */
 export const PAYOUT_FEE_RATE = Number(process.env.PAYOUT_FEE_RATE ?? 0.007);
+
+/** Payouts use real trades only. Set PAYOUT_INCLUDE_DEMO=true to also count demo accounts' trades (local testing). */
+export const PAYOUT_INCLUDE_DEMO = process.env.PAYOUT_INCLUDE_DEMO === "true";

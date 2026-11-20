@@ -13,7 +13,7 @@ import {
   type AuthUser,
 } from "@copayme/shared";
 import { rewardAmount } from "./reward.js";
-import { PAYOUT_FEE_RATE } from "./config.js";
+import { PAYOUT_FEE_RATE, PAYOUT_INCLUDE_DEMO } from "./config.js";
 import { planPayout, utcDay } from "./payouts.js";
 import { normHandle, type OnchainUser, type OnchainStore } from "./store.js";
 import type { PaymentProvider } from "./payments.js";
@@ -213,7 +213,7 @@ export function createApp({ store, payments, serviceKey }: AppDeps) {
   /** Dry run: what today's payout would credit, per creator. Changes nothing. */
   app.post("/v1/payouts/preview", requireServiceKey, async (c) => {
     const day = utcDay();
-    const { items: _items, ...plan } = planPayout(await store.listUnprocessedWinningTails(), PAYOUT_FEE_RATE);
+    const { items: _items, ...plan } = planPayout(await store.listUnprocessedWinningTails({ includeDemo: PAYOUT_INCLUDE_DEMO }), PAYOUT_FEE_RATE);
     return c.json({ day, alreadyRanToday: await store.hasPayoutRun(day), ...plan });
   });
 
@@ -227,7 +227,7 @@ export function createApp({ store, payments, serviceKey }: AppDeps) {
     const day = utcDay();
     if (await store.hasPayoutRun(day)) return c.json({ error: `Today's payout already ran (${day}).` }, 409);
 
-    const plan = planPayout(await store.listUnprocessedWinningTails(), PAYOUT_FEE_RATE);
+    const plan = planPayout(await store.listUnprocessedWinningTails({ includeDemo: PAYOUT_INCLUDE_DEMO }), PAYOUT_FEE_RATE);
     if (plan.tails === 0) return c.json({ ran: false, day, reason: "No new winning trades to pay out." });
     try {
       const runId = await store.recordPayoutRun({ day, runBy, plan });

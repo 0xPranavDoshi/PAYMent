@@ -106,6 +106,16 @@ describe("payout endpoints", () => {
     expect(await store.listUnprocessedWinningTails()).toHaveLength(0); // every trade processed
   });
 
+  it("ignores trades by demo accounts — real trades only", async () => {
+    const demoFollower: OnchainUser = { id: randomUUID(), xUserId: "demo:payout_follower_1", handle: "demo_f", walletAddress: null, rewardsOptIn: false };
+    const store = createMemoryStore([{ ...creator }, { ...demoFollower }], {
+      tails: [{ id: randomUUID(), creatorId: creator.id, followerId: demoFollower.id, pnlUsdc: 50, settledAt: now }],
+      optedInAt: { [creator.id]: yesterday },
+    });
+    expect(await store.listUnprocessedWinningTails()).toHaveLength(0);
+    expect(await store.listUnprocessedWinningTails({ includeDemo: true })).toHaveLength(1);
+  });
+
   it("requires the service key", async () => {
     const { app } = setup();
     expect((await app.request("/v1/payouts/run", { method: "POST" })).status).toBe(401);

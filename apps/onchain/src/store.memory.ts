@@ -95,9 +95,11 @@ export function createMemoryStore(
       return { ...totalsFromRows(rows), rows };
     },
 
-    async listUnprocessedWinningTails() {
+    async listUnprocessedWinningTails({ includeDemo = false } = {}) {
+      const isDemo = (id: string) => users.get(id)?.xUserId.startsWith("demo:") ?? false;
       return tails
         .filter((t) => t.pnlUsdc > 0 && t.followerId !== t.creatorId && !processed.has(t.id))
+        .filter((t) => includeDemo || !isDemo(t.followerId))
         .map((t) => {
           const creator = users.get(t.creatorId);
           return {

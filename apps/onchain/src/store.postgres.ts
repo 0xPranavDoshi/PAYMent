@@ -101,7 +101,7 @@ export function createPostgresStore(sql: postgres.Sql): OnchainStore {
       return { ...totalsFromRows(rows), rows };
     },
 
-    async listUnprocessedWinningTails() {
+    async listUnprocessedWinningTails({ includeDemo = false } = {}) {
       const rows = await sql<{
         tail_id: string;
         creator_id: string;
@@ -117,8 +117,10 @@ export function createPostgresStore(sql: postgres.Sql): OnchainStore {
         from tails t
         join calls c on c.id = t.call_id
         join users u on u.id = c.user_id
+        join users f on f.id = t.follower_id
         where t.status = 'settled' and t.pnl_usdc > 0
           and t.follower_id <> c.user_id
+          and (${includeDemo} or f.x_user_id not like 'demo:%')
           and not exists (select 1 from payout_items pi where pi.tail_id = t.id)
         order by settled_at`;
       return rows.map((r) => ({
