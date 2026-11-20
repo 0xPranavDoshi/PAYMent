@@ -81,7 +81,7 @@ export default function LeaderboardTable({
           <span className="r c-14">14 days</span>
           <span className="r c-picks">Picks</span>
           <span className="r c-hit">Hit rate</span>
-          <span className="r c-edge">Edge</span>
+          <span className="r c-edge" title="Edge per pick">Edge/pick</span>
           <span className="r">Action</span>
         </div>
         {rows.length === 0 && <div className="lb-empty">No traders match this filter.</div>}

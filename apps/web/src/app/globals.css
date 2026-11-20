@@ -330,10 +330,10 @@ a.who:hover { color: var(--ember); }
 .hm-shot .r1 b { display: block; font: 800 22px/1.1 var(--font); letter-spacing: -.02em; }
 .hm-shot .r1 small { opacity: .65; font-size: 13px; }
 .hm-shot .s { font: 900 50px/.85 var(--font); letter-spacing: -.04em; }
-.hm-shot .kv { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 14px; border: 2px solid var(--ink); border-radius: 10px; overflow: hidden; }
+.hm-shot .kv { display: grid; grid-template-columns: 1fr 1fr 1.35fr; margin-top: 14px; border: 2px solid var(--ink); border-radius: 10px; overflow: hidden; }
 .hm-shot .kv > div { padding: 8px 10px; border-right: 2px solid var(--ink); }
 .hm-shot .kv > div:last-child { border-right: 0; }
-.hm-shot .kv > div > span { display: block; font: 700 10.5px/1 var(--mono); letter-spacing: .08em; opacity: .65; }
+.hm-shot .kv > div > span { display: block; font: 700 10.5px/1 var(--mono); letter-spacing: .08em; opacity: .65; white-space: nowrap; }
 .hm-shot .kv b { display: block; font: 800 18px/1.2 var(--font); margin-top: 5px; }
 .hm-shot .ac { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; margin-top: 14px; }
 .hm-shot .b { display: flex; align-items: center; justify-content: center; height: 40px; border: 2px solid var(--ink); border-radius: 9px; font: 700 14.5px/1 var(--font); background: var(--surface); box-shadow: 3px 3px 0 var(--ink); }
@@ -512,6 +512,15 @@ a.who:hover { color: var(--ember); }
   .rw-strip > div:nth-child(2) { border-right: 0; }
   .rw-strip > div:nth-child(n+3) { border-top: 2.5px solid var(--ink); }
 }
+
+/* admin: daily payout (reuses the rewards ticket, strip and ledger) */
+.ap-run { display: grid; gap: 0; }
+.ap-run .btn.xl { white-space: normal; height: auto; min-height: 54px; padding: 12px 20px; line-height: 1.2; }
+.ap-cols { grid-template-columns: 1fr 1fr; }
+.ledger .ap-sub { margin-top: 4px; font: 500 12px/1.2 var(--mono); color: var(--ink-2); }
+.ledger td.a .ap-sub { font-weight: 500; }
+.ledger td.ap-to { text-align: right; width: 104px; }
+@media (max-width: 860px) { .ap-cols { grid-template-columns: 1fr; } }
 
 /* how it works */
 .hw-hero { padding: 24px 0 10px; max-width: 1000px; }

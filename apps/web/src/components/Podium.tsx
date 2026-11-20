@@ -57,7 +57,7 @@ export default function Podium({ top, ctx }: { top: LeaderboardEntry[]; ctx: Cop
                 <div className="kv">
                   HIT RATE <b>{formatPct(e.hitRate)}</b>
                   <br />
-                  EDGE <b>{formatCents(e.skill)}</b> · {isNew ? <b>NEW</b> : <>14D <b>{e.change14d === null || e.change14d === 0 ? "0" : (e.change14d > 0 ? "+" : "−") + Math.abs(e.change14d)}</b></>}
+                  EDGE/PICK <b>{formatCents(e.skill)}</b> · {isNew ? <b>NEW</b> : <>14D <b>{e.change14d === null || e.change14d === 0 ? "0" : (e.change14d > 0 ? "+" : "−") + Math.abs(e.change14d)}</b></>}
                 </div>
               )}
             </div>
