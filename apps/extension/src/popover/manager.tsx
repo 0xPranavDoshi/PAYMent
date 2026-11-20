@@ -27,6 +27,8 @@ export interface PopoverManager {
  */
 export function createPopoverManager(opts: {
   load: (handle: string) => Promise<ProfileData>;
+  /** Called with each profile the card loads, which is newer than the badge it was opened from. */
+  onLoaded?: (handle: string, data: ProfileData) => void;
   webUrl: string;
   /** Keeps the card in step with X's theme. Without it the card is light. */
   theme?: ThemeStore;
@@ -36,7 +38,7 @@ export function createPopoverManager(opts: {
   rescan?: (handle: string) => void;
   doc?: Document;
 }): PopoverManager {
-  const { load, webUrl, theme, trading, rescan, doc = document } = opts;
+  const { load, onLoaded, webUrl, theme, trading, rescan, doc = document } = opts;
   const win = doc.defaultView ?? window;
 
   let current: { handle: string; anchor: Element; host: HTMLElement; root: Root; reload: () => void; stop: () => void } | null = null;
@@ -110,7 +112,10 @@ export function createPopoverManager(opts: {
       render({ status: "loading" });
       load(handle).then(
         (data) => {
-          if (mine === token && current?.host === host) render({ status: "ready", ...data });
+          if (mine === token && current?.host === host) {
+            render({ status: "ready", ...data });
+            onLoaded?.(handle, data);
+          }
         },
         (err: unknown) => {
           if (mine === token && current?.host === host) render({ status: "error", stale: isContextInvalidated(err) });
@@ -123,7 +128,10 @@ export function createPopoverManager(opts: {
       const mine = ++token;
       load(handle).then(
         (data) => {
-          if (mine === token && current?.host === host) render({ status: "ready", ...data });
+          if (mine === token && current?.host === host) {
+            render({ status: "ready", ...data });
+            onLoaded?.(handle, data);
+          }
         },
         () => {},
       );

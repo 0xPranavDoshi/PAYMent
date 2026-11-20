@@ -168,12 +168,12 @@ Unpriced calls stay out of `user_scores` entirely. They appear in the call ledge
 
 ### Caching
 
-Scores change only when a game settles, so badges can be cached aggressively. The only consistency requirement is that a settled game shows up within about 10 minutes.
+Scores change only when the scoring worker settles a game, and nothing tells the extension when that happens, so badges are cached only briefly and the page re-checks the ones it shows: a settled game must show up on a badge within about a minute, without a reload.
 
 | Layer | Holds | TTL | Invalidation |
 | --- | --- | --- | --- |
 | Content-script memory | Badges for handles already seen in this tab | Tab lifetime | None |
-| `chrome.storage.local` | Badge per handle; negative entries for handles we have no data on | 10 min (30 min for negative entries) | Cache-version bump on extension update |
+| `chrome.storage.local` | Badge per handle; negative entries for handles we have no data on | 45 s (3 min for negative entries) | Cache-version bump on extension update |
 | API in-process LRU (5,000 entries) | `/badges` entry per handle | 60 s | Worker evicts on recompute |
 | `user_scores` table | Precomputed score per user | Until the next settle | Worker |
 
@@ -186,6 +186,7 @@ How the extension cache behaves (`apps/extension/src/badgeCache.ts` and `badgeSe
 - **Old data beats none when the API is down.** An expired entry is kept for up to 24 hours; if a lookup fails, handles with such an entry still get it. If any handle has nothing at all, the lookup fails, so the page retries later instead of recording "no data".
 - **Versioned keys.** Entries are stored under the extension version (and a mock-mode marker), so an update starts from an empty cache. Old or unreadable entries are removed when the extension starts. This needs the `storage` permission.
 - **Popover data** (the profile and latest picks) is cached for 60 s in the background worker's memory, so reopening a popover costs nothing. When a profile scan finishes, the extension drops that handle's cached entry, including a negative one, and fetches it again.
+- **Badges follow the score while the page is open.** A tab used to keep a badge's first value until it was reloaded. Now every 60 s while the tab is visible (and the moment you come back to it) the page looks up the handles it is showing again and updates any that changed, never over a scan in progress and never replacing a score with "no data". A card that loads a profile also updates its badge, and a profile loaded in any tab refreshes the shared badge cache, so the card and the badge always agree.
 - **New picks show everywhere without a reload.** A scan can add picks that every cache would otherwise hide for a while, so each layer is told: the API forgets an account's remembered badge as soon as picks for it are ingested (it even remembers "no data" for a minute); when a scan ends the background worker drops the handle's cached popover data and sends the new badge to every open x.com tab, and an open card re-reads without closing; the website no longer caches the API's live data (profile, picks, leaderboard, latest picks) and its pages that show scan results, scores and trades re-read themselves every 15 s while the tab is visible and the moment you return to it, keeping what is open on the page (the rewards and sign-in pages, which have forms, do not).
 
 ### Chrome extension (WXT + React, MV3)

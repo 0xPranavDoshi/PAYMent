@@ -1,5 +1,6 @@
 import { browser } from "wxt/browser";
 import { defineBackground } from "wxt/utils/define-background";
+import { badgeFromProfile } from "@copayme/shared";
 import { fetchBadges, fetchProfileData } from "../src/api.js";
 import { createBadgeCache, type KeyValueStore } from "../src/badgeCache.js";
 import { createBadgeService } from "../src/badgeService.js";
@@ -75,7 +76,11 @@ export default defineBackground(() => {
     if (message?.type === "profile") {
       profiles
         .get(message.handle)
-        .then((data): ProfileReply => ({ ok: true, ...data }))
+        .then((data): ProfileReply => {
+          // The profile is as fresh as it gets: keep the shared badge cache in step with it.
+          if (data.profile) void cache.write({ [message.handle.toLowerCase()]: badgeFromProfile(data.profile) }).catch(() => {});
+          return { ok: true, ...data };
+        })
         .catch((err: unknown): ProfileReply => ({ ok: false, error: String(err) }))
         .then(sendResponse);
       return true;
