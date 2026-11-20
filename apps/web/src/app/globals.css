@@ -98,7 +98,9 @@ p { margin: 0; }
 .acct i { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--ink); background: var(--orange); display: grid; place-content: center; font-style: normal; font-size: 12px; font-weight: 800; }
 .nav form { margin: 0; display: flex; align-items: center; gap: 12px; }
 @media (max-width: 1000px) { .nav .container { gap: 14px; } .links { gap: 16px; } .pill.hide-sm { display: none; } }
-@media (max-width: 760px) { .links { display: none; } .brand-name { display: none; } .search-wrap { flex: 1; } }
+@media (max-width: 760px) { .links { display: none; } .brand-name { display: none; } .nav .spacer { display: none; } .search-wrap { flex: 1; } }
+/* On a phone the account chip shrinks to its initial, so the search box keeps its room. */
+@media (max-width: 520px) { .acct { padding: 3px; } .acct span { display: none; } }
 
 /* footer */
 .footer { border-top: 2.5px solid var(--ink); background: var(--bg); margin-top: 40px; padding: 24px 0 32px; font-size: 14px; }
@@ -302,8 +304,10 @@ a.who:hover { color: var(--ember); }
   .lb-pc .kv { display: none; }
 }
 @media (max-width: 640px) {
-  .lb-tr { grid-template-columns: 28px 50px minmax(0, 1fr) auto; }
-  .lb-tr .c-hit { display: none; }
+  /* Room for the handle on a phone: no avatar, tighter columns. */
+  .lb-tr, .lb-tr.h { grid-template-columns: 22px 46px minmax(0, 1fr) auto; gap: 8px; padding-left: 12px; padding-right: 12px; }
+  .lb-tr .c-hit, .lb-tr .av { display: none; }
+  .lb-tr .who b { font-size: 15px; }
   .lb-podium, .lb-podium.n2 { grid-template-columns: 1fr; }
   .lb-pc.first { transform: none; order: -1; }
 }
@@ -382,7 +386,8 @@ a.who:hover { color: var(--ember); }
   .hm-shot .pop { width: 92%; top: 150px; }
   .hm-steps { grid-template-columns: 1fr; }
   .hm-ticker { padding: 0 20px; }
-  .hm-mini .r { grid-template-columns: 24px 46px minmax(0, 1fr) auto; padding: 12px 16px; }
+  .hm-mini .r { grid-template-columns: 20px 46px minmax(0, 1fr) auto; gap: 10px; padding: 12px 14px; }
+  .hm-mini .who .t { font-size: 15px; }
   .hm-mini .chg { display: none; }
 }
 
