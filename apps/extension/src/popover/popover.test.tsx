@@ -100,7 +100,7 @@ describe("the popover", () => {
     expect(text).toContain("−62¢");
 
     expect(card.querySelector(".dot")).toBeNull(); // no markers beside the picks
-    expect([...card.querySelectorAll(".pick .front .pts")].map((p) => p.className.replace("pts ", ""))).toEqual(["won", "lost"]); // the two most recent settled picks
+    expect([...card.querySelectorAll(".pick .front .pts")].map((p) => p.className.replace("pts ", ""))).toEqual(["won", "lost"]); // the two most recent picks
     expect(card.querySelector(".tile")!.getAttribute("aria-label")).toBe("Score 72 out of 100");
 
     const links = [...popoverHosts()[0]!.shadowRoot!.querySelectorAll("a")].map((a) => a.getAttribute("href"));
@@ -127,6 +127,27 @@ describe("the popover", () => {
     click(badgeButton());
     await vi.waitFor(() => expect(popoverText()).toContain("Game 1"));
     expect(popoverHosts()[0]!.shadowRoot!.querySelector("button.rescan")).toBeNull();
+  });
+
+  it("lists the two most recent picks, a pending one with a PENDING tag, and skips void ones", async () => {
+    await start(async () => ({
+      profile: profile("alice"),
+      calls: [
+        call(1, { tweetedAt: "2026-11-17T12:00:00.000Z" }), // won, oldest
+        call(2, { tweetedAt: "2026-11-18T12:00:00.000Z", result: "lost", points: -0.62 }),
+        call(3, { tweetedAt: "2026-11-19T12:00:00.000Z", status: "pending", result: null, points: null }),
+        call(4, { tweetedAt: "2026-11-19T13:00:00.000Z", status: "void", result: null, points: null }), // newest, but void
+      ],
+    }));
+    click(badgeButton());
+    await vi.waitFor(() => expect(popoverText()).toContain("Game 3"));
+    const rows = [...popoverHosts()[0]!.shadowRoot!.querySelectorAll(".pick")];
+    expect(rows.map((r) => r.querySelector(".front .t")!.textContent)).toEqual(["Game 3", "Game 2"]);
+    expect(rows[0]!.querySelector(".front .pts")!.textContent).toBe("PENDING");
+    expect(rows[0]!.querySelector(".front .pts")!.classList.contains("tag")).toBe(true);
+    expect(rows[1]!.querySelector(".front .pts")!.textContent).toBe("−62¢");
+    expect(popoverText()).not.toContain("Game 4");
+    expect(popoverText()).not.toContain("Game 1");
   });
 
   it("shows the trader's leaderboard rank in the header", async () => {

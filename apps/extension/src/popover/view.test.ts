@@ -1,6 +1,6 @@
 import type { CallEntry, UserProfile } from "@copayme/shared";
 import { describe, expect, it } from "vitest";
-import { callRowView, formatAmount, formatCents, formatUsd, profileView } from "./view.js";
+import { callRowView, formatAmount, formatCents, formatUsd, profileView, recentPicks } from "./view.js";
 
 const call = (over: Partial<CallEntry> = {}): CallEntry => ({
   callId: "11111111-1111-4111-8111-111111111111",
@@ -58,6 +58,22 @@ describe("callRowView", () => {
   it("drops the side when it was not recorded, and handles a scored call with no known result", () => {
     expect(callRowView(call({ side: null })).pick).toBe("UConn");
     expect(callRowView(call({ result: null })).outcome).toEqual({ kind: "scored", text: "Scored" });
+  });
+});
+
+describe("recentPicks", () => {
+  it("takes the newest picks first, pending ones included, void and rejected ones skipped", () => {
+    const at = (callId: string, tweetedAt: string, over: Partial<CallEntry> = {}) => call({ callId, tweetedAt, ...over });
+    const picks = [
+      at("a", "2026-11-17T00:00:00.000Z"),
+      at("b", "2026-11-19T00:00:00.000Z", { status: "pending", result: null, points: null }),
+      at("c", "2026-11-20T00:00:00.000Z", { status: "void", result: null, points: null }),
+      at("d", "2026-11-21T00:00:00.000Z", { status: "rejected", result: null, points: null }),
+      at("e", "2026-11-18T00:00:00.000Z", { result: "lost", points: -0.6 }),
+    ];
+    expect(recentPicks(picks, 2).map((c) => c.callId)).toEqual(["b", "e"]);
+    expect(recentPicks(picks, 5).map((c) => c.callId)).toEqual(["b", "e", "a"]);
+    expect(recentPicks([], 2)).toEqual([]);
   });
 });
 

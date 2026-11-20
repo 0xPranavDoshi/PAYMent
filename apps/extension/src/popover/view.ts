@@ -25,6 +25,14 @@ export interface CallRowView {
   tweetUrl: string;
 }
 
+/** The newest picks first, at most n: pending ones included, void and rejected ones left out. */
+export function recentPicks(calls: readonly CallEntry[], n: number): CallEntry[] {
+  return calls
+    .filter((c) => c.status !== "void" && c.status !== "rejected")
+    .sort((a, b) => b.tweetedAt.localeCompare(a.tweetedAt))
+    .slice(0, n);
+}
+
 export function callRowView(call: CallEntry): CallRowView {
   const outcome: CallRowView["outcome"] =
     call.status === "pending"

@@ -2,7 +2,6 @@ import {
   COPY_STEPS,
   DEFAULT_COPY_AMOUNT,
   pastWeekEarnings,
-  recentSettled,
   snapToStep,
   stepAmount,
   type CallEntry,
@@ -15,7 +14,7 @@ import { ArrowUpRightIcon, CheckIcon } from "../icons.js";
 import type { Rank } from "../messages.js";
 import { SIGNED_OUT, type TradingActions, type TradingState } from "../trading.js";
 import { TweetCard } from "@copayme/tweet-card";
-import { callRowView, formatAmount, formatUsd, profileView } from "./view.js";
+import { callRowView, formatAmount, formatUsd, profileView, recentPicks } from "./view.js";
 
 export type PopoverState =
   | { status: "loading" }
@@ -108,7 +107,7 @@ export function Popover(props: {
 
 function Summary({ profile, calls, rank }: { profile: UserProfile; calls: CallEntry[]; rank: Rank | null }) {
   const view = profileView(profile);
-  const recent = recentSettled(calls, 2);
+  const recent = recentPicks(calls, 2);
   return (
     <>
       <div className="head">
@@ -148,10 +147,8 @@ function Summary({ profile, calls, rank }: { profile: UserProfile; calls: CallEn
         </div>
       </div>
 
-      {calls.length === 0 ? (
+      {recent.length === 0 ? (
         <div className="empty">No picks recorded yet.</div>
-      ) : recent.length === 0 ? (
-        <div className="empty">No settled picks yet.</div>
       ) : (
         <ul className="picks" aria-label="Recent picks">
           {recent.map((call) => (
@@ -481,7 +478,11 @@ function PickRow({ call, handle }: { call: CallEntry; handle: string }) {
               </button>
             </div>
           </div>
-          <span className={`pts ${tone}`} >{row.points ?? row.outcome.text}</span>
+          {row.outcome.kind === "pending" ? (
+            <span className="pts none tag">PENDING</span>
+          ) : (
+            <span className={`pts ${tone}`}>{row.points ?? row.outcome.text}</span>
+          )}
         </div>
 
         <div className="face back" ref={back} inert={!flipped}>

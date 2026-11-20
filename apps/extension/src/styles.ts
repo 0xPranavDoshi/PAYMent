@@ -180,6 +180,7 @@ export const POPOVER_CSS = `
   .pts.won { color: var(--win); }
   .pts.lost { color: var(--loss); }
   .pts.none { color: var(--ink-3); font: 500 12px/1 var(--mono); }
+  .pts.tag { padding: 4px 6px; border: 2px solid currentColor; border-radius: 6px; color: var(--ink-2); font: 700 10.5px/1 var(--mono); letter-spacing: .06em; }
   .empty { padding: 12px 16px 0; color: var(--ink-2); }
 
   .foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px 0; }
@@ -248,7 +249,8 @@ export const POPOVER_CSS = `
   .stp button:last-child { border-left: 2px solid var(--line); }
   .stp button:hover:not(:disabled) { background: var(--ticket); }
   .stp button:disabled { color: var(--ink-3); cursor: not-allowed; }
-  .stp button:focus-visible { outline-offset: -3px; }
+  /* "all: unset" above also unsets the shared focus outline, so it is drawn again here. */
+  .stp button:focus-visible { outline: 2px solid var(--orange); outline-offset: -3px; }
   .stp b { min-width: 48px; padding: 0 8px; text-align: center; font: 800 15px/1 var(--font); font-variant-numeric: tabular-nums; }
   .stamp {
     align-self: center; max-width: 100%; margin: 4px 0 2px; padding: 8px 14px; transform: rotate(-3deg); text-align: center; overflow-wrap: anywhere;
