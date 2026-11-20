@@ -1,11 +1,9 @@
 import Page from "@/components/Page";
 import Link from "next/link";
 import { fetchCopyTrades, fetchWatches } from "@/lib/api";
-import { formatSignedPct, formatUsd, shortDate, tone } from "@/lib/format";
+import { formatSignedPct, formatUsd, tone } from "@/lib/format";
 import { getFollowerId } from "@/lib/session";
-import ScoreTile from "@/components/ScoreTile";
-import { WatchButton } from "@/components/TradeButtons";
-import { CopyTradeToggle } from "@/components/CopyTicket";
+import WatchlistRows from "@/components/WatchlistRows";
 import SignInPrompt from "@/components/SignInPrompt";
 
 export const dynamic = "force-dynamic";
@@ -31,13 +29,13 @@ export default async function WatchlistPage() {
 
   return (
     <Page>
-      <h1 className="ptitle">Watchlist</h1>
+      <h1 className="pt">Watchlist</h1>
       <p className="psub">
         How each trader has done since you started watching, as if you had put $1 on every pick.
       </p>
 
       {error ? (
-        <p className="down" style={{ marginTop: 20 }}>{error}</p>
+        <p className="down wl-err">{error}</p>
       ) : watches.length === 0 ? (
         <div className="card empty-card">
           <h3>Nothing here yet</h3>
@@ -46,49 +44,24 @@ export default async function WatchlistPage() {
         </div>
       ) : (
         <>
-          <div className="stats three">
-            <div><b>{watches.length}</b><span>Watching</span></div>
-            <div>
-              <b className={tone(projected)}>{formatUsd(projected)}</b>
-              <span>Projected P&amp;L</span>
-            </div>
-            <div>
-              <b className={tone(pct)}>{pct === null ? "–" : formatSignedPct(pct)}</b>
-              <span>Return on {formatUsd(staked, false)} staked</span>
-            </div>
+          <div className="card strip three">
+            <div><span>Watching</span><b>{watches.length}</b></div>
+            <div><span>Projected P&amp;L</span><b className={tone(projected)}>{formatUsd(projected)}</b></div>
+            <div><span>Return on {formatUsd(staked, false)} staked</span><b className={tone(pct)}>{pct === null ? "–" : formatSignedPct(pct)}</b></div>
           </div>
 
-          <div className="board">
-            {watches.map((w) => {
-              const copy = copyBy.get(w.traderHandle.toLowerCase()) ?? null;
-              const delta = w.scoreDelta;
-              return (
-                <div className="wrow" key={w.traderHandle}>
-                  <ScoreTile score={w.scoreNow} size="sm" />
-                  <div className="wmain">
-                    <Link href={`/traders/${encodeURIComponent(w.traderHandle)}`} className="who">@{w.traderHandle}</Link>
-                    <div className="wsub">
-                      Since {shortDate(w.watchedAt)}
-                      {w.scoreAtWatch !== null && w.scoreNow !== null && (
-                        <> · score {w.scoreAtWatch} → {w.scoreNow}
-                          {delta !== null && delta !== 0 && <span className={delta > 0 ? "up" : "down"}> ({delta > 0 ? "+" : "−"}{Math.abs(delta)})</span>}
-                        </>
-                      )}
-                      {" "}· {w.nPicks - w.activePicks} settled, {w.activePicks} open
-                    </div>
-                  </div>
-                  <div className="wpnl">
-                    <b className={tone(w.projectedPnlUsdc)}>{w.pnlPct === null ? "–" : formatSignedPct(w.pnlPct)}</b>
-                    <small className={tone(w.projectedPnlUsdc)}>{w.projectedPnlUsdc === null ? (w.nPicks === 0 ? "No picks yet" : "Not priced yet") : formatUsd(w.projectedPnlUsdc)}</small>
-                  </div>
-                  <div className="wact">
-                    <CopyTradeToggle handle={w.traderHandle} copy={copy ? { active: copy.active, amountUsdc: copy.amountUsdc, since: copy.createdAt } : null} signedIn viewerId={followerId} nPicks={0} ticketPlacement="inline" />
-                    <WatchButton handle={w.traderHandle} watching signedIn />
-                  </div>
-                </div>
-              );
+          <WatchlistRows
+            viewerId={followerId}
+            rows={watches.map((w) => {
+              const c = copyBy.get(w.traderHandle.toLowerCase());
+              return {
+                handle: w.traderHandle, watchedAt: w.watchedAt, scoreNow: w.scoreNow, scoreAtWatch: w.scoreAtWatch,
+                scoreDelta: w.scoreDelta, nPicks: w.nPicks, activePicks: w.activePicks, pnlPct: w.pnlPct,
+                projectedPnlUsdc: w.projectedPnlUsdc,
+                copy: c ? { active: c.active, amountUsdc: c.amountUsdc, since: c.createdAt } : null,
+              };
             })}
-          </div>
+          />
         </>
       )}
     </Page>
