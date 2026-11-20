@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server";
 import postgres from "postgres";
 import { createApp } from "./app.js";
+import { autoPollSettings, pollCopiedTraders } from "./autopoll.js";
 import { positiveIntOr } from "./env.js";
 import { createForwarder, noopForwarder } from "./forward.js";
 import { createGeminiClient } from "./gemini/client.js";
@@ -9,7 +10,7 @@ import { createKalshiClient } from "./kalshi/client.js";
 import { createApifySource } from "./posts/apify.js";
 import { refreshMarkets } from "./refresh.js";
 import { runScan, type ScanDeps } from "./scan.js";
-import { createPostgresStore } from "./store.postgres.js";
+import { createPostgresStore, listCopiedHandles } from "./store.postgres.js";
 import { dbIdleTimeout, dbPoolMax } from "@copayme/shared";
 
 const env = process.env;
@@ -19,7 +20,8 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-const store = createPostgresStore(postgres(env.DATABASE_URL as string, { max: dbPoolMax(env.DB_POOL_MAX), idle_timeout: dbIdleTimeout(env.DB_IDLE_TIMEOUT_S) }));
+const sql = postgres(env.DATABASE_URL as string, { max: dbPoolMax(env.DB_POOL_MAX), idle_timeout: dbIdleTimeout(env.DB_IDLE_TIMEOUT_S) });
+const store = createPostgresStore(sql);
 const gemini = createGeminiClient();
 const model = env.XAI_MODEL || "grok-4-1-fast-reasoning";
 
@@ -49,14 +51,17 @@ const scanDeps: ScanDeps = {
 /** Handles whose running scan the user asked to stop; the scan checks this between its stages. */
 const stopRequested = new Set<string>();
 
+/** Runs a scan in the background; the caller already holds the handle's lock. */
+const startScan = (handle: string, opts: { fetchNew: boolean }) => {
+  stopRequested.delete(handle);
+  void runScan(handle, scanDeps, { ...opts, shouldStop: () => stopRequested.has(handle) })
+    .catch((e) => console.error(`[scout] scan crashed for ${handle}:`, e))
+    .finally(() => stopRequested.delete(handle));
+};
+
 const app = createApp({
   store,
-  startScan: (handle, opts) => {
-    stopRequested.delete(handle);
-    void runScan(handle, scanDeps, { ...opts, shouldStop: () => stopRequested.has(handle) })
-      .catch((e) => console.error(`[scout] scan crashed for ${handle}:`, e))
-      .finally(() => stopRequested.delete(handle));
-  },
+  startScan,
   cancelScan: (handle) => void stopRequested.add(handle),
   dailyNewHandles: positiveIntOr(env.SCOUT_DAILY_NEW_HANDLES, 30),
   ...(env.SCOUT_ALLOWED_ORIGIN ? { allowedOrigin: env.SCOUT_ALLOWED_ORIGIN } : {}),
@@ -81,4 +86,35 @@ if (env.SCOUT_FORWARD_ENABLED === "true") {
   };
   setInterval(() => void tick(), everyMs).unref();
   void tick();
+}
+
+// Optional: scan every copied trader every few minutes, so their new picks reach the trading service within
+// the 10-minute copy window. Off by default because each check fetches from X (which costs). A person's own
+// scan (opening or rescanning a profile) is unaffected and keeps its 10-minute cache.
+const autoPoll = autoPollSettings(env);
+if (autoPoll.enabled) {
+  if (env.SCOUT_FORWARD_ENABLED !== "true") {
+    console.error("SCOUT_AUTO_POLL=true requires SCOUT_FORWARD_ENABLED=true (picks must reach the scoring API to be copied).");
+    process.exit(1);
+  }
+  console.log(`[scout] auto-poll on: copied traders are scanned every ${autoPoll.everyS}s (at most ${autoPoll.maxHandles} per round)`);
+  let polling = false;
+  const round = async () => {
+    if (polling) return;
+    polling = true;
+    try {
+      await pollCopiedTraders({
+        store,
+        copiedHandles: (limit) => listCopiedHandles(sql, limit),
+        startScan,
+        maxHandles: autoPoll.maxHandles,
+        log: console.log,
+      });
+    } catch (e) {
+      console.error("[scout] auto-poll round failed:", e);
+    } finally {
+      polling = false;
+    }
+  };
+  setInterval(() => void round(), autoPoll.everyS * 1000).unref();
 }
