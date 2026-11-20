@@ -13,6 +13,11 @@ export interface AppDeps {
   /** Asks a running scan to stop at its next checkpoint. Without it, DELETE /v1/scout/:handle does nothing. */
   cancelScan?: (handle: string) => void;
   now?: () => Date;
+  /**
+   * True when scans forward picks to the scoring API. Then matched picks not yet forwarded (ingest was
+   * down, or forwarding was off when they were matched) are retried by a scan even when nothing new was posted.
+   */
+  forwards?: boolean;
   dailyNewHandles?: number;
   allowedOrigin?: string;
 }
@@ -62,6 +67,13 @@ export function createApp(deps: AppDeps): Hono {
     };
   }
 
+  /** Posts a no-fetch scan would work on: pending ones, or (when forwarding) matched picks not yet forwarded. */
+  async function hasWork(handle: string): Promise<boolean> {
+    if ((await store.pendingPosts(handle)).length > 0) return true;
+    if (!deps.forwards) return false;
+    return (await store.unforwardedPosts(handle)).some((p) => p.matches?.some((m) => m.status === "matched"));
+  }
+
   app.get("/health", (c) => c.json({ ok: true }));
 
   app.post("/v1/scout/:handle", async (c) => {
@@ -77,9 +89,10 @@ export function createApp(deps: AppDeps): Hono {
     const row = await store.getHandle(handle);
     if (row && row.status !== "running") {
       // Nothing posted since our last fetch: X (Apify) isn't asked. Only posts still pending (game not
-      // listed yet, a failed read) are worked on, which costs nothing from X.
+      // listed yet, a failed read) and matched picks not yet forwarded are worked on, which costs nothing
+      // from X (and nothing from Grok for the forwarding).
       if (hinted && nothingNewSince(newest, row.newestTweetId)) {
-        if ((await store.pendingPosts(handle)).length > 0 && (await store.tryLock(handle, t))) {
+        if ((await hasWork(handle)) && (await store.tryLock(handle, t))) {
           startScan(handle, { fetchNew: false });
           return c.json(await buildResponse(handle, { status: "running", scannedAt: row.scannedAt }), 202);
         }

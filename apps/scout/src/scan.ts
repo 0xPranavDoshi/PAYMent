@@ -169,6 +169,9 @@ export async function runScan(handle: string, deps: ScanDeps, opts: ScanOptions 
     if (toForward.length > 0) {
       const accepted = await forwarder.forward(toForward, handle);
       if (accepted.length > 0) await store.markForwarded(accepted, now());
+      if (accepted.length < toForward.length) {
+        log(`[scout] @${handle}: ${toForward.length - accepted.length} of ${toForward.length} matched posts not accepted by the scoring API (forwarding off, or ingest failed); retried next scan`);
+      }
     }
 
     await store.finishScan(handle, {
