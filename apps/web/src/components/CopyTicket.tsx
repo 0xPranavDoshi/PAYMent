@@ -7,7 +7,6 @@ import {
   DEFAULT_COPY_AMOUNT,
   pastWeekEarnings,
   recentSettled,
-  snapToStep,
   stepAmount,
   type CallEntry,
 } from "@copayme/shared";
@@ -19,6 +18,7 @@ export type { CopyState };
 
 /** "$10", or "$2.50" for amounts with cents. */
 const usd = (n: number) => (Number.isInteger(n) ? `$${n}` : formatUsd(n, false));
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 // ── Copy state shared by every toggle and ticket for a handle ────────────────
 // The toggle and its ticket can be rendered apart (the leaderboard puts the ticket in the next row),
@@ -120,10 +120,30 @@ export default function CopyTicket({
   const loaded = useTicketCalls(handle);
   const calls = loaded?.ok ? loaded.calls : null;
   const [editing, setEditing] = useState(false);
-  const [amount, setAmount] = useState(() => (copying ? snapToStep(copy!.amountUsdc) : DEFAULT_COPY_AMOUNT));
+  const [amount, setAmount] = useState(() => (copying ? round2(copy!.amountUsdc) : DEFAULT_COPY_AMOUNT));
+  const [draft, setDraft] = useState(() => String(copying ? round2(copy!.amountUsdc) : DEFAULT_COPY_AMOUNT));
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const busy = useRef(false);
+
+  /** Set the amount from the stepper and mirror it into the editable field. */
+  function setAmt(n: number) {
+    const c = round2(n);
+    setAmount(c);
+    setDraft(String(c));
+  }
+  /** Let the field hold any text while typing; adopt it as the amount once it is a positive number. */
+  function onAmountInput(v: string) {
+    setDraft(v);
+    const n = parseFloat(v);
+    if (Number.isFinite(n) && n > 0) setAmount(round2(n));
+  }
+  /** On blur/Enter, normalise the field; revert to the last valid amount if it was left empty or <= 0. */
+  function commitDraft() {
+    const n = parseFloat(draft);
+    if (!Number.isFinite(n) || n <= 0) setDraft(String(amount));
+    else setAmt(n);
+  }
 
   /** Shows `next` at once, runs the action, and puts the old state back if the server says no. */
   function run(next: CopyState, action: () => Promise<ActionResult>) {
@@ -207,7 +227,7 @@ export default function CopyTicket({
               </div>
               <div className="tk-row2">
                 <button type="button" className="btn sm" onClick={() => {
-                  setAmount(snapToStep(copy!.amountUsdc));
+                  setAmt(round2(copy!.amountUsdc));
                   setError(null);
                   setEditing(true);
                 }}>
@@ -231,9 +251,19 @@ export default function CopyTicket({
                   <span>Amount per pick</span>
                   <span className="dots" />
                   <span className="stp">
-                    <button type="button" aria-label="Lower amount per pick" disabled={amount <= COPY_STEPS[0]!} onClick={() => setAmount((a) => stepAmount(a, -1))}>−</button>
-                    <b aria-live="polite">{usd(amount)}</b>
-                    <button type="button" aria-label="Raise amount per pick" disabled={amount >= COPY_STEPS[COPY_STEPS.length - 1]!} onClick={() => setAmount((a) => stepAmount(a, 1))}>+</button>
+                    <button type="button" aria-label="Lower amount per pick" disabled={amount <= COPY_STEPS[0]!} onClick={() => setAmt(stepAmount(amount, -1))}>−</button>
+                    <span className="stp-amt">
+                      <i>$</i>
+                      <input
+                        inputMode="decimal"
+                        aria-label="Amount per pick in USDC"
+                        value={draft}
+                        onChange={(e) => onAmountInput(e.target.value)}
+                        onBlur={commitDraft}
+                        onKeyDown={(e) => { if (e.key === "Enter") commitDraft(); }}
+                      />
+                    </span>
+                    <button type="button" aria-label="Raise amount per pick" disabled={amount >= COPY_STEPS[COPY_STEPS.length - 1]!} onClick={() => setAmt(stepAmount(amount, 1))}>+</button>
                   </span>
                 </div>
                 <div className="li total">
