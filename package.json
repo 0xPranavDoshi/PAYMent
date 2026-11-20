@@ -12,6 +12,7 @@
     "dev:onchain": "pnpm --filter @copayme/onchain dev",
     "dev:web": "pnpm --filter @copayme/web dev",
     "dev:extension": "pnpm --filter @copayme/extension dev",
+    "package:extension": "pnpm --filter @copayme/extension package",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck"

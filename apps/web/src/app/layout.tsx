@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import { TWEET_CARD_CSS } from "@copayme/tweet-card";
+import Link from "next/link";
 import Nav from "@/components/Nav";
 
 const sans = Geist({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="container">
             <span>coPAYMe</span>
             <span className="muted">Scores are measured against market odds. Copy trades are simulated.</span>
+            <Link href="/extension" className="muted">Install the extension</Link>
           </div>
         </footer>
       </body>

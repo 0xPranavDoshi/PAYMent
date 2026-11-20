@@ -2,6 +2,7 @@ import Link from "next/link";
 import { fetchLeaderboard, fetchRecentCalls, fetchTraderCalls, fetchTraderProfile, type LeaderboardEntry } from "@/lib/api";
 import { formatCents, formatChange, formatPct } from "@/lib/format";
 import ExtensionPromo from "@/components/ExtensionPromo";
+import RewardsPromo from "@/components/RewardsPromo";
 import Page from "@/components/Page";
 import ScoreRing from "@/components/ScoreRing";
 import TraderGrid from "@/components/TraderGrid";
@@ -33,6 +34,8 @@ export default async function Home() {
       <div className="strap">
         <h1>Every pick on X, scored against the market.</h1>
       </div>
+
+      <ExtensionPromo />
 
       {board.length === 0 ? (
         <div className="empty">The leaderboard is not available right now.</div>
@@ -113,12 +116,13 @@ export default async function Home() {
             </div>
           </section>
 
+          <RewardsPromo />
+
           <section style={{ marginTop: 44 }}>
             <h2 className="sect">Traders</h2>
             <TraderGrid entries={board} />
           </section>
 
-          <ExtensionPromo />
         </>
       )}
     </Page>

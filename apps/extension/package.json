@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "wxt",
     "build": "wxt build",
+    "package": "WXT_MOCK=false wxt zip && cp .output/*-chrome.zip ../web/public/coPAYMe-extension.zip",
     "test": "vitest run",
     "typecheck": "wxt prepare && tsc --noEmit"
   },
