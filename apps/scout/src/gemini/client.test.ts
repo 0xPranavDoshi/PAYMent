@@ -200,3 +200,18 @@ describe("getEvent", () => {
     await expect(client.getEvent("nope")).rejects.toMatchObject({ name: "GeminiError", status: 404 });
   });
 });
+
+describe("request time limit", () => {
+  it("fails a Gemini request that never answers instead of hanging the scan", async () => {
+    // A server that never answers; it only gives up when the request is aborted.
+    const silent = vi.fn(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(init.signal!.reason));
+        }),
+    );
+    const client = createGeminiClient({ fetch: silent as unknown as typeof fetch, timeoutMs: 30 });
+    await expect(client.getEvent("NBA-2611190030-WAS-TOR-M")).rejects.toBeInstanceOf(GeminiError);
+    expect(await client.getYesPriceAt("GEMI-X", new Date())).toBeNull();
+  });
+});
