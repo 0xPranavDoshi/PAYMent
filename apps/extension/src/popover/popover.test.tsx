@@ -371,7 +371,34 @@ describe("the popover", () => {
       await vi.waitFor(() => expect(rows().every((r) => r.classList.contains("flipped"))).toBe(true));
       const back = rows()[0]!.querySelector(".back")!;
       expect(back.querySelector("img")).toBeNull();
-      expect(back.querySelector(".ttext")!.textContent).toBe(hostile);
+      expect(back.querySelector(".tweetcard-text")!.textContent).toBe(hostile);
+    });
+    it("draws the tweet the way X does: escapes decoded, the trailing t.co link dropped, links and mentions clickable", async () => {
+      const raw = "21+ (18+ WY). T&amp;Cs apply. Gambling problem? Call 1-800-GAMBLER.\nVia @ActionNetworkHQ #NBA https://example.com/picks.\n  https://t.co/VXTYrphI6W";
+      await start(async () => ({ profile: profile("alice"), calls: [call(1, { tweetText: raw }), call(2)] }));
+      click(badgeButton());
+      await vi.waitFor(() => expect(rows()).toHaveLength(2));
+      click(flipButton(0));
+      await vi.waitFor(() => expect(rows()[0]!.classList.contains("flipped")).toBe(true));
+      const text = rows()[0]!.querySelector(".tweetcard-text")!;
+      expect(text.textContent).toContain("T&Cs apply."); // not "T&amp;Cs"
+      expect(text.textContent).not.toContain("&amp;");
+      expect(text.textContent).not.toContain("t.co"); // the trailing short link is hidden
+      const hrefs = [...text.querySelectorAll("a")].map((a) => a.getAttribute("href"));
+      expect(hrefs).toEqual(["https://x.com/ActionNetworkHQ", "https://x.com/hashtag/NBA", "https://example.com/picks"]);
+      expect([...text.querySelectorAll("a")].every((a) => a.getAttribute("rel") === "noopener noreferrer" && a.getAttribute("target") === "_blank")).toBe(true);
+    });
+
+    it("keeps the card flipped when a link in the tweet is clicked", async () => {
+      await start(async () => ({ profile: profile("alice"), calls: [call(1, { tweetText: "see https://example.com/x" }), call(2)] }));
+      click(badgeButton());
+      await vi.waitFor(() => expect(rows()).toHaveLength(2));
+      click(flipButton(0));
+      await vi.waitFor(() => expect(rows()[0]!.classList.contains("flipped")).toBe(true));
+      const link = rows()[0]!.querySelector<HTMLAnchorElement>(".tweetcard-text a")!;
+      link.addEventListener("click", (e) => e.preventDefault()); // do not navigate in the test
+      link.click();
+      expect(rows()[0]!.classList.contains("flipped")).toBe(true);
     });
   });
 
@@ -419,10 +446,32 @@ describe("the popover", () => {
       await openCard(trading);
       await loaded();
       click(watchBtn());
-      await vi.waitFor(() => expect(toast()).toBe("Sign in with X to trade. Coming soon."));
+      await vi.waitFor(() => expect(toast()).toBe("Sign in with X on coPAYMe, then come back here."));
       click(copyBtn());
       expect(trading.setWatch).not.toHaveBeenCalled();
       expect(card().querySelector(".panel")).toBeNull(); // no confirmation to start copying
+    });
+
+    it("picks up a sign-in made on the site without reloading x.com", async () => {
+      let signedIn = false;
+      const trading = fakeTrading({}, {
+        state: vi.fn(async () => ({ signedIn, watching: false, copy: null, copyMode: "paper" as const })),
+      });
+      await openCard(trading);
+      await loaded();
+      signedIn = true; // the user signs in on coPAYMe in another tab
+      click(watchBtn());
+      await vi.waitFor(() => expect(trading.setWatch).toHaveBeenCalledWith("alice", true));
+      expect(toast()).not.toBe("Sign in with X on coPAYMe, then come back here.");
+    });
+
+    it("re-checks the login when the user returns to the tab", async () => {
+      const trading = fakeTrading({ signedIn: false });
+      await openCard(trading);
+      await loaded();
+      const before = vi.mocked(trading.state).mock.calls.length;
+      window.dispatchEvent(new Event("focus"));
+      await vi.waitFor(() => expect(vi.mocked(trading.state).mock.calls.length).toBeGreaterThan(before));
     });
 
     describe("watching", () => {
@@ -638,12 +687,12 @@ describe("the flipped card looks like a tweet", () => {
   it("shows the tag, an avatar, the text and X's time format, like a tweet", async () => {
     await openWith("rgb(0, 0, 0)");
     const back = rows()[0]!.querySelector(".back")!;
-    expect(back.querySelector(".avatar")!.textContent).toBe("U");
-    expect(back.querySelector(".thead b")!.textContent).toBe("@ubc_conference");
-    expect(back.querySelector(".thead span")!.textContent).toMatch(/^· Nov \d+$/);
-    expect(back.querySelector(".ttext")!.textContent).toBe("Registration is open for #UBC2026.");
-    expect(back.querySelector(".tmeta")!.textContent).toMatch(/^\d+:\d{2} (AM|PM) · Nov \d+, 2026$/);
-    expect(back.querySelector(".tfoot")!.textContent).toContain("Pick: UConn · YES · 62¢");
+    expect(back.querySelector(".tweetcard-av")!.textContent).toBe("U");
+    expect(back.querySelector(".tweetcard-head b")!.textContent).toBe("@ubc_conference");
+    expect(back.querySelector(".tweetcard-head span")!.textContent).toMatch(/^· Nov \d+$/);
+    expect(back.querySelector(".tweetcard-text")!.textContent).toBe("Registration is open for #UBC2026.");
+    expect(back.querySelector(".tweetcard-time")!.textContent).toMatch(/^\d+:\d{2} (AM|PM) · Nov \d+, 2026$/);
+    expect(back.querySelector(".tweetcard-foot")!.textContent).toContain("Pick: UConn · YES · 62¢");
   });
 
   it("is painted with the exact background of the page it sits on, so it matches X's own tweets", async () => {

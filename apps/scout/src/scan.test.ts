@@ -90,7 +90,7 @@ function setup(opts: {
   );
   const forwarder = { forward } as unknown as Forwarder;
   const logs: string[] = [];
-  const run = async (handle = "bob", scanOpts: { fetchNew?: boolean } = {}) => {
+  const run = async (handle = "bob", scanOpts: { fetchNew?: boolean; shouldStop?: () => boolean } = {}) => {
     await store.tryLock(handle, NOW);
     await runScan(handle, {
       store,
@@ -105,6 +105,51 @@ function setup(opts: {
   };
   return { store, fetchPosts, seenByGrok, searchGames, forward, run, source, logs };
 }
+
+describe("runScan: stopping", () => {
+  const posts = [raw("1"), raw("2")];
+  const sentiments = { "1": prediction(), "2": prediction() };
+
+  it("skips reading, matching and forwarding when stopped before the model reads, and keeps the fetched posts pending", async () => {
+    const t = setup({ posts, sentiments });
+    await t.run("bob", { shouldStop: () => true });
+    expect(t.fetchPosts).toHaveBeenCalledTimes(1); // the fetch had already been paid for
+    expect(t.seenByGrok).toEqual([]); // no model call
+    expect(t.searchGames).not.toHaveBeenCalled();
+    expect(t.forward).not.toHaveBeenCalled();
+    expect((await t.store.getHandle("bob"))?.status).toBe("idle"); // the lock is released
+    expect((await t.store.pendingPosts("bob")).map((p) => p.tweetId).sort()).toEqual(["1", "2"]);
+    expect(t.logs.some((l) => l.includes("stopped by the user"))).toBe(true);
+  });
+
+  it("a later scan finishes the stopped one without fetching from X again", async () => {
+    const t = setup({ posts, sentiments });
+    await t.run("bob", { shouldStop: () => true });
+    await t.run("bob", { fetchNew: false });
+    expect(t.fetchPosts).toHaveBeenCalledTimes(1);
+    expect(t.seenByGrok.sort()).toEqual(["1", "2"]);
+    expect(await t.store.pendingPosts("bob")).toEqual([]);
+    expect(t.forward).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops between reading and matching: the read is kept, nothing is matched or forwarded", async () => {
+    const t = setup({ posts, sentiments });
+    let asked = 0;
+    await t.run("bob", { shouldStop: () => ++asked > 1 }); // false before the read, true afterwards
+    expect(t.seenByGrok.sort()).toEqual(["1", "2"]);
+    expect(t.searchGames).not.toHaveBeenCalled();
+    expect(t.forward).not.toHaveBeenCalled();
+    const pending = await t.store.pendingPosts("bob");
+    expect(pending.every((p) => p.sentiment !== null && p.matches === null)).toBe(true);
+  });
+
+  it("is unaffected when nobody stops it", async () => {
+    const t = setup({ posts, sentiments });
+    await t.run("bob", { shouldStop: () => false });
+    expect(t.forward).toHaveBeenCalledTimes(1);
+    expect(t.logs.some((l) => l.includes("stopped"))).toBe(false);
+  });
+});
 
 describe("runScan", () => {
   it("logs one timing line per scan with each stage's duration and counts", async () => {

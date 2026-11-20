@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
+import { TWEET_CARD_CSS } from "@copayme/tweet-card";
 import Nav from "@/components/Nav";
 
 const sans = Geist({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
@@ -14,6 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={sans.variable}>
       <body>
+        <style dangerouslySetInnerHTML={{ __html: TWEET_CARD_CSS }} />
         <Nav />
         <main>{children}</main>
         <footer className="footer">

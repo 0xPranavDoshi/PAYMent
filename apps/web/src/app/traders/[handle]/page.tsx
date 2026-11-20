@@ -3,7 +3,7 @@ import Link from "next/link";
 import { fetchCopyMode, fetchCopyTrades, fetchTraderCalls, fetchTraderProfile, fetchWatches } from "@/lib/api";
 import { getFollowerId } from "@/lib/session";
 import { CopyButton, WatchButton } from "@/components/TradeButtons";
-import { formatCents, formatChange, formatPct, formatTweetTime, timeAgo } from "@/lib/format";
+import { formatCents, formatChange, formatPct, timeAgo } from "@/lib/format";
 import ScoreRing from "@/components/ScoreRing";
 import PickRow from "@/components/PickRow";
 
@@ -96,7 +96,6 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
             calls.map((c) => {
               const outcome = c.status === "pending" ? "Pending" : c.status === "void" ? "Void" : c.status === "rejected" ? "Rejected" : c.result === "won" ? "Won" : c.result === "lost" ? "Lost" : "Scored";
               const tone = c.points === null ? "muted" : c.result === "won" ? "w" : c.result === "lost" ? "l" : "muted";
-              const t = formatTweetTime(c.tweetedAt);
               return (
                 <PickRow
                   key={c.callId}
@@ -108,8 +107,7 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
                   outcome={c.points !== null ? `${outcome} · ${timeAgo(c.tweetedAt)}` : timeAgo(c.tweetedAt)}
                   tweetText={c.tweetText}
                   tweetId={c.tweetId}
-                  short={t.short}
-                  full={t.full}
+                  postedAt={c.tweetedAt}
                 />
               );
             })

@@ -276,16 +276,86 @@ describe("startBadges", () => {
       expect(scan).toHaveBeenCalledTimes(1);
     });
 
-    it("can be dismissed, and stops with the page", async () => {
+    it("a finished result can be dismissed, a running scan cannot (it is stopped instead), and it all stops with the page", async () => {
       open("dana");
-      stop = startBadges({ lookup: known, scan: () => new Promise<ScanResult>(() => {}), delayMs: 10, ...fastTimeline });
+      let finish!: (r: ScanResult) => void;
+      stop = startBadges({ lookup: known, scan: () => new Promise<ScanResult>((resolve) => (finish = resolve)), cancelScan: vi.fn(async () => {}), delayMs: 10, ...fastTimeline });
       await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
       pill()!.click();
       await vi.waitFor(() => expect(card()).not.toBeNull());
+      expect(card()!.querySelector(".x")).toBeNull(); // no way to hide a running scan
+      expect(card()!.querySelector(".stop")).not.toBeNull();
+      await vi.waitFor(() => expect(finish).toBeDefined());
+      finish({ status: "done", badge: null });
+      await vi.waitFor(() => expect(card()!.querySelector(".x")).not.toBeNull());
       card()!.querySelector<HTMLButtonElement>(".x")!.click();
       await vi.waitFor(() => expect(card()).toBeNull());
       stop();
       expect(document.querySelector("[data-copayme=scan]")).toBeNull();
+    });
+
+    describe("stopping a scan", () => {
+      const stopButton = () => card()?.querySelector<HTMLButtonElement>(".stop") ?? null;
+
+      it("puts the Scan picks button back at once, tells the scout, and ignores a result that arrives later", async () => {
+        open("dana");
+        let finish!: (r: ScanResult) => void;
+        const scan = vi.fn(() => new Promise<ScanResult>((resolve) => (finish = resolve)));
+        const cancelScan = vi.fn(async () => {});
+        stop = startBadges({ lookup: known, scan, cancelScan, delayMs: 10, ...fastTimeline });
+        await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
+        pill()!.click();
+        await vi.waitFor(() => expect(scan).toHaveBeenCalled());
+        await vi.waitFor(() => expect(stopButton()).not.toBeNull());
+
+        stopButton()!.click();
+        await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
+        expect(cancelScan).toHaveBeenCalledWith("dana");
+        expect(cardText()).toContain("Scan stopped");
+        expect(stopButton()).toBeNull();
+
+        finish({ status: "done", badge: scored }); // the scout finished anyway: the page must not change its mind
+        await new Promise((r) => setTimeout(r, 40));
+        expect(pillText()).toBe("Scan picks");
+        expect(cardText()).toContain("Scan stopped");
+      });
+
+      it("stopping while the profile's timeline is still loading never asks the scout to scan", async () => {
+        open("dana");
+        const scan = vi.fn(async (): Promise<ScanResult> => ({ status: "done", badge: scored }));
+        stop = startBadges({ lookup: known, scan, cancelScan: vi.fn(async () => {}), delayMs: 10, timelineWaitMs: 400, timelinePollMs: 5, timelineSettleMs: 5 });
+        await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
+        pill()!.click();
+        await vi.waitFor(() => expect(stopButton()).not.toBeNull());
+        stopButton()!.click(); // within the timeline wait
+        await new Promise((r) => setTimeout(r, 450));
+        expect(scan).not.toHaveBeenCalled();
+        expect(pillText()).toBe("Scan picks");
+      });
+
+      it("lets the user scan again after stopping", async () => {
+        open("dana");
+        const scan = vi.fn(() => new Promise<ScanResult>(() => {}));
+        stop = startBadges({ lookup: known, scan, cancelScan: vi.fn(async () => {}), delayMs: 10, ...fastTimeline });
+        await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
+        pill()!.click();
+        await vi.waitFor(() => expect(scan).toHaveBeenCalledTimes(1)); // the first scan is really running
+        stopButton()!.click();
+        await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
+        pill()!.click(); // straight away, while the stopped scan's promise is still pending
+        await vi.waitFor(() => expect(scan).toHaveBeenCalledTimes(2));
+        await vi.waitFor(() => expect(pillText()).toMatch(/^Scanning…/));
+      });
+
+      it("still stops waiting when the scout cannot be told", async () => {
+        open("dana");
+        stop = startBadges({ lookup: known, scan: () => new Promise<ScanResult>(() => {}), cancelScan: vi.fn(async () => { throw new Error("scout down"); }), delayMs: 10, ...fastTimeline });
+        await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
+        pill()!.click();
+        await vi.waitFor(() => expect(stopButton()).not.toBeNull());
+        stopButton()!.click();
+        await vi.waitFor(() => expect(pillText()).toBe("Scan picks"));
+      });
     });
   });
 });

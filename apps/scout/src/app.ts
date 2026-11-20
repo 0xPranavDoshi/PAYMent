@@ -10,6 +10,8 @@ export interface AppDeps {
    * skip X and only finish pending posts.
    */
   startScan: (handle: string, opts: { fetchNew: boolean }) => void;
+  /** Asks a running scan to stop at its next checkpoint. Without it, DELETE /v1/scout/:handle does nothing. */
+  cancelScan?: (handle: string) => void;
   now?: () => Date;
   dailyNewHandles?: number;
   allowedOrigin?: string;
@@ -101,6 +103,17 @@ export function createApp(deps: AppDeps): Hono {
       return c.json(await buildResponse(handle, { status: "running", scannedAt: row?.scannedAt ?? null }), 202);
     }
     return c.json(await buildResponse(handle, await store.getHandle(handle)), 202);
+  });
+
+  // Stop a scan that is running (the user pressed Stop). It halts at the next checkpoint, so the paid
+  // stages that have not started yet are skipped; one already in flight finishes. Idempotent.
+  app.delete("/v1/scout/:handle", async (c) => {
+    const parsed = XHandle.safeParse(c.req.param("handle"));
+    if (!parsed.success) return c.json({ error: "invalid_handle" }, 400);
+    const row = await store.getHandle(parsed.data);
+    if (!row) return c.json({ error: "not_found" }, 404);
+    if (row.status === "running") deps.cancelScan?.(parsed.data);
+    return c.json(await buildResponse(parsed.data, row), row.status === "running" ? 202 : 200);
   });
 
   app.get("/v1/scout/:handle", async (c) => {

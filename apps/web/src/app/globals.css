@@ -299,16 +299,13 @@ button.chip[aria-pressed="true"] { background: var(--ember); border-color: var(-
 .seetweet { all: unset; cursor: pointer; margin-top: 10px; font: 600 13px var(--font); color: var(--ember); }
 .seetweet:hover { text-decoration: underline; text-underline-offset: 3px; }
 .seetweet:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; border-radius: 4px; }
-.xtweet { --xb: #000; --xi: #e7e9ea; --xg: #71767b; --xl: #2f3336; margin-top: 12px; display: flex; gap: 12px; padding: 14px 16px; border-radius: 16px; background: var(--xb); color: var(--xi); border: 1px solid var(--xl); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-@media (prefers-color-scheme: light) { .xtweet { --xb: #fff; --xi: #0f1419; --xg: #536471; --xl: #eff3f4; } }
-.xt-av { flex: none; width: 40px; height: 40px; border-radius: 50%; background: var(--xl); display: grid; place-items: center; font-weight: 700; color: var(--xg); }
-.xt-body { min-width: 0; }
-.xt-head { font-size: 15px; }
-.xt-head span { color: var(--xg); margin-left: 4px; }
-.xtweet p { margin: 4px 0 0; font-size: 15px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow-y: auto; }
-.xt-time { margin-top: 12px; color: var(--xg); font-size: 14px; }
-.xtweet a { display: inline-block; margin-top: 10px; color: #1d9bf0; font-size: 14px; }
-.xtweet a:hover { text-decoration: underline; }
+/* the shared tweet card (@copayme/tweet-card) defaults to X's dark theme; light follows the system */
+.tweetcard { --tweetcard-accent: var(--ember); }
+@media (prefers-color-scheme: light) {
+  .tweetcard { --tweetcard-bg: #fff; --tweetcard-ink: #0f1419; --tweetcard-ink-2: #536471; --tweetcard-line: #eff3f4; --tweetcard-avatar: #eff3f4; --tweetcard-avatar-ink: #536471; }
+}
+.tweetcard.inpick { margin-top: 12px; }
+.tweetcard.demo { margin: 0; }
 
 /* latest picks, extension, charts */
 .latest { background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; display: grid; gap: 2px; }
@@ -327,7 +324,6 @@ a.lp:hover { background: var(--chip); }
 .xbadge { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px 0 6px; margin-left: 6px; border-radius: 999px; border: 1px solid hsl(var(--h) 50% 40%); font-size: 12px; font-weight: 700; vertical-align: middle; }
 .xbadge svg { width: 12px; height: 12px; color: hsl(var(--h) 70% 55%); }
 .xbadge i { font-style: normal; color: var(--win); }
-.xtweet.demo { margin: 0; }
 
 /* shared page header */
 .ptitle { font-size: clamp(26px, 3.4vw, 36px); font-weight: 600; letter-spacing: -.02em; line-height: 1.15; }

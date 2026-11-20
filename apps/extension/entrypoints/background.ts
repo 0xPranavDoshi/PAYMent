@@ -4,7 +4,7 @@ import { fetchBadges, fetchProfileData } from "../src/api.js";
 import { createBadgeCache, type KeyValueStore } from "../src/badgeCache.js";
 import { createBadgeService } from "../src/badgeService.js";
 import { FOLLOWER_ID, MOCK, SCOUT_URL, TRADING_URL } from "../src/config.js";
-import type { BadgesReply, ExtensionRequest, ProfileReply, ScanReply, TradingReply } from "../src/messages.js";
+import type { BadgesReply, ExtensionRequest, ProfileReply, ScanCancelReply, ScanReply, TradingReply } from "../src/messages.js";
 import { createProfileService } from "../src/profileService.js";
 import { createScanService } from "../src/scanService.js";
 import { createMockTrading, createTradingService, validFollowerId } from "../src/trading.js";
@@ -78,6 +78,19 @@ export default defineBackground(() => {
       };
       run()
         .catch((err: unknown): TradingReply => ({ ok: false, error: err instanceof Error ? err.message : String(err) }))
+        .then(sendResponse);
+      return true;
+    }
+
+    if (message?.type === "scan-cancel") {
+      if (MOCK) {
+        sendResponse({ ok: true } satisfies ScanCancelReply);
+        return;
+      }
+      scans
+        .cancel(message.handle)
+        .then((): ScanCancelReply => ({ ok: true }))
+        .catch((err: unknown): ScanCancelReply => ({ ok: false, error: String(err) }))
         .then(sendResponse);
       return true;
     }

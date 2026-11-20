@@ -9,6 +9,7 @@ import { createScanStatusStore } from "./scanStatus.js";
 import { createThemeStore } from "./theme.js";
 import type { TradingActions } from "./trading.js";
 import { createBadgeStore } from "./badgeStore.js";
+import type { BadgeState } from "./badgeView.js";
 import { isContextInvalidated } from "./context.js";
 import { createBatcher } from "./batcher.js";
 import { BADGE_TARGET_SELECTOR, PROFILE_SELECTOR, newestTweetIdBy, profileHandleFromPath, resolveTarget } from "./selectors.js";
@@ -31,6 +32,8 @@ export interface StartOptions {
    * sports picks, so the user chooses. Without it, there is no scan button.
    */
   scan?: (handle: string, newestTweetId: string | null) => Promise<ScanResult>;
+  /** Tells the scout to stop a running scan (the user pressed Stop). Without it, Stop only stops waiting. */
+  cancelScan?: (handle: string) => Promise<void>;
   /**
    * How long to wait for the profile's own tweets to show before scanning without the newest tweet id,
    * how often to look, and how long to let the first screenful render once one shows.
@@ -41,7 +44,7 @@ export interface StartOptions {
 }
 
 /** What a scan reports back to the page. */
-export type ScanResult = { status: "done"; badge: BadgeData | null } | { status: "skipped" | "failed" | "timeout" };
+export type ScanResult = { status: "done"; badge: BadgeData | null } | { status: "skipped" | "failed" | "timeout" | "stopped" };
 
 /** Puts a badge next to the author of every tweet on the page, including ones added later. Returns a stop function. */
 export function startBadges({
@@ -52,6 +55,7 @@ export function startBadges({
   doc = document,
   delayMs = 150,
   scan,
+  cancelScan,
   timelineWaitMs = 4000,
   timelinePollMs = 250,
   timelineSettleMs = 500,
@@ -197,16 +201,24 @@ export function startBadges({
   }
 
   // The user chooses which profiles to scan, by pressing "Scan picks" (or "Try again").
-  const scanning = new Set<string>();
+  // One scan per handle at a time. Each run gets an id; stopping a run makes it stale, so whatever it
+  // reports later is ignored and a new scan can start straight away.
+  const activeRun = new Map<string, number>();
+  const stateBeforeScan = new Map<string, BadgeState>();
+  let runCounter = 0;
+
   async function startScan(handle: string) {
-    if (!scan || stopped || scanning.has(handle)) return;
-    scanning.add(handle);
+    if (!scan || stopped || activeRun.has(handle)) return;
+    const run = ++runCounter;
+    activeRun.set(handle, run);
+    const isCurrent = () => !stopped && activeRun.get(handle) === run;
     const before = store.get(handle);
+    stateBeforeScan.set(handle, before);
     scanStatus.set({ phase: "scanning", handle, startedAt: Date.now() });
     store.set(handle, "scanning");
     try {
       const newest = await newestOnTimeline(handle);
-      if (stopped) return;
+      if (!isCurrent()) return; // stopped while waiting: nothing is asked of the scout
       let result: ScanResult;
       try {
         result = await scan(handle, newest);
@@ -215,7 +227,7 @@ export function startBadges({
         console.warn("[coPAYMe] profile scan failed", err);
         result = { status: "failed" };
       }
-      if (stopped) return;
+      if (!isCurrent()) return; // the user stopped it (and may have started another): ignore this result
       if (result.status === "done" && result.badge) {
         store.set(handle, result.badge);
         scanStatus.set({ phase: "done", handle, badge: result.badge });
@@ -230,8 +242,21 @@ export function startBadges({
         scanStatus.set({ phase: "failed", handle });
       }
     } finally {
-      scanning.delete(handle);
+      if (activeRun.get(handle) === run) activeRun.delete(handle);
     }
+  }
+
+  /** The user pressed Stop: put the button back at once, and tell the scout so it stops spending. */
+  function stopScan(handle: string) {
+    if (!activeRun.has(handle)) return;
+    activeRun.delete(handle); // the running scan is now stale
+    const before = stateBeforeScan.get(handle);
+    store.set(handle, before === "scanning" || before === undefined ? null : before);
+    scanStatus.set({ phase: "stopped", handle });
+    cancelScan?.(handle).catch((err) => {
+      if (isContextInvalidated(err)) return stopAll();
+      console.warn("[coPAYMe] could not tell the scout to stop", err);
+    });
   }
 
   // The scan card: a corner panel that shows a scan running (with a stopwatch) and how it ended.
@@ -250,7 +275,7 @@ export function startBadges({
     shadow.append(style, container);
     doc.body.appendChild(scanHost);
     scanRoot = createRoot(container);
-    scanRoot.render(<ScanCard store={scanStatus} onRetry={(h) => void startScan(h)} />);
+    scanRoot.render(<ScanCard store={scanStatus} onRetry={(h) => void startScan(h)} onStop={stopScan} />);
   }
 
   /** Stops watching the page and removes everything this script put on it. Safe to call more than once. */

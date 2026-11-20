@@ -1,10 +1,11 @@
 import type { CallEntry, UserProfile } from "@copayme/shared";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Gauge, Mark } from "../brand.js";
 import { REFRESH_MESSAGE, isContextInvalidated } from "../context.js";
 import { ArrowUpRightIcon, CheckIcon, ChevronDownIcon, CopyIcon, EyeIcon } from "../icons.js";
 import { SIGNED_OUT, type TradingActions, type TradingState } from "../trading.js";
-import { callRowView, formatAmount, formatTweetTime, parseAmount, profileView } from "./view.js";
+import { TweetCard } from "@copayme/tweet-card";
+import { callRowView, formatAmount, parseAmount, profileView } from "./view.js";
 
 export type PopoverState =
   | { status: "loading" }
@@ -167,17 +168,33 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
   const [notice, setNotice] = useState<Notice | null>(null);
   const watchlistUrl = `${webUrl.replace(/\/$/, "")}/watchlist`;
 
-  useEffect(() => {
-    let live = true;
-    if (!trading) return;
-    trading.state(handle).then(
-      (next) => live && setState(next),
-      () => live && setState(SIGNED_OUT),
-    );
-    return () => {
-      live = false;
-    };
+  /** Re-reads login + watch/copy state from the service and returns it. */
+  const refresh = useCallback(async (): Promise<TradingState | null> => {
+    if (!trading) return null;
+    try {
+      const next = await trading.state(handle);
+      setState(next);
+      return next;
+    } catch {
+      setState(SIGNED_OUT);
+      return SIGNED_OUT;
+    }
   }, [trading, handle]);
+
+  useEffect(() => {
+    void refresh();
+    // Re-check when the user comes back to this tab — e.g. after signing in on coPAYMe in
+    // another tab — so the login takes effect without reloading x.com.
+    const onReturn = () => {
+      if (!document.hidden) void refresh();
+    };
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
+    return () => {
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
+    };
+  }, [refresh]);
 
   // A confirmation clears itself, so nothing is left sitting in the card.
   useEffect(() => {
@@ -186,14 +203,26 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
     return () => clearTimeout(timer);
   }, [notice]);
 
-  /** Whether trading can be used right now; if not, says why. */
-  function ready(): boolean {
+  /** Synchronous check: true/false when known, null when the cached state says signed out
+   *  and it's worth re-checking. Staying sync on the signed-in path keeps the double-click
+   *  guard (`working`) effective. */
+  function readyNow(): boolean | null {
     if (!trading) {
       setNotice({ kind: "info", text: "Trading isn't available yet." });
       return false;
     }
-    if (!state?.signedIn) {
-      setNotice({ kind: "info", text: "Sign in with X to trade. Coming soon." });
+    return state?.signedIn ? true : null;
+  }
+
+  /** Re-checks the login (a sign-in on the site may have just happened in another tab);
+   *  if still signed out, sends the user to sign in. */
+  async function recheck(): Promise<boolean> {
+    const current = await refresh();
+    if (!current?.signedIn) {
+      // One login for site + extension: sign in on the coPAYMe site, and the session
+      // bridge (entrypoints/webAuth.content.ts) hands it to the extension.
+      try { window.open(`${webUrl.replace(/\/$/, "")}/signin`, "_blank", "noopener"); } catch { /* blocked */ }
+      setNotice({ kind: "info", text: "Sign in with X on coPAYMe, then come back here." });
       return false;
     }
     return true;
@@ -255,9 +284,10 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
           title={watching ? "On your watchlist. Press to remove." : "Add to your watchlist, where you can follow how they do"}
           aria-pressed={watching}
           aria-busy={busy === "watch"}
-          onClick={() => {
+          onClick={async () => {
             setPanel(null);
-            if (!ready() || working.current) return;
+            if (working.current) return;
+            if (!(readyNow() ?? (await recheck()))) return;
             void run(
               "watch",
               () => trading!.setWatch(handle, !watching),
@@ -278,8 +308,9 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
           aria-pressed={copying}
           aria-expanded={copying ? panel === "menu" : panel === "amount"}
           aria-busy={busy === "copy"}
-          onClick={() => {
-            if (!ready() || working.current) return;
+          onClick={async () => {
+            if (working.current) return;
+            if (!(readyNow() ?? (await recheck()))) return;
             if (copying) setPanel((open) => (open === "menu" ? null : "menu"));
             else if (panel === "amount") setPanel(null);
             else openAmountPanel();
@@ -381,7 +412,6 @@ function TradeActions({ handle, trading, webUrl }: { handle: string; trading?: T
 /** One pick. "See tweet" flips the card over to show the tweet's text, instead of leaving the page. */
 function PickRow({ call, handle }: { call: CallEntry; handle: string }) {
   const row = callRowView(call);
-  const when = formatTweetTime(call.tweetedAt);
   const tone = row.points === null ? "none" : row.outcome.kind === "won" ? "won" : row.outcome.kind === "lost" ? "lost" : "none";
 
   const [flipped, setFlipped] = useState(false);
@@ -419,32 +449,22 @@ function PickRow({ call, handle }: { call: CallEntry; handle: string }) {
         </div>
 
         <div className="face back" ref={back} inert={!flipped}>
-          <div className="tweet">
-            <div className="avatar" aria-hidden="true">
-              {handle.charAt(0).toUpperCase()}
-            </div>
-            <div className="tmain">
-              <div className="thead">
-                <b>@{handle}</b>
-                <span>· {when.short}</span>
-              </div>
-              <p className="ttext">{call.tweetText}</p>
-              <div className="tmeta">{when.full}</div>
-            </div>
-          </div>
-          <div className="tfoot">
-            <span>
-              Pick: {row.pick} · {row.price}
-            </span>
-            <span className="acts">
-              <a className="link" href={row.tweetUrl} target="_blank" rel="noopener noreferrer">
-                Open on X ↗
-              </a>
+          <TweetCard
+            handle={handle}
+            text={call.tweetText}
+            postedAt={call.tweetedAt}
+            tweetId={call.tweetId}
+            note={
+              <>
+                Pick: {row.pick} · {row.price}
+              </>
+            }
+            actions={
               <button type="button" className="flipbtn" onClick={() => setFlipped(false)}>
                 Back
               </button>
-            </span>
-          </div>
+            }
+          />
         </div>
       </div>
     </li>

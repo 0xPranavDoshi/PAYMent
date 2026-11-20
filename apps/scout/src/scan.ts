@@ -70,10 +70,17 @@ export interface ScanOptions {
    * skip X (Apify) and only finish what is pending: posts whose game wasn't listed yet, failed reads.
    */
   fetchNew?: boolean;
+  /**
+   * Asked between the stages (and between matched posts); true means the user pressed Stop, so the
+   * remaining paid work (reading with the model, matching, forwarding) is skipped. What is already
+   * done is kept, and posts not yet read stay pending, so a later scan finishes them without fetching again.
+   */
+  shouldStop?: () => boolean;
 }
 
 export async function runScan(handle: string, deps: ScanDeps, opts: ScanOptions = {}): Promise<void> {
   const fetchNew = opts.fetchNew ?? true;
+  const stopped = opts.shouldStop ?? (() => false);
   const { store, source, grok, gemini, forwarder, model } = deps;
   const now = deps.now ?? (() => new Date());
   const log = deps.log ?? ((msg: string) => console.log(msg));
@@ -112,7 +119,7 @@ export async function runScan(handle: string, deps: ScanDeps, opts: ScanOptions 
     const tFetched = performance.now();
 
     const toRead = [...rows.values()].filter((r) => r.sentiment === null);
-    if (toRead.length > 0) {
+    if (toRead.length > 0 && !stopped()) {
       const read = await readPosts(toRead.map(toRaw), grok, model, log);
       for (const r of toRead) r.sentiment = read.get(r.tweetId) ?? null;
     }
@@ -145,16 +152,17 @@ export async function runScan(handle: string, deps: ScanDeps, opts: ScanOptions 
     // hit the same few league/day lookups.
     let nextRow = 0;
     const worker = async () => {
-      while (nextRow < toMatch.length) await matchRow(toMatch[nextRow++]!);
+      while (nextRow < toMatch.length && !stopped()) await matchRow(toMatch[nextRow++]!);
     };
     await Promise.all(Array.from({ length: Math.min(MATCH_CONCURRENCY, toMatch.length) }, worker));
     const tMatched = performance.now();
 
     await store.upsertPosts([...rows.values()]);
 
-    const toForward = (await store.unforwardedPosts(handle)).filter((p) =>
-      p.matches?.some((m) => m.status === "matched"),
-    );
+    const halted = stopped();
+    const toForward = halted
+      ? []
+      : (await store.unforwardedPosts(handle)).filter((p) => p.matches?.some((m) => m.status === "matched"));
     if (toForward.length > 0) {
       const accepted = await forwarder.forward(toForward, handle);
       if (accepted.length > 0) await store.markForwarded(accepted, now());
@@ -169,6 +177,7 @@ export async function runScan(handle: string, deps: ScanDeps, opts: ScanOptions 
     const tDone = performance.now();
     const s = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
     const predictions = toMatch.reduce((n, r) => n + (r.sentiment?.predictions.length ?? 0), 0);
+    if (halted) log(`[scout] scan @${handle} stopped by the user; unread posts stay pending`);
     log(
       `[scout] scan @${handle}: fetch ${fetchNew ? s(tFetched - tStart) : "skipped (nothing new posted)"} (${fetched.length} fetched, ${rows.size} to process), ` +
         `read ${s(tRead - tFetched)} (${toRead.length} posts), match ${s(tMatched - tRead)} ` +
