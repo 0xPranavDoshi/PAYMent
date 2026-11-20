@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { BadgesResponse } from "@copayme/shared";
+import type { BadgesResponse, CallEntry, UserProfile } from "@copayme/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { startBadges, type ScanResult } from "./page.js";
 
@@ -453,5 +453,98 @@ describe("when the extension is reloaded under an open page", () => {
     stop();
     stop();
     expect(document.querySelectorAll("[data-copayme=badge]")).toHaveLength(0);
+  });
+});
+
+describe("a scan elsewhere updates this page", () => {
+  let stop: () => void;
+  afterEach(() => stop?.());
+  const badge = { score: 72, change14d: 8, tier: "scored" as const, nResolved: 42, hitRate: 0.69 };
+  const fresh = { score: 80, change14d: 8, tier: "scored" as const, nResolved: 44, hitRate: 0.7 };
+  const profile = (handle: string): UserProfile => ({ ...badge, handle, nWins: 29, skill: 0.1, lastCallAt: null, updatedAt: "2026-11-19T12:00:00.000Z", latestSnapshot: null });
+  const call = (n: number): CallEntry => ({
+    callId: `00000000-0000-4000-8000-00000000000${n}`, tweetId: `100${n}`, tweetText: `Tweet ${n}`, tweetedAt: "2026-11-19T12:03:00.000Z",
+    eventName: `Game ${n}`, pickLabel: "UConn", side: "yes", oddsAtCall: 0.62, oddsSource: "snapshot", status: "pending", result: null, points: null,
+  });
+  const texts = () => [...document.querySelectorAll<HTMLElement>("[data-copayme=badge]")].map((h) => h.shadowRoot?.querySelector(".pill")?.textContent ?? "");
+  const cardText = () => document.querySelector("[data-copayme=popover]")?.shadowRoot?.querySelector(".card")?.textContent ?? "";
+  const tweet = (handle: string) => `<article data-testid="tweet"><div data-testid="User-Name"><div><a href="/${handle}"><span>N</span></a></div><div><a href="/${handle}"><span>@${handle}</span></a></div></div></article>`;
+
+  function mountWith(extra: Parameters<typeof startBadges>[0] extends infer O ? Partial<O> : never) {
+    document.body.innerHTML = `<main>${tweet("alice")}${tweet("bob")}</main>`;
+    let apply!: (handle: string, badge: typeof fresh | null) => void;
+    let unsubscribed = false;
+    stop = startBadges({
+      lookup: async (hs) => Object.fromEntries(hs.map((h) => [h, badge])) as BadgesResponse,
+      delayMs: 5,
+      subscribeBadgeUpdates: (fn) => {
+        apply = fn;
+        return () => void (unsubscribed = true);
+      },
+      ...extra,
+    });
+    return { apply: (h: string, b: typeof fresh | null) => apply(h, b), isUnsubscribed: () => unsubscribed };
+  }
+
+  it("shows a badge another tab's scan produced, for that handle only", async () => {
+    const t = mountWith({});
+    await vi.waitFor(() => expect(texts()).toEqual(["SCORE72▲8", "SCORE72▲8"]));
+    t.apply("Alice", fresh); // the handle arrives in any case
+    await vi.waitFor(() => expect(texts()).toEqual(["SCORE80▲8", "SCORE72▲8"]));
+  });
+
+  it("ignores an update that carries no badge", async () => {
+    const t = mountWith({});
+    await vi.waitFor(() => expect(texts()).toEqual(["SCORE72▲8", "SCORE72▲8"]));
+    t.apply("alice", null);
+    expect(texts()).toEqual(["SCORE72▲8", "SCORE72▲8"]);
+  });
+
+  it("does not overwrite a handle this tab is scanning right now", async () => {
+    (window as unknown as { happyDOM: { setURL(url: string): void } }).happyDOM.setURL("https://x.com/dana");
+    document.body.innerHTML = '<main><div data-testid="UserName"><div><span>Dana</span></div><div><span>@dana</span></div></div></main>';
+    let apply!: (handle: string, b: typeof fresh | null) => void;
+    stop = startBadges({
+      lookup: async () => ({ dana: null }),
+      scan: () => new Promise(() => {}), // a scan that never ends
+      delayMs: 5,
+      timelineWaitMs: 20,
+      timelinePollMs: 5,
+      timelineSettleMs: 5,
+      subscribeBadgeUpdates: (fn) => ((apply = fn), () => {}),
+    });
+    const pill = () => document.querySelector("[data-copayme=badge]")?.shadowRoot?.querySelector<HTMLButtonElement>(".pill");
+    await vi.waitFor(() => expect(pill()?.textContent).toBe("Scan picks"));
+    pill()!.click();
+    await vi.waitFor(() => expect(pill()?.textContent).toMatch(/^Scanning…/));
+    apply("dana", fresh); // another tab finished a scan of the same handle
+    await new Promise((r) => setTimeout(r, 30));
+    expect(pill()?.textContent).toMatch(/^Scanning…/); // this tab's own scan keeps its state
+  });
+
+  it("re-reads an open card, so new picks show without closing and reopening it", async () => {
+    let picks = 1;
+    const loadProfile = vi.fn(async () => ({ profile: profile("alice"), calls: Array.from({ length: picks }, (_, i) => call(i + 1)) }));
+    const t = mountWith({ loadProfile });
+    await vi.waitFor(() => expect(texts()[0]).toBe("SCORE72▲8"));
+    document.querySelector("[data-copayme=badge]")!.shadowRoot!.querySelector<HTMLButtonElement>(".pill")!.click();
+    await vi.waitFor(() => expect(cardText()).toContain("Game 1"));
+    expect(cardText()).not.toContain("Game 2");
+
+    picks = 2; // another scan stored a second pick
+    t.apply("alice", fresh);
+    await vi.waitFor(() => expect(cardText()).toContain("Game 2"));
+    expect(loadProfile).toHaveBeenCalledTimes(2);
+
+    t.apply("bob", fresh); // a card open for alice does not re-read for bob
+    await new Promise((r) => setTimeout(r, 30));
+    expect(loadProfile).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops listening when the page stops", async () => {
+    const t = mountWith({});
+    await vi.waitFor(() => expect(texts()).toHaveLength(2));
+    stop();
+    expect(t.isUnsubscribed()).toBe(true);
   });
 });

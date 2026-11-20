@@ -14,7 +14,7 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
   const profile = await fetchTraderProfile(handle);
   if (!profile) {
     return (
-      <Page>
+      <Page live>
         <div className="narrow" style={{ marginTop: 40 }}>
           <h1 className="ptitle">We haven&apos;t scored @{handle.replace(/^@/, "")} yet</h1>
           <p className="muted" style={{ marginTop: 10 }}>
@@ -44,7 +44,7 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
   const edgeCents = Math.round(profile.skill * 100);
 
   return (
-    <Page>
+    <Page live>
       <div className="thead">
         <ScoreRing score={isNew ? null : profile.score} size={96} />
         <div>

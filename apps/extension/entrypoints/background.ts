@@ -4,7 +4,7 @@ import { fetchBadges, fetchProfileData } from "../src/api.js";
 import { createBadgeCache, type KeyValueStore } from "../src/badgeCache.js";
 import { createBadgeService } from "../src/badgeService.js";
 import { FOLLOWER_ID, MOCK, SCOUT_URL, TRADING_URL } from "../src/config.js";
-import type { BadgesReply, ExtensionRequest, ProfileReply, ScanCancelReply, ScanReply, TradingReply } from "../src/messages.js";
+import type { BadgeUpdatedMessage, BadgesReply, ExtensionRequest, ProfileReply, ScanCancelReply, ScanReply, TradingReply } from "../src/messages.js";
 import { createProfileService } from "../src/profileService.js";
 import { createScanService } from "../src/scanService.js";
 import { createMockTrading, createTradingService, validFollowerId } from "../src/trading.js";
@@ -34,6 +34,19 @@ export default defineBackground(() => {
       const badge = (await fetchBadges([handle]))[handle] ?? null;
       await cache.write({ [handle]: badge });
       return badge;
+    },
+    // A scan may have stored new picks (even if it timed out or was stopped), so the popover's cached
+    // copy is out of date; and every open x.com tab must learn the new badge, not only the one that scanned.
+    onSettled: (handle, outcome) => {
+      profiles.evict(handle);
+      if (outcome.status !== "done" || outcome.badge === null) return;
+      const update: BadgeUpdatedMessage = { type: "badge-updated", handle, badge: outcome.badge };
+      void browser.tabs
+        .query({ url: "https://x.com/*" })
+        .then((tabs) => {
+          for (const tab of tabs) if (tab.id !== undefined) browser.tabs.sendMessage(tab.id, update).catch(() => {});
+        })
+        .catch(() => {});
     },
   });
 

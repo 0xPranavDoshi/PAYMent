@@ -30,7 +30,7 @@ export default async function WatchlistPage() {
   const copyBy = new Map(copies.map((c) => [c.traderHandle.toLowerCase(), c]));
 
   return (
-    <Page>
+    <Page live>
       <h1 className="ptitle">Watchlist</h1>
       <p className="psub">
         How each trader has done since you started watching, as if you had put $1 on every pick.
