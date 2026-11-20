@@ -26,7 +26,7 @@ function followerHeaders(followerId: string): HeadersInit {
 // ── API service (scoring / profiles) ─────────────────────────────────────────
 
 export async function fetchLeaderboard(limit = 100): Promise<LeaderboardEntry[]> {
-  const res = await fetch(`${API}/v1/leaderboard?limit=${limit}`, { next: { revalidate: 20 } });
+  const res = await fetch(`${API}/v1/leaderboard?limit=${limit}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`fetchLeaderboard failed: ${res.status}`);
   return (await res.json()) as LeaderboardEntry[];
 }
@@ -34,7 +34,7 @@ export async function fetchLeaderboard(limit = 100): Promise<LeaderboardEntry[]>
 export async function fetchTraderProfile(
   handle: string,
 ): Promise<UserProfile | null> {
-  const res = await fetch(`${API}/v1/users/${encodeURIComponent(handle)}`, { next: { revalidate: 20 } });
+  const res = await fetch(`${API}/v1/users/${encodeURIComponent(handle)}`, { cache: "no-store" });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`fetchTraderProfile failed: ${res.status}`);
   return (await res.json()) as UserProfile;
@@ -42,14 +42,14 @@ export async function fetchTraderProfile(
 
 /** The latest picks across all traders (GET /v1/calls/recent). */
 export async function fetchRecentCalls(limit = 6): Promise<RecentCall[]> {
-  const res = await fetch(`${API}/v1/calls/recent?limit=${limit}`, { next: { revalidate: 20 } });
+  const res = await fetch(`${API}/v1/calls/recent?limit=${limit}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`fetchRecentCalls failed: ${res.status}`);
   return (await res.json()) as RecentCall[];
 }
 
 /** A trader's picks, newest first (GET /v1/users/:handle/calls). */
 export async function fetchTraderCalls(handle: string, limit = 50): Promise<CallEntry[]> {
-  const res = await fetch(`${API}/v1/users/${encodeURIComponent(handle)}/calls?limit=${limit}`, { next: { revalidate: 20 } });
+  const res = await fetch(`${API}/v1/users/${encodeURIComponent(handle)}/calls?limit=${limit}`, { cache: "no-store" });
   if (res.status === 404) return [];
   if (!res.ok) throw new Error(`fetchTraderCalls failed: ${res.status}`);
   return (await res.json()) as CallEntry[];

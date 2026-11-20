@@ -32,6 +32,11 @@ export interface StartOptions {
    * sports picks, so the user chooses. Without it, there is no scan button.
    */
   scan?: (handle: string, newestTweetId: string | null, opts?: { force?: boolean }) => Promise<ScanResult>;
+  /**
+   * Hands the page a function to call when another tab's scan produced a new badge for a handle; returns
+   * how to stop listening. Without it, a scan in one tab does not update the badges in the others.
+   */
+  subscribeBadgeUpdates?: (apply: (handle: string, badge: BadgeData | null) => void) => () => void;
   /** Tells the scout to stop a running scan (the user pressed Stop). Without it, Stop only stops waiting. */
   cancelScan?: (handle: string) => Promise<void>;
   /**
@@ -56,6 +61,7 @@ export function startBadges({
   delayMs = 150,
   scan,
   cancelScan,
+  subscribeBadgeUpdates,
   timelineWaitMs = 4000,
   timelinePollMs = 250,
   timelineSettleMs = 500,
@@ -83,6 +89,14 @@ export function startBadges({
         ...(scan ? { rescan: (h: string) => void startScan(h, { force: true }) } : {}),
       })
     : null;
+
+  // A scan in another tab (or this one) produced a new badge: show it here too, and re-read an open card.
+  const unsubscribeUpdates = subscribeBadgeUpdates?.((rawHandle, badge) => {
+    const handle = rawHandle.toLowerCase();
+    if (stopped || badge === null || store.get(handle) === "scanning") return;
+    store.set(handle, badge);
+    popover?.refresh(handle);
+  });
 
   const batcher = createBatcher(async (handles) => {
     try {
@@ -242,6 +256,7 @@ export function startBadges({
         result = { status: "failed" };
       }
       if (!isCurrent()) return; // the user stopped it (and may have started another): ignore this result
+      popover?.refresh(handle); // the scan may have stored picks: an open card must not keep showing the old ones
       if (result.status === "done" && result.badge) {
         store.set(handle, result.badge);
         scanStatus.set({ phase: "done", handle, badge: result.badge });
@@ -298,6 +313,7 @@ export function startBadges({
     stopped = true;
     observer.disconnect();
     clearInterval(pathTimer);
+    unsubscribeUpdates?.();
     popover?.close();
     scanRoot?.unmount();
     scanHost?.remove();

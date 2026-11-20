@@ -183,3 +183,47 @@ describe("createScanService: stopping", () => {
     await expect(service.cancel("nobody")).resolves.toBeUndefined();
   });
 });
+
+describe("createScanService: onSettled", () => {
+  function withListener(fetcher: ReturnType<typeof scout>, onSettled: (h: string, o: unknown) => void) {
+    let t = 1_000_000;
+    return createScanService({
+      scoutUrl: "http://scout.test",
+      refreshBadge: async () => scored,
+      fetcher: fetcher as unknown as typeof fetch,
+      now: () => t,
+      sleep: async (ms) => void (t += ms),
+      onSettled,
+    });
+  }
+
+  it("is told when a scan finishes, with the badge, so caches about the handle can be dropped", async () => {
+    const seen: Array<[string, unknown]> = [];
+    const service = withListener(scout(["running", "idle"]), (h, o) => seen.push([h, o]));
+    await service.scan("alice");
+    expect(seen).toEqual([["alice", { status: "done", badge: scored }]]);
+  });
+
+  it("is told about a timeout, a failure and a stop too, since each may have stored picks", async () => {
+    const statuses: string[] = [];
+    const record = (_h: string, o: unknown) => statuses.push((o as { status: string }).status);
+    await withListener(scout(["running"]), record).scan("alice");
+    await withListener(scout(["idle"], 500), record).scan("alice");
+    const stopper = withListener(scout(["running"]), record);
+    const pending = stopper.scan("alice");
+    await stopper.cancel("alice");
+    await pending;
+    expect(statuses).toEqual(["timeout", "failed", "stopped"]);
+  });
+
+  it("is not told about a scan it skipped (nothing ran), and a failing listener does not break the result", async () => {
+    let calls = 0;
+    const service = withListener(scout(["idle"]), () => {
+      calls++;
+      throw new Error("listener bug");
+    });
+    expect((await service.scan("alice")).status).toBe("done"); // the throw did not change the result
+    expect((await service.scan("alice")).status).toBe("skipped");
+    expect(calls).toBe(1);
+  });
+});

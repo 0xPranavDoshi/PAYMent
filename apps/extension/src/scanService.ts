@@ -30,10 +30,16 @@ export function createScanService(opts: {
   fetcher?: typeof fetch;
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;
+  /**
+   * Called when a scan ends, however it ended: the scan may have stored new picks even when it timed out
+   * or was stopped, so whatever was cached about the handle is out of date. Errors in it are ignored.
+   */
+  onSettled?: (handle: string, outcome: ScanOutcome) => void;
 }) {
   const fetcher = opts.fetcher ?? fetch;
   const now = opts.now ?? Date.now;
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const onSettled = opts.onSettled;
   const lastAsked = new Map<string, number>();
   /** Handles whose running scan the user stopped; the polling loop checks this. */
   const stoppedByUser = new Set<string>();
@@ -98,6 +104,11 @@ export function createScanService(opts: {
       stoppedByUser.delete(handle);
       const job = run(handle, newestTweetId)
         .then((outcome) => {
+          try {
+            onSettled?.(handle, outcome);
+          } catch {
+            // a listener must never break the scan's result
+          }
           // A scan that timed out or failed may still finish on the scout, or can be retried: Try again
           // must reach the scout instead of being skipped for 10 minutes. (The scout then keeps one scan
           // per handle: a still-running one is waited on, a finished one answers at once.)

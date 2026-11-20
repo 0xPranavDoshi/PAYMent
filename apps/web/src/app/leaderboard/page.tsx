@@ -20,7 +20,7 @@ export default async function LeaderboardPage() {
         <span className="blob b3" />
         <span className="blob b4" />
       </div>
-      <Page>
+      <Page live>
         <h1 className="ptitle">Leaderboard</h1>
         <p className="psub">Traders ranked by score, which measures how far their picks beat the market&apos;s odds.</p>
         {error ? <p className="down" style={{ marginTop: 20 }}>{error}</p> : <LeaderboardTable entries={entries} />}

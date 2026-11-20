@@ -15,6 +15,8 @@ const ESTIMATED_HEIGHT = 560;
 export interface PopoverManager {
   /** Opens the popover for this handle next to the badge, or closes it if it is already open there. */
   toggle(handle: string, anchor: Element): void;
+  /** Re-reads the card if it is open for this handle (a scan just changed what it shows), without a loading flash. */
+  refresh(handle: string): void;
   close(): void;
 }
 
@@ -37,7 +39,7 @@ export function createPopoverManager(opts: {
   const { load, webUrl, theme, trading, rescan, doc = document } = opts;
   const win = doc.defaultView ?? window;
 
-  let current: { handle: string; anchor: Element; host: HTMLElement; root: Root; stop: () => void } | null = null;
+  let current: { handle: string; anchor: Element; host: HTMLElement; root: Root; reload: () => void; stop: () => void } | null = null;
 
   function close() {
     if (!current) return;
@@ -116,6 +118,17 @@ export function createPopoverManager(opts: {
       );
     }
 
+    /** Reads the data again and swaps it in, keeping what is on screen if the read fails. */
+    function reload() {
+      const mine = ++token;
+      load(handle).then(
+        (data) => {
+          if (mine === token && current?.host === host) render({ status: "ready", ...data });
+        },
+        () => {},
+      );
+    }
+
     const onPointerDown = (event: Event) => {
       const path = event.composedPath();
       if (!path.includes(host) && !path.includes(anchor)) close();
@@ -153,6 +166,7 @@ export function createPopoverManager(opts: {
       anchor,
       host,
       root,
+      reload,
       stop: () => {
         token++;
         stopTheme?.();
@@ -171,6 +185,9 @@ export function createPopoverManager(opts: {
     toggle(handle, anchor) {
       if (current && current.handle === handle && current.anchor === anchor) close();
       else open(handle, anchor);
+    },
+    refresh(handle) {
+      if (current?.handle === handle) current.reload();
     },
     close,
   };

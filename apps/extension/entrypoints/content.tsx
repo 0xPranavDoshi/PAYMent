@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { WEB_URL } from "../src/config.js";
-import type { BadgesReply, BadgesRequest, ProfileReply, ProfileRequest, ScanCancelReply, ScanCancelRequest, ScanReply, ScanRequest, TradingReply, TradingRequest } from "../src/messages.js";
+import type { BadgeUpdatedMessage, BadgesReply, BadgesRequest, ProfileReply, ProfileRequest, ScanCancelReply, ScanCancelRequest, ScanReply, ScanRequest, TradingReply, TradingRequest } from "../src/messages.js";
 import { startBadges } from "../src/page.js";
 import { createTradingBridge } from "../src/tradingBridge.js";
 
@@ -22,6 +22,15 @@ export default defineContentScript({
         const reply: ProfileReply = await browser.runtime.sendMessage(request);
         if (!reply.ok) throw new Error(reply.error);
         return { profile: reply.profile, calls: reply.calls };
+      },
+      // A scan finished in some tab (this one included): show the handle's new badge everywhere.
+      subscribeBadgeUpdates: (apply) => {
+        const listener = (message: unknown) => {
+          const update = message as BadgeUpdatedMessage | undefined;
+          if (update?.type === "badge-updated") apply(update.handle, update.badge);
+        };
+        browser.runtime.onMessage.addListener(listener);
+        return () => browser.runtime.onMessage.removeListener(listener);
       },
       // Pressing Stop: stop waiting here, and tell the scout to skip the paid work it has not started yet.
       cancelScan: async (handle) => {
