@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { LeaderboardEntry } from "@/lib/api";
 import { podiumOrder } from "@/lib/leaderboard";
-import { formatCents, formatChange, formatPct } from "@/lib/format";
+import { formatCents, formatPct } from "@/lib/format";
 import { CopyTradeToggle, type CopyState } from "./CopyTicket";
 
 export interface CopyContext {
@@ -38,7 +38,6 @@ export default function Podium({ top, history, ctx }: { top: LeaderboardEntry[];
       {order.map(({ e, rank }) => {
         const isNew = e.tier === "new";
         const first = rank === 1;
-        const change = formatChange(e.change14d);
         const delta = e.change14d !== null && e.change14d > 0 ? Math.round(e.change14d) : 0;
         return (
           <div key={e.handle} className={`lb-pc${first ? " first" : ""}`}>
@@ -75,7 +74,7 @@ export default function Podium({ top, history, ctx }: { top: LeaderboardEntry[];
                 <div className="kv">
                   HIT RATE <b>{formatPct(e.hitRate)}</b>
                   <br />
-                  EDGE <b>{formatCents(e.skill)}</b> · {isNew ? <b>NEW</b> : <>14D <b>{change ? (e.change14d! > 0 ? "+" : "−") + Math.abs(e.change14d!) : "0"}</b></>}
+                  EDGE <b>{formatCents(e.skill)}</b> · {isNew ? <b>NEW</b> : <>14D <b>{e.change14d === null || e.change14d === 0 ? "0" : (e.change14d > 0 ? "+" : "−") + Math.abs(e.change14d)}</b></>}
                 </div>
               )}
             </div>
