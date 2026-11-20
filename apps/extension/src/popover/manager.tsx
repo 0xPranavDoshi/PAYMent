@@ -30,9 +30,11 @@ export function createPopoverManager(opts: {
   theme?: ThemeStore;
   /** What the Watch and Copy trade buttons do. */
   trading?: TradingActions;
+  /** What the card's Rescan button does. Without it, the card has no Rescan button. */
+  rescan?: (handle: string) => void;
   doc?: Document;
 }): PopoverManager {
-  const { load, webUrl, theme, trading, doc = document } = opts;
+  const { load, webUrl, theme, trading, rescan, doc = document } = opts;
   const win = doc.defaultView ?? window;
 
   let current: { handle: string; anchor: Element; host: HTMLElement; root: Root; stop: () => void } | null = null;
@@ -88,7 +90,18 @@ export function createPopoverManager(opts: {
     let token = 0; // a newer request makes older answers irrelevant
 
     const render = (state: PopoverState) =>
-      root.render(<Popover handle={handle} state={state} webUrl={webUrl} trading={trading} onClose={close} onRetry={fetchProfile} />);
+      root.render(
+        <Popover
+          handle={handle}
+          state={state}
+          webUrl={webUrl}
+          trading={trading}
+          onClose={close}
+          onRetry={fetchProfile}
+          // The scan shows on the badge and the scan card, so the card closes to get out of the way.
+          {...(rescan ? { onRescan: () => (close(), rescan(handle)) } : {})}
+        />,
+      );
 
     function fetchProfile() {
       const mine = ++token;

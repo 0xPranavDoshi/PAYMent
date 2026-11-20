@@ -96,6 +96,14 @@ describe("createScanService", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
+  it("Rescan (force) asks again straight away, without waiting out the 10 minutes", async () => {
+    const fetcher = scout(["idle"]);
+    const { service } = setup(fetcher);
+    await service.scan("alice");
+    expect((await service.scan("alice", null, { force: true })).status).toBe("done");
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
   it("shares one scan between tabs asking at the same time", async () => {
     const fetcher = scout(["running", "idle"]);
     const { service } = setup(fetcher);

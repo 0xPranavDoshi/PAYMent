@@ -31,6 +31,8 @@ export interface ScanRequest {
   handle: string;
   /** The newest tweet by the handle shown on its profile (null: none showed); lets the scout skip X. */
   newestTweetId: string | null;
+  /** The user pressed Rescan: ask the scout even if this handle was asked about in the last 10 minutes. */
+  force?: boolean;
 }
 
 export type ScanReply =

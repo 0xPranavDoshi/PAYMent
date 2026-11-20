@@ -21,9 +21,11 @@ export function Popover(props: {
   onRetry: () => void;
   /** Without it, the trade buttons say trading is not available. */
   trading?: TradingActions;
+  /** Scans the account again (new posts, and stored picks re-checked). Without it, no Rescan button. */
+  onRescan?: () => void;
   now?: Date;
 }) {
-  const { handle, state, webUrl, onClose, onRetry, trading, now } = props;
+  const { handle, state, webUrl, onClose, onRetry, onRescan, trading, now } = props;
   const site = `${webUrl.replace(/\/$/, "")}/traders/${encodeURIComponent(handle)}`;
 
   return (
@@ -75,6 +77,16 @@ export function Popover(props: {
           View full profile on coPAYMe
           <ArrowUpRightIcon />
         </a>
+        {onRescan && (
+          <button
+            type="button"
+            className="rescan"
+            title="Read this account's new posts and re-check its stored picks. Costs nothing if it hasn't posted."
+            onClick={onRescan}
+          >
+            Rescan
+          </button>
+        )}
       </div>
     </div>
   );
