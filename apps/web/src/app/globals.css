@@ -194,10 +194,7 @@ p { margin: 0; }
 .stile.lg.long b { font-size: 54px; }
 
 /* trader page */
-.thead { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
 .avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--chip); display: grid; place-items: center; font-weight: 800; font-size: 22px; color: var(--ink-2); }
-.thead h1 { font-size: 30px; font-weight: 650; }
-.thead .meta { color: var(--ink-3); font-size: 14px; margin-top: 4px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 28px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); }
 .stats div { padding: 16px 18px; }
 .stats div + div { border-left: 1px solid var(--line); }
@@ -205,14 +202,6 @@ p { margin: 0; }
 .stats > div > span { color: var(--ink-3); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
 @media (max-width: 640px) { .stats { grid-template-columns: repeat(2, 1fr); } .stats div:nth-child(3) { border-left: 0; } .stats div:nth-child(n+3) { border-top: 1px solid var(--line); } }
 .w { color: var(--win); } .l { color: var(--coral); }
-.pick { padding: 16px 18px; border-top: 1px solid var(--line); }
-.pick:first-child { border-top: 0; }
-.pick .top { display: flex; justify-content: space-between; gap: 14px; align-items: baseline; }
-.pick .event { font-weight: 700; }
-.pick .sub { color: var(--ink-2); font-size: 14px; margin-top: 2px; }
-.pick .res { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pick .foot { margin-top: 8px; font-size: 12px; color: var(--ink-3); display: flex; gap: 14px; }
-.pick .foot a:hover { color: var(--ember); }
 
 /* prose */
 .prose { max-width: 40em; }
@@ -286,9 +275,9 @@ a.who:hover { color: var(--ember); }
 @media (max-width: 860px) { .search-wrap { flex: 1; } }
 
 /* pick rows with an inline tweet */
-.seetweet { all: unset; cursor: pointer; margin-top: 10px; font: 600 13px var(--font); color: var(--ember); }
-.seetweet:hover { text-decoration: underline; text-underline-offset: 3px; }
-.seetweet:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; border-radius: 4px; }
+.seetweet { all: unset; cursor: pointer; margin-top: 8px; font: 700 12.5px var(--font); color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
+.seetweet:hover { color: var(--ink); }
+.seetweet:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 4px; }
 /* the shared tweet card (@copayme/tweet-card) defaults to X's dark theme; light follows the system */
 .tweetcard { --tweetcard-accent: var(--ember); }
 .tweetcard { --tweetcard-bg: #fff; --tweetcard-ink: #0f1419; --tweetcard-ink-2: #536471; --tweetcard-line: #eff3f4; --tweetcard-avatar: #eff3f4; --tweetcard-avatar-ink: #536471; }
@@ -456,4 +445,31 @@ a.who:hover { color: var(--ember); }
   .hm-ticker { padding: 0 20px; }
   .hm-mini .r { grid-template-columns: 24px 46px minmax(0, 1fr) auto; padding: 12px 16px; }
   .hm-mini .chg { display: none; }
+}
+
+/* trader profile */
+.phead { display: grid; grid-template-columns: auto 1fr auto; gap: 26px; align-items: center; padding: 26px 28px; background: var(--surface); }
+.phead h1 { margin: 0; font: 900 52px/1 var(--font); letter-spacing: -.04em; overflow-wrap: anywhere; }
+.phead .meta { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+.phead .meta .m { color: var(--ink-2); font-size: 14.5px; margin-left: 4px; }
+.phead .meta .m a { text-decoration: underline; text-underline-offset: 3px; }
+.phead .acts { display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+.phead .acts .tb, .phead .acts .btn { width: 100%; }
+.picks .r { display: grid; grid-template-columns: 74px minmax(0, 1fr) 110px 120px; align-items: center; gap: 14px; padding: 14px 22px; }
+.pk-item + .pk-item { border-top: 2px solid var(--ink); }
+.picks .d { font: 600 13px var(--mono); color: var(--ink-2); }
+.picks .t { font: 700 16.5px/1.25 var(--font); }
+.picks .s { color: var(--ink-2); font-size: 13.5px; margin-top: 2px; }
+.picks .pk-price, .picks .pk-res { justify-self: end; }
+.pk-tweet { padding: 0 22px 16px 110px; }
+.pk-empty { padding: 28px 22px; color: var(--ink-2); font-weight: 600; }
+@media (max-width: 860px) {
+  .phead { grid-template-columns: 1fr; justify-items: start; }
+  .phead h1 { font-size: 40px; }
+  .phead .acts { flex-direction: row; align-self: stretch; }
+  .phead .acts > * { flex: 1; }
+  .picks .r { grid-template-columns: 60px minmax(0, 1fr) auto; }
+  .picks .pk-price { grid-column: 3; grid-row: 1; }
+  .picks .pk-res { grid-column: 3; grid-row: 2; }
+  .pk-tweet { padding-left: 22px; }
 }
