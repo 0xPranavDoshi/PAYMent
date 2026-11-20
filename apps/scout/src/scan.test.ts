@@ -193,7 +193,7 @@ describe("runScan", () => {
     await t.run();
     const [row] = await t.store.listPosts("bob");
     expect(row).toMatchObject({ matches: [], pipelineVersion: PIPELINE_VERSION, tweetId: "1" });
-    expect(PIPELINE_VERSION).toBe(4);
+    expect(PIPELINE_VERSION).toBe(5);
   });
 
   it("stores one PickMatch per prediction", async () => {
@@ -307,6 +307,30 @@ describe("runScan", () => {
     await t.run();
     expect(t.seenByGrok).toEqual([]);
     expect((await t.store.listPosts("bob"))[0]?.matches?.[0]).toMatchObject({ status: "matched" });
+  });
+
+  it("re-reads a version-4 golf post read as no prediction; leaves other version-4 posts alone", async () => {
+    const t = setup({ posts: [], sentiments: { golf: nonPrediction() } });
+    const stored = (tweetId: string, text: string) => ({
+      tweetId,
+      handle: "bob",
+      xUserId: "u1",
+      tweetedAt: new Date("2026-11-18T12:00:00.000Z"),
+      text,
+      isReply: false,
+      quotedText: null,
+      sentiment: nonPrediction(),
+      matches: [],
+      pipelineVersion: 4,
+      forwardedAt: null,
+    });
+    await t.store.upsertPosts([stored("golf", "golf the RSM Classic Winner is Michael Thorbjornsen"), stored("other", "what a game")]);
+    await t.run();
+    expect(t.seenByGrok).toEqual(["golf"]);
+    const rows = await t.store.listPosts("bob");
+    expect(rows.find((r) => r.tweetId === "golf")?.pipelineVersion).toBe(PIPELINE_VERSION);
+    expect(rows.find((r) => r.tweetId === "other")?.pipelineVersion).toBe(4);
+    expect(await t.store.pendingPosts("bob")).toEqual([]);
   });
 
   it("retries a post whose read returned null", async () => {

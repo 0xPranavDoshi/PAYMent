@@ -1,8 +1,9 @@
 import type { PickMatch, Prediction } from "@copayme/shared";
 import type { GeminiClient } from "../gemini/client.js";
 import type { Grok } from "../grok/client.js";
-import { findGame } from "./candidates.js";
+import { findGame, geminiLeague } from "./candidates.js";
 import { chooseLine, chooseWin, subEventFor, validateChoice } from "./choose.js";
+import { GOLF_LEAGUE, matchGolf } from "./golf.js";
 
 const noMarket = (predictionIndex: number, reason: string): PickMatch => ({
   predictionIndex,
@@ -27,8 +28,46 @@ export const NO_LINE_REASON = "no contract at the tweet's line";
 const SUB_MARKET_TRIES = 5;
 const SUB_MARKET_WAIT_MS = 1_000;
 
-/** Map one prediction to a Gemini contract and side. Gemini errors from findGame propagate. */
+/** College leagues whose teams share a school name, so "Temple -4.5" alone could be either sport. */
+const COLLEGE_SIBLINGS: Record<string, string> = { NCAAM: "NCAAF", NCAAF: "NCAAM" };
+export const AMBIGUOUS_SPORT_REASON = "ambiguous: the bet is on both the team's football and basketball games";
+/** Words and emoji that say which sport a post is about; when present, Grok's league is kept. */
+const SPORT_CUE =
+  /🏀|🏈|\b(cbb|cfb|ncaab|ncaam|ncaaf|ncaa ?(fb|bb|football|basketball)|college (football|basketball|hoops)|basketball|hoops?|football|gridiron|bowl game|touchdowns?|march madness|final four)\b/i;
+
+/**
+ * Map one prediction to a Gemini contract and side. Gemini errors from findGame propagate.
+ * `text`: the post (and quoted post). For a college pick whose post doesn't say the sport, Grok's league
+ * is a guess (a school plays both), so both college football and basketball are tried: the pick matches
+ * only if exactly one of them has the exact bet, and is dropped as ambiguous if both do (team decision,
+ * Nov 20, from "take temple -4.5" during Temple's football game, read as basketball).
+ */
 export async function matchPrediction(
+  p: Prediction,
+  index: number,
+  tweetedAt: Date,
+  deps: { gemini: GeminiClient; grok: Grok; sleep?: (ms: number) => Promise<void>; text?: string },
+): Promise<PickMatch> {
+  if (geminiLeague(p.league) === GOLF_LEAGUE) return matchGolf(p, index, tweetedAt, deps);
+  const first = await matchInLeague(p, index, tweetedAt, deps);
+  if (!checksBothCollegeSports(p, deps.text ?? "")) return first;
+  const sibling = COLLEGE_SIBLINGS[geminiLeague(p.league)!]!;
+  const other = await matchInLeague({ ...p, league: sibling }, index, tweetedAt, deps);
+  if (first.status === "matched" && other.status === "matched") return noMarket(index, AMBIGUOUS_SPORT_REASON);
+  if (other.status === "matched") return other;
+  // Say that both sports were checked (a stored plain NO_LINE_REASON on such a pick predates this rule).
+  return first.reason === NO_LINE_REASON ? { ...first, reason: NO_LINE_BOTH_SPORTS_REASON } : first;
+}
+
+export const NO_LINE_BOTH_SPORTS_REASON = "no contract at the tweet's line in football or basketball";
+
+/** True for a college pick whose post doesn't say the sport: it is checked in both college sports. */
+export function checksBothCollegeSports(p: Prediction, text: string): boolean {
+  const league = geminiLeague(p.league);
+  return league !== null && league in COLLEGE_SIBLINGS && !SPORT_CUE.test(`${text} ${p.quote}`);
+}
+
+async function matchInLeague(
   p: Prediction,
   index: number,
   tweetedAt: Date,

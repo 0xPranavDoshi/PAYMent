@@ -1,12 +1,26 @@
 import { countsAsPrediction, type OutcomeInfo, type PickMatch, type ScoutStatus, type Sentiment } from "@copayme/shared";
+import { NO_LINE_REASON, checksBothCollegeSports } from "./match/match.js";
 
 /**
  * Bump when the read prompt or matching changes; rows from older versions are re-read and re-matched.
  * 2: sign decides spread direction; league codes; league+day game search (Nov 18 2026).
  * 3: lineAsWritten + code-side sign rule; team_total; temperature 0; batches of 5 (Nov 18 2026).
  * 4: opponent is a hint (parlay legs); contracts matched by the game title's short names; Nov 18 2026.
+ * 5: golf (Nov 20 2026). Only version-4 posts that look like golf and were read as no prediction are
+ *    read again (see needsReread): the rest of a version-4 reading is still current.
  */
-export const PIPELINE_VERSION = 4;
+export const PIPELINE_VERSION = 5;
+
+/** Words and emoji of a golf post. A version-4 post with one, read as no prediction, is read again. */
+const GOLF_CUE =
+  /⛳|🏌|\b(golf|pga|lpga|liv golf|dp world|masters|ryder cup|open championship|us open|make the cut|missed the cut|top 10 finish|rsm classic)\b/i;
+
+/** True when the post is read again with Grok (and matched again), rather than only re-matched. */
+export function needsReread(row: Pick<ScoutPostRow, "sentiment" | "pipelineVersion" | "text" | "quotedText">): boolean {
+  if (row.pipelineVersion < 4) return true;
+  if (row.pipelineVersion >= PIPELINE_VERSION || row.sentiment === null) return false;
+  return !countsAsPrediction(row.sentiment) && GOLF_CUE.test(`${row.text} ${row.quotedText ?? ""}`);
+}
 
 /** A `running` lock older than this may be taken over. */
 export const STALE_LOCK_MS = 5 * 60_000;
@@ -88,17 +102,26 @@ export interface ScoutStore {
 /**
  * Match reasons that older code gave and the current rules no longer would: a post with one is matched
  * again on its next scan (free: no Grok, no X). "tweet during game" was the rule that live picks didn't
- * count, replaced on Nov 19 by "live picks count until settlement".
+ * count, replaced on Nov 19 by "live picks count until settlement". A plain "no contract at the tweet's
+ * line" on a college pick that doesn't name its sport predates checking both college sports (Nov 20);
+ * the current code says so in a different reason, so each such post is matched again only once.
  */
-export const OBSOLETE_MATCH_REASONS = ["tweet during game"] as const;
+export const OBSOLETE_MATCH_REASONS = ["tweet during game", NO_LINE_REASON] as const;
 
-export function hasObsoleteMatch(row: Pick<ScoutPostRow, "matches">): boolean {
-  return (row.matches ?? []).some((m) => (OBSOLETE_MATCH_REASONS as readonly string[]).includes(m.reason ?? ""));
+type ObsoleteCheck = Pick<ScoutPostRow, "matches" | "sentiment" | "text" | "quotedText">;
+
+export function hasObsoleteMatch(row: ObsoleteCheck): boolean {
+  return (row.matches ?? []).some((m) => {
+    if (m.reason === "tweet during game") return true;
+    if (m.reason !== NO_LINE_REASON) return false;
+    const p = row.sentiment?.predictions[m.predictionIndex];
+    return p !== undefined && checksBothCollegeSports(p, `${row.text} ${row.quotedText ?? ""}`);
+  });
 }
 
-export function isPending(row: Pick<ScoutPostRow, "sentiment" | "matches" | "pipelineVersion">): boolean {
+export function isPending(row: Pick<ScoutPostRow, "sentiment" | "matches" | "pipelineVersion" | "text" | "quotedText">): boolean {
   return (
-    row.pipelineVersion < PIPELINE_VERSION ||
+    needsReread(row) ||
     row.sentiment === null ||
     (row.matches === null && countsAsPrediction(row.sentiment)) ||
     hasObsoleteMatch(row)

@@ -123,8 +123,18 @@ export function pickGame(events: GeminiEvent[], p: Prediction, tweetedAt: Date):
   return best ? { game: best.event } : { game: null, reason: NO_GAME_REASON };
 }
 
-/** When the game settled (its first contract's resolvedAt), or null if it hasn't. */
+/**
+ * When the game settled (its first contract's resolvedAt), or null if it hasn't. A golf market (one
+ * contract per golfer) settles when its result is in: the first contract resolved YES; a golfer resolved
+ * NO before then (e.g. withdrew) doesn't settle the tournament.
+ */
 export function settledAt(game: GeminiEvent): number | null {
+  if (game.ticker.startsWith("GOLF-")) {
+    const yes = game.contracts.filter((c) => c.resolutionSide === "yes");
+    const decided = yes.length > 0 ? yes : game.status === "settled" ? game.contracts : [];
+    const at = decided.map((c) => (c.resolvedAt ? Date.parse(c.resolvedAt) : NaN)).filter((t) => !Number.isNaN(t));
+    return at.length > 0 ? Math.min(...at) : null;
+  }
   const times = game.contracts.map((c) => (c.resolvedAt ? Date.parse(c.resolvedAt) : NaN)).filter((t) => !Number.isNaN(t));
   return times.length > 0 ? Math.min(...times) : null;
 }
@@ -144,6 +154,8 @@ export const LEAGUE_SPORT: Record<string, string> = {
   UCL: "soccer",
   LIGAMX: "soccer",
   MLS: "soccer",
+  // Golf has no games: tournaments are matched separately (golf.ts). Not a ticker prefix of games.
+  GOLF: "golf",
 };
 
 /** Common names for the same leagues that bettors (and Grok) use. */
@@ -153,6 +165,8 @@ const LEAGUE_SYNONYMS: Record<string, string> = {
   CFB: "NCAAF",
   PREMIERLEAGUE: "EPL",
   CHAMPIONSLEAGUE: "UCL",
+  PGA: "GOLF",
+  PGATOUR: "GOLF",
 };
 
 /** Gemini's ticker code for a league name, or null when it isn't a league Gemini lists. */

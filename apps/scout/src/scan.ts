@@ -6,7 +6,7 @@ import { NO_GAME_REASON } from "./match/candidates.js";
 import { matchPrediction, NO_SUB_MARKETS_REASON } from "./match/match.js";
 import type { PostSource, RawPost } from "./posts/source.js";
 import { readPosts } from "./stages/read.js";
-import { PIPELINE_VERSION, hasObsoleteMatch, type ScoutPostRow, type ScoutStore } from "./store.js";
+import { PIPELINE_VERSION, hasObsoleteMatch, needsReread, type ScoutPostRow, type ScoutStore } from "./store.js";
 
 export interface ScanDeps {
   store: ScoutStore;
@@ -108,7 +108,7 @@ export async function runScan(handle: string, deps: ScanDeps, opts: ScanOptions 
     // Pending rows keep their stored fields; only what is missing gets filled below. Rows from an
     // older pipeline version are read and matched again from scratch.
     for (const r of await store.pendingPosts(handle)) {
-      if (r.pipelineVersion < PIPELINE_VERSION) {
+      if (needsReread(r)) {
         r.sentiment = null;
         r.matches = null;
         r.pipelineVersion = PIPELINE_VERSION;
@@ -138,7 +138,7 @@ export async function runScan(handle: string, deps: ScanDeps, opts: ScanOptions 
       try {
         const matches: PickMatch[] = [];
         for (const [i, p] of row.sentiment!.predictions.entries()) {
-          matches.push(await matchPrediction(p, i, row.tweetedAt, { gemini, grok }));
+          matches.push(await matchPrediction(p, i, row.tweetedAt, { gemini, grok, text: `${row.text} ${row.quotedText ?? ""}` }));
         }
         // Gemini may not have listed the game (or its sub-markets) yet: keep the post pending while the
         // window is still open.

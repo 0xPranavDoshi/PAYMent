@@ -51,6 +51,16 @@ describe("searchGames", () => {
     expect(new URL(fetchMock.mock.calls[0]![0]).searchParams.has("sport")).toBe(false);
   });
 
+  it("allMarkets drops the moneyline/full-game filters (golf tournaments are tournament-scoped props)", async () => {
+    const fetchMock = vi.fn(async (_url: string) => onePage());
+    await createGeminiClient({ fetch: asFetch(fetchMock) }).searchGames("-WIN-", { sport: "golf", allMarkets: true });
+    const params = new URL(fetchMock.mock.calls[0]![0]).searchParams;
+    expect(params.has("sports_market_type")).toBe(false);
+    expect(params.has("sports_market_scope")).toBe(false);
+    expect(params.get("sport")).toBe("golf");
+    expect(params.get("search")).toBe("-WIN-");
+  });
+
   it("pages by 500 until pagination.total is reached", async () => {
     const all = Array.from({ length: 750 }, (_, i) => event(i));
     const fetchMock = vi.fn(async (url: string) => {
