@@ -82,7 +82,7 @@ describe("the popover", () => {
 
     await vi.waitFor(() => expect(popoverText()).toContain("Game 1"));
     const card = popoverHosts()[0]!.shadowRoot!;
-    await vi.waitFor(() => expect(card.querySelector(".gauge .score")!.textContent).toBe("72")); // counts up to the score
+    await vi.waitFor(() => expect(card.querySelector(".tile .score")!.textContent).toBe("72")); // counts up to the score
     const text = popoverText()!;
     expect(text).toContain("coPAYMe");
     expect(text).toContain("SCORE");
@@ -97,7 +97,7 @@ describe("the popover", () => {
 
     expect(card.querySelector(".dot")).toBeNull(); // no markers beside the picks
     expect([...card.querySelectorAll(".pick .front .pts")].map((p) => p.className.replace("pts ", ""))).toEqual(["won", "lost", "none"]);
-    expect(card.querySelector(".gauge")!.getAttribute("aria-label")).toBe("Score 72 out of 100");
+    expect(card.querySelector(".tile")!.getAttribute("aria-label")).toBe("Score 72 out of 100");
 
     const links = [...popoverHosts()[0]!.shadowRoot!.querySelectorAll("a")].map((a) => a.getAttribute("href"));
     expect(links).toContain("https://x.com/i/status/1001"); // "Open on X", on the back of the card

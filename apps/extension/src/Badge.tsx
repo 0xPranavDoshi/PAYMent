@@ -66,7 +66,6 @@ export function Badge({
       }}
     >
       <Mark />
-      {view.kind === "scored" && <span className="cap">SCORE</span>}
       <span className="num">{view.kind === "new" ? "NEW" : view.text}</span>
       {clock && <span className="clock">{clock}</span>}
       {view.arrow && (

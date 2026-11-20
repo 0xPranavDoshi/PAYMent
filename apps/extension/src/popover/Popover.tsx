@@ -1,6 +1,6 @@
 import type { CallEntry, UserProfile } from "@copayme/shared";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Gauge, Mark } from "../brand.js";
+import { Mark, ScoreTile } from "../brand.js";
 import { REFRESH_MESSAGE, isContextInvalidated } from "../context.js";
 import { ArrowUpRightIcon, CheckIcon, ChevronDownIcon, CopyIcon, EyeIcon } from "../icons.js";
 import { SIGNED_OUT, type TradingActions, type TradingState } from "../trading.js";
@@ -109,7 +109,7 @@ function Summary({
   return (
     <>
       <div className="hero">
-        <Gauge score={view.gauge} />
+        <ScoreTile score={view.gauge} size="lg" />
         <div className="who">
           <div className="handle">@{profile.handle}</div>
           {view.lastPick && <div className="sub">{view.lastPick}</div>}

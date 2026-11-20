@@ -2,12 +2,14 @@ import { browser } from "wxt/browser";
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { WEB_URL } from "../src/config.js";
 import type { BadgesReply, BadgesRequest, ProfileReply, ProfileRequest, ScanCancelReply, ScanCancelRequest, ScanReply, ScanRequest, TradingReply, TradingRequest } from "../src/messages.js";
+import { injectFonts } from "../src/fonts.js";
 import { startBadges } from "../src/page.js";
 import { createTradingBridge } from "../src/tradingBridge.js";
 
 export default defineContentScript({
   matches: ["https://x.com/*"],
   main(ctx) {
+    injectFonts();
     const stop = startBadges({
       webUrl: WEB_URL,
       trading: createTradingBridge(async (request: TradingRequest): Promise<TradingReply> => browser.runtime.sendMessage(request)),
