@@ -54,7 +54,7 @@ export default function WatchlistRows({ rows, viewerId }: { rows: WatchRowData[]
                   copy={w.copy}
                   signedIn
                   viewerId={viewerId}
-                  nPicks={w.nPicks}
+                  nPicks={0}
                   ticketPlacement="below"
                   open={open}
                   onOpenChange={(o) => setOpenHandle(o ? w.handle : null)}
@@ -62,7 +62,7 @@ export default function WatchlistRows({ rows, viewerId }: { rows: WatchRowData[]
                 <WatchButton handle={w.handle} watching signedIn />
               </span>
             </div>
-            {open && <CopyTicket handle={w.handle} copy={w.copy} signedIn viewerId={viewerId} nPicks={w.nPicks} variant="row" onClose={() => setOpenHandle(null)} />}
+            {open && <CopyTicket handle={w.handle} copy={w.copy} signedIn viewerId={viewerId} nPicks={0} variant="row" onClose={() => setOpenHandle(null)} />}
           </div>
         );
       })}

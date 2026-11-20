@@ -211,7 +211,7 @@ export const POPOVER_CSS = `
   /* Copy trade is the card's one primary action, until its stub is open and the stub's button takes over. */
   .tbtn.copy { background: var(--orange); color: #111111; }
   .tbtn.copy.pressed { background: var(--surface); color: var(--ink); }
-  .tbtn.copy.on { background: var(--ink); color: var(--card); }
+  .tbtn.copy.on { background: var(--ink); color: var(--card); box-shadow: 3px 3px 0 var(--orange); }
   .btn { height: 36px; padding: 0 14px; }
   .btn.primary { background: var(--orange); color: #111111; }
   .btn.primary:hover { background: var(--orange); }

@@ -55,7 +55,7 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
         handle={profile.handle}
         copy={copy}
         viewerId={followerId}
-        nPicks={calls.length}
+        nPicks={profile.nResolved}
         watch={<WatchButton handle={profile.handle} watching={watching} signedIn={followerId !== null} size="lg" />}
       >
         <ScoreTile score={isNew ? null : profile.score} size="lg" />

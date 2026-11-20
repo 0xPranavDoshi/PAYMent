@@ -66,11 +66,11 @@ export async function stopCopy(handle: string): Promise<ActionResult> {
   return run((id) => stopCopyTrade(id, handle));
 }
 
-/** A trader's latest picks (up to 50) for the copy ticket; an empty list if they can't be loaded. */
-export async function getTicketCalls(handle: string): Promise<CallEntry[]> {
+/** A trader's latest picks (up to 50) for the copy ticket; `{ ok: false }` if they can't be loaded. */
+export async function getTicketCalls(handle: string): Promise<{ ok: true; calls: CallEntry[] } | { ok: false }> {
   try {
-    return await fetchTraderCalls(handle, 50);
+    return { ok: true, calls: await fetchTraderCalls(handle, 50) };
   } catch {
-    return [];
+    return { ok: false };
   }
 }

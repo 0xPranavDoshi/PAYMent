@@ -55,7 +55,7 @@ export default async function Home() {
             </div>
             <div className="pop">
               <div className="r1">
-                <div><b>@demo_sharp</b><small>40 resolved · top 5%</small></div>
+                <div><b>@demo_sharp</b><small>40 resolved · #1 of 8</small></div>
                 <div className="s">82</div>
               </div>
               <div className="kv">

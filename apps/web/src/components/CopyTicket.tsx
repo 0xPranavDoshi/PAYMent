@@ -60,24 +60,32 @@ function useCopyState(handle: string, fromPage: CopyState | null, viewer: string
 
 // ── Picks, loaded once per handle when a ticket first opens ──────────────────
 
-const callsCache = new Map<string, Promise<CallEntry[]>>();
+type TicketCalls = Awaited<ReturnType<typeof getTicketCalls>>;
+const callsCache = new Map<string, Promise<TicketCalls>>();
 
-function useTicketCalls(handle: string): CallEntry[] | null {
-  const [calls, setCalls] = useState<CallEntry[] | null>(null);
+/** null while loading; `{ ok: false }` if the load failed (the cache entry is dropped so a later open retries). */
+function useTicketCalls(handle: string): TicketCalls | null {
+  const [result, setResult] = useState<TicketCalls | null>(null);
   useEffect(() => {
     let live = true;
     const key = keyOf(handle);
     let request = callsCache.get(key);
     if (!request) {
-      request = getTicketCalls(handle).catch(() => []);
+      const made: Promise<TicketCalls> = getTicketCalls(handle)
+        .catch((): TicketCalls => ({ ok: false }))
+        .then((r) => {
+          if (!r.ok && callsCache.get(key) === made) callsCache.delete(key);
+          return r;
+        });
+      request = made;
       callsCache.set(key, request);
     }
-    request.then((c) => live && setCalls(c));
+    request.then((r) => live && setResult(r));
     return () => {
       live = false;
     };
   }, [handle]);
-  return calls;
+  return result;
 }
 
 // ── The ticket ───────────────────────────────────────────────────────────────
@@ -109,7 +117,8 @@ export default function CopyTicket({
   const viewer = signedIn ? viewerId : null;
   const copy = useCopyState(handle, copyFromPage, viewer);
   const copying = copy?.active === true;
-  const calls = useTicketCalls(handle);
+  const loaded = useTicketCalls(handle);
+  const calls = loaded?.ok ? loaded.calls : null;
   const [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState(() => (copying ? snapToStep(copy!.amountUsdc) : DEFAULT_COPY_AMOUNT));
   const [pending, start] = useTransition();
@@ -159,8 +168,10 @@ export default function CopyTicket({
           <div className="tk-h">
             RECENT PICKS <small>price when posted · result per $1</small>
           </div>
-          {calls === null ? (
+          {loaded === null ? (
             <p className="tk-note">Loading picks…</p>
+          ) : calls === null ? (
+            <p className="tk-note">Couldn&apos;t load picks.</p>
           ) : recent.length === 0 ? (
             <p className="tk-note">No settled picks yet.</p>
           ) : (
@@ -285,7 +296,7 @@ export function CopyTradeToggle({
     onOpenChange?.(next);
   };
 
-  const cls = ["btn", size, copying ? "dark" : primary ? "primary" : "", open ? "pressed" : ""].filter(Boolean).join(" ");
+  const cls = ["btn", size, copying ? "dark" : primary && !open ? "primary" : "", open ? "pressed" : ""].filter(Boolean).join(" ");
   return (
     <>
       <button type="button" className={cls} aria-expanded={open} onClick={() => setOpen(!open)}>

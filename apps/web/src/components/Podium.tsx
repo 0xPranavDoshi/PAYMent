@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { LeaderboardEntry } from "@/lib/api";
 import { podiumOrder } from "@/lib/leaderboard";
-import { formatCents, formatPct } from "@/lib/format";
+import { formatCents, formatChange, formatPct } from "@/lib/format";
 import { CopyTradeToggle, type CopyState } from "./CopyTicket";
 
 export interface CopyContext {
@@ -22,7 +22,7 @@ export default function Podium({ top, ctx }: { top: LeaderboardEntry[]; ctx: Cop
       {order.map(({ e, rank }) => {
         const isNew = e.tier === "new";
         const first = rank === 1;
-        const delta = e.change14d !== null && e.change14d > 0 ? Math.round(e.change14d) : 0;
+        const change = formatChange(e.change14d);
         return (
           <div key={e.handle} className={`lb-pc${first ? " first" : ""}`}>
             <div className="r1">
@@ -37,7 +37,7 @@ export default function Podium({ top, ctx }: { top: LeaderboardEntry[]; ctx: Cop
             <div className="r2">
               <span className={`sc${isNew ? " none" : ""}`}>
                 {isNew ? "NEW" : e.score}
-                {first && delta > 0 && <span className="chip up big">+{delta}</span>}
+                {first && change?.direction === "up" && <span className="chip up big">{change.text}</span>}
               </span>
               {first ? (
                 <div className="lb-side">
@@ -57,7 +57,7 @@ export default function Podium({ top, ctx }: { top: LeaderboardEntry[]; ctx: Cop
                 <div className="kv">
                   HIT RATE <b>{formatPct(e.hitRate)}</b>
                   <br />
-                  EDGE/PICK <b>{formatCents(e.skill)}</b> · {isNew ? <b>NEW</b> : <>14D <b>{e.change14d === null || e.change14d === 0 ? "0" : (e.change14d > 0 ? "+" : "−") + Math.abs(e.change14d)}</b></>}
+                  EDGE/PICK <b>{isNew ? "–" : formatCents(e.skill)}</b> · {isNew ? <b>NEW</b> : <>14D <b>{change ? change.text : "—"}</b></>}
                 </div>
               )}
             </div>

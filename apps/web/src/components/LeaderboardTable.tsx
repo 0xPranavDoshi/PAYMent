@@ -108,7 +108,7 @@ export default function LeaderboardTable({
                   <b>{formatPct(e.hitRate)}</b>
                   <span className="hitbar" style={{ ["--v" as string]: `${Math.round((e.hitRate ?? 0) * 100)}%` }} />
                 </span>
-                <span className={`num c-edge ${tone(e.skill)}`}>{formatCents(e.skill)}</span>
+                <span className={`num c-edge ${isNew ? "muted" : tone(e.skill)}`}>{isNew ? "–" : formatCents(e.skill)}</span>
                 <span className="act">
                   <CopyTradeToggle
                     handle={e.handle}
