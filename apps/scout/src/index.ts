@@ -35,6 +35,13 @@ if (env.SCOUT_FORWARD_ENABLED === "true") {
   const kalshi = env.SCOUT_KALSHI_PRICING === "false" ? undefined : createKalshiClient();
   forwarder = createForwarder({ url: env.INGEST_URL, serviceKey: env.INGEST_SERVICE_KEY, store, gemini, kalshi, log: console.warn });
 }
+// Said at startup: with forwarding off, matched picks never reach the scoring API, so they show nowhere
+// in the UI (Nov 20: a scout restarted without SCOUT_FORWARD_ENABLED looked like "golf isn't picked up").
+console.log(
+  forwarder === noopForwarder
+    ? "[scout] forwarding is OFF (SCOUT_FORWARD_ENABLED is not \"true\"): picks are matched but not sent to the scoring API"
+    : `[scout] forwarding picks to ${env.INGEST_URL}`,
+);
 
 const scanDeps: ScanDeps = {
   store,
@@ -63,6 +70,7 @@ const app = createApp({
   store,
   startScan,
   cancelScan: (handle) => void stopRequested.add(handle),
+  forwards: forwarder !== noopForwarder,
   dailyNewHandles: positiveIntOr(env.SCOUT_DAILY_NEW_HANDLES, 30),
   ...(env.SCOUT_ALLOWED_ORIGIN ? { allowedOrigin: env.SCOUT_ALLOWED_ORIGIN } : {}),
 });

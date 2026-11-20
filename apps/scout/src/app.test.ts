@@ -23,7 +23,7 @@ const post = (id: string, tweetedAt: string, o: Partial<ScoutPostRow> = {}): Sco
   ...o,
 });
 
-function setup(opts: { dailyNewHandles?: number; allowedOrigin?: string } = {}) {
+function setup(opts: { dailyNewHandles?: number; allowedOrigin?: string; forwards?: boolean } = {}) {
   const store = createMemoryStore();
   const startScan = vi.fn();
   const cancelScan = vi.fn();
@@ -103,6 +103,33 @@ describe("POST /v1/scout/:handle", () => {
       const res = await postHandle("lebron", "1990000000000000000");
       expect(res.status).toBe(202);
       expect(startScan).toHaveBeenCalledWith("lebron", { fetchNew: false });
+    });
+
+    it("retries forwarding matched picks that never reached the scoring API, without fetching (when forwarding)", async () => {
+      const matched = {
+        predictionIndex: 0, status: "matched" as const, reason: "golf WIN Michael Thorbjornsen", geminiEventTicker: "GOLF-RSM-WIN-20261122",
+        gameTicker: "GOLF-RSM-WIN-20261122", instrumentSymbol: "GEMI-GOLF-RSM-WIN-20261122-THORBJORNSEN", contractLabel: "Michael Thorbjornsen",
+        side: "yes" as const, gameStartTime: "2026-11-19T12:00:00.000Z", marketStatus: "open" as const, resolutionSide: null,
+      };
+      const unforwarded = post("1", "2026-11-18T10:00:00.000Z", { matches: [matched] });
+
+      const on = setup({ forwards: true });
+      await scannedLongAgo(on.store);
+      await on.store.upsertPosts([unforwarded, post("2", "2026-11-18T09:00:00.000Z", { matches: [] })]);
+      expect((await on.postHandle("lebron", "1990000000000000000")).status).toBe(202);
+      expect(on.startScan).toHaveBeenCalledWith("lebron", { fetchNew: false });
+
+      // Already forwarded, or forwarding off: nothing to do, served from cache.
+      const done = setup({ forwards: true });
+      await scannedLongAgo(done.store);
+      await done.store.upsertPosts([{ ...unforwarded, forwardedAt: NOW }]);
+      expect((await done.postHandle("lebron", "1990000000000000000")).status).toBe(200);
+      const off = setup();
+      await scannedLongAgo(off.store);
+      await off.store.upsertPosts([unforwarded]);
+      expect((await off.postHandle("lebron", "1990000000000000000")).status).toBe(200);
+      expect(done.startScan).not.toHaveBeenCalled();
+      expect(off.startScan).not.toHaveBeenCalled();
     });
 
     it("fetches when a newer tweet was seen (ids compared as numbers, not text)", async () => {

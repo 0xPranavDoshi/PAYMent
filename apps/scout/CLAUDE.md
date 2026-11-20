@@ -230,6 +230,14 @@ Adi's first scan of @Pickswise: 98 posts, 18 predictions, 15 picks forwarded, sc
   - Market row: 147 outcomes, lock Nov 23 04:00 UTC.
   - They settle after the final round (Nov 22), so they count in the score only from then.
 - **Tests:** `golf.test.ts` (kinds, title names, settlement, tournament choice, last-name and ambiguous golfers, a withdrawn golfer, unknown kind); a store-suite test (memory + Postgres); a scan test (the golf post re-read, others not); a Gemini client test (`allMarkets`). Scout: 302 pass.
+- **After the merge (PR #88), "it didn't pick up the golf":**
+  - The scout did re-read and match all 4 of her golf tweets (2 new), but none were forwarded: no `markets` row, no calls.
+  - The 08:19 scan finished 0.4 s after saving, too fast for pricing plus ingest, so the forwarder was off on the teammate's scout (`SCOUT_FORWARD_ENABLED` not `true`).
+  - The real forwarder, run here against a fake ingest, priced all 4 and built the request, so the scout side works.
+- **Two fixes:**
+  - The scout now logs at startup whether forwarding is on, and a scan logs matched posts the scoring API didn't accept.
+  - A Rescan with nothing new posted now also runs a no-fetch scan when matched picks were never forwarded (only when forwarding is on). Before, those waited until the account posted again.
+- **Note:** `calls` has `unique (user_id, market_id)`, so only one pick per user per market is stored, and the earliest tweet wins. All her golf tweets are on the RSM winner market, so only the first (Thorbjornsen, 08:00) becomes a call; the rest come back `duplicate_pick`.
 
 ### A scan that never ended (@covers, Nov 19)
 - **What we saw:**
