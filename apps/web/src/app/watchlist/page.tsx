@@ -1,7 +1,6 @@
 import Page from "@/components/Page";
 import Link from "next/link";
 import { fetchCopyTrades, fetchWatches } from "@/lib/api";
-import { formatSignedPct, formatUsd, tone } from "@/lib/format";
 import { getFollowerId } from "@/lib/session";
 import WatchlistRows from "@/components/WatchlistRows";
 import SignInPrompt from "@/components/SignInPrompt";
@@ -22,16 +21,14 @@ export default async function WatchlistPage() {
     error = e instanceof Error ? e.message : "Could not load your watchlist.";
   }
 
-  const staked = watches.reduce((s, w) => s + w.stakedUsdc, 0);
-  const projected = watches.reduce((s, w) => s + (w.projectedPnlUsdc ?? 0), 0);
-  const pct = staked > 0 ? (projected / staked) * 100 : null;
   const copyBy = new Map(copies.map((c) => [c.traderHandle.toLowerCase(), c]));
 
   return (
     <Page live>
       <h1 className="pt">Watchlist</h1>
       <p className="psub">
-        How each trader has done since you started watching, as if you had put $1 on every pick.
+        How each trader has done since you started watching, as if you had put $1 on every pick. These are
+        projected results, not trades you made. The trades you actually copy are in your <Link href="/portfolio" className="inline">Portfolio</Link>.
       </p>
 
       {error ? (
@@ -44,12 +41,6 @@ export default async function WatchlistPage() {
         </div>
       ) : (
         <>
-          <div className="card strip three">
-            <div><span>Watching</span><b>{watches.length}</b></div>
-            <div><span>Projected P&amp;L</span><b className={tone(projected)}>{formatUsd(projected)}</b></div>
-            <div><span>Return on {formatUsd(staked, false)} staked</span><b className={tone(pct)}>{pct === null ? "–" : formatSignedPct(pct)}</b></div>
-          </div>
-
           <WatchlistRows
             viewerId={followerId}
             rows={watches.map((w) => {

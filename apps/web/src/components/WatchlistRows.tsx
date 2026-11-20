@@ -45,6 +45,7 @@ export default function WatchlistRows({ rows, viewerId }: { rows: WatchRowData[]
                 </span>
               </Link>
               <div className="pnl">
+                <span className="plabel">Projected P&amp;L</span>
                 <b className={tone(w.projectedPnlUsdc)}>{w.pnlPct === null ? "–" : formatSignedPct(w.pnlPct)}</b>
                 <small>{w.projectedPnlUsdc === null ? (w.nPicks === 0 ? "No picks yet" : "Not priced yet") : formatUsd(w.projectedPnlUsdc)}</small>
               </div>
