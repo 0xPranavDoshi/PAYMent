@@ -11,4 +11,10 @@ describe("POPOVER_CSS", () => {
   it("draws a focus ring on the stepper's buttons, which `all: unset` would otherwise remove", () => {
     expect(rule(POPOVER_CSS, ".stp button:focus-visible")).toMatch(/outline:\s*2px solid var\(--orange\)/);
   });
+
+  it("truncates the pick line but never clips the row links (See tweet, View market) or their focus rings", () => {
+    expect(rule(POPOVER_CSS, ".pick .s > span")).toBeNull();
+    expect(rule(POPOVER_CSS, ".pick .s > span:not(.rowlinks)")).toMatch(/overflow:\s*hidden/);
+    expect(rule(POPOVER_CSS, ".rowlinks") ?? "").not.toMatch(/overflow:\s*hidden/);
+  });
 });

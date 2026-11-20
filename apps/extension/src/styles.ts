@@ -174,7 +174,8 @@ export const POPOVER_CSS = `
   .pick .t { font: 700 13.5px/1.3 var(--font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* The pick and price, with its links (See tweet, View market) on a line of their own below. */
   .pick .s { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; margin-top: 2px; font: 500 11.5px/1.3 var(--mono); color: var(--ink-2); }
-  .pick .s > span { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Not .rowlinks: clipping it would cut off its links' focus rings. */
+  .pick .s > span:not(.rowlinks) { max-width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .flipbtn { all: unset; cursor: pointer; flex: none; color: var(--ink-3); font: 600 11.5px/1.3 var(--font); text-decoration: underline; text-underline-offset: 2px; }
   .flipbtn:hover { color: var(--ink); }
   .rowlinks { display: inline-flex; gap: 12px; align-items: baseline; white-space: nowrap; }
