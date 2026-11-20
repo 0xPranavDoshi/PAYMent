@@ -15,8 +15,10 @@ export interface GeminiClient {
    * Full-game moneyline events (one per game) whose title or ticker contains `term`, across every
    * status a matchable game can have. `search` also matches tickers (undocumented, verified Nov 18
    * 2026), so `NBA-261118` returns that day's NBA games and `-LAL-` returns one team's games.
+   * `allMarkets`: every market type, not only full-game moneylines (golf tournaments are "prop" markets
+   * scoped to the tournament, so the moneyline filter would drop them).
    */
-  searchGames(term: string, opts?: { sport?: string }): Promise<GeminiEvent[]>;
+  searchGames(term: string, opts?: { sport?: string; allMarkets?: boolean }): Promise<GeminiEvent[]>;
   getEvent(ticker: string): Promise<GeminiEvent>;
   /**
    * The contract's YES price (0-1) at `at`, from Gemini's candles: the close of the last candle
@@ -95,8 +97,10 @@ export function createGeminiClient(
       if (search.length < MIN_SEARCH_LENGTH) return [];
       const params = new URLSearchParams({ category: "Sports", search, limit: String(PAGE_SIZE) });
       for (const status of GAME_STATUSES) params.append("status", status);
-      params.append("sports_market_type", "moneyline");
-      params.append("sports_market_scope", "full_contest");
+      if (!opts.allMarkets) {
+        params.append("sports_market_type", "moneyline");
+        params.append("sports_market_scope", "full_contest");
+      }
       if (opts.sport) params.append("sport", opts.sport);
       const base = `${baseUrl}/v1/prediction-markets/events?${params.toString()}`;
       const hit = cached<GeminiEvent[]>(base);

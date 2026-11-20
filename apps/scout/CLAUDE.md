@@ -207,6 +207,30 @@ Adi's first scan of @Pickswise: 98 posts, 18 predictions, 15 picks forwarded, sc
 - **Stored posts with the plain single-sport "no line" result** on such a pick are re-matched once (`hasObsoleteMatch`). The new reason text differs, so they aren't re-matched forever.
 - **Dry run on her stored tweet:** → `GEMI-NCAAF-2611200030-RIC-TEM-S-TEM4` YES ("Temple wins by more than 4.5 points").
 
+### Golf (Nov 20, Pranav: "i want golf added")
+- **Trigger:** @MugdhaPatil17's "golf the RSM Classic Winner is Michael Thorbjornsen" and "…Keith Mitchell not going to loose" were read as no prediction. The prompt listed only team leagues, and the matcher only knew games.
+- **Gemini's golf markets:** one market per tournament and kind, with a contract per golfer.
+  - The ticker is `GOLF-<code>-<kind>-<end date>`, e.g. `GOLF-RSM-WIN-20261122`.
+  - Kinds: WIN, T5/T10/T20, CUT, R1–R3 leader. The template varies (sports-golf, binary, categorical), so the kind is read from the ticker.
+  - They are `prop` / `tournament` markets, so the moneyline + full_contest search filters drop them; `searchGames(..., { allMarkets: true })` leaves those filters off.
+  - A search for `-WIN-` with sport=golf returns every winner market (13 so far this year).
+  - Candles exist, so pricing at the tweet works.
+  - `expiryDate` is the day after the final round, and is used as `lock_time`.
+- **Read prompt:** a new league `GOLF`. The golfer goes in `team` (full name + last name) and `player`; betType `win`; `metric` names the market (null = winner, "top 10", "make cut", "round 2 leader", "matchup"); claim wins/loses.
+- **Matching** (`match/golf.ts`): `metric` → kind (an unknown kind gives no market, with no search). Search the kind's markets and keep those with exactly one contract for the golfer, starting no more than 7 days after the tweet.
+  - Unsettled ones win; if all had settled before the tweet → `tweet after the game settled`.
+  - A tournament the post names is preferred; then the one live at the tweet; then the earliest.
+  - YES for "wins", NO for "loses".
+- **Settlement for golf** (`settledAt`): when the first golfer resolves YES. A golfer resolved NO early (withdrew) doesn't settle the tournament, but a pick on that golfer after it is rejected.
+- **Stored posts:** `PIPELINE_VERSION` 5. `needsReread`: only version-4 posts read as no prediction whose text looks like golf (golf, PGA, ⛳, Masters, RSM Classic…) are read again. Other version-4 posts stay current and cost no Grok.
+- **Unchanged:** ingest, forwarding and the market refresher are generic (event ticker, contract, lock_time), so a tournament market goes through as is.
+- **Dry run** (real Grok + Gemini, nothing written): of her 99 posts, only the 2 golf ones are re-read.
+  - Thorbjornsen → `GEMI-GOLF-RSM-WIN-20261122-THORBJORNSEN` YES at 0.15 (Gemini candle).
+  - Mitchell → `GEMI-GOLF-RSM-WIN-20261122-MITCHELL` YES at 0.03.
+  - Market row: 147 outcomes, lock Nov 23 04:00 UTC.
+  - They settle after the final round (Nov 22), so they count in the score only from then.
+- **Tests:** `golf.test.ts` (kinds, title names, settlement, tournament choice, last-name and ambiguous golfers, a withdrawn golfer, unknown kind); a store-suite test (memory + Postgres); a scan test (the golf post re-read, others not); a Gemini client test (`allMarkets`). Scout: 302 pass.
+
 ### A scan that never ended (@covers, Nov 19)
 - **What we saw:**
   - @covers started at 20:45:52 UTC and Apify returned its posts (2.5¢), but the scan stayed "running" for 5+ hours with nothing saved and no error.

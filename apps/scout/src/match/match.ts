@@ -3,6 +3,7 @@ import type { GeminiClient } from "../gemini/client.js";
 import type { Grok } from "../grok/client.js";
 import { findGame, geminiLeague } from "./candidates.js";
 import { chooseLine, chooseWin, subEventFor, validateChoice } from "./choose.js";
+import { GOLF_LEAGUE, matchGolf } from "./golf.js";
 
 const noMarket = (predictionIndex: number, reason: string): PickMatch => ({
   predictionIndex,
@@ -47,6 +48,7 @@ export async function matchPrediction(
   tweetedAt: Date,
   deps: { gemini: GeminiClient; grok: Grok; sleep?: (ms: number) => Promise<void>; text?: string },
 ): Promise<PickMatch> {
+  if (geminiLeague(p.league) === GOLF_LEAGUE) return matchGolf(p, index, tweetedAt, deps);
   const first = await matchInLeague(p, index, tweetedAt, deps);
   if (!checksBothCollegeSports(p, deps.text ?? "")) return first;
   const sibling = COLLEGE_SIBLINGS[geminiLeague(p.league)!]!;

@@ -155,6 +155,16 @@ export function describeStore(make: () => ScoutStore): void {
       expect(ids).toEqual(["old-done"]);
     });
 
+    it("pendingPosts returns a version-4 golf post read as no prediction, but not other version-4 posts", async () => {
+      await store.upsertPosts([
+        post({ tweetId: "golf", text: "golf the RSM Classic Winner is Michael Thorbjornsen", sentiment: sentiment(false, 0), matches: [], pipelineVersion: 4 }),
+        post({ tweetId: "other", text: "what a game", sentiment: sentiment(false, 0.9), matches: [], pipelineVersion: 4 }),
+        post({ tweetId: "golf-current", text: "golf: Scheffler wins", sentiment: sentiment(false, 0.9), matches: [] }),
+      ]);
+      const ids = (await store.pendingPosts("alice")).map((r) => r.tweetId);
+      expect(ids).toEqual(["golf"]);
+    });
+
     it("pendingPosts also returns rows matched under a rule that has changed ('tweet during game')", async () => {
       const noMarket = (reason: string) => [
         { predictionIndex: 0, status: "no_market" as const, reason, geminiEventTicker: null, gameTicker: null, instrumentSymbol: null, contractLabel: null, side: null, gameStartTime: null, marketStatus: null, resolutionSide: null },

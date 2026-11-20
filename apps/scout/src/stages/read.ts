@@ -36,9 +36,10 @@ Fields:
 - confidence: how sure you are (0 to 1) that the post is a real prediction.
 - conviction: "strong" for "lock it in" style, "lean" for "I like them".
 - quote: the words in the post that make the claim.
-- league: Gemini's league code, one of NBA, WNBA, NCAAM (men's college basketball, also called NCAAB or CBB), NCAAW, NFL, NCAAF (college football, CFB), NHL, MLB, EPL, LALIGA, UCL, LIGAMX, MLS. Infer it from the teams when the post doesn't say. null only if the sport isn't one of these.
+- league: Gemini's league code, one of NBA, WNBA, NCAAM (men's college basketball, also called NCAAB or CBB), NCAAW, NFL, NCAAF (college football, CFB), NHL, MLB, EPL, LALIGA, UCL, LIGAMX, MLS, GOLF (golf tournaments: PGA Tour and others). Infer it from the teams when the post doesn't say. null only if the sport isn't one of these.
 - opponent: the team this pick's team plays IN THIS PICK'S GAME, only when the post names it. In a parlay each leg is usually a different game: never use another leg's team as the opponent. Otherwise null.
-- player, metric: fill when known, otherwise null.`;
+- player, metric: fill when known, otherwise null.
+- Golf (league "GOLF"): a golf pick backs a golfer in a tournament, not a team in a game, so rule 3 doesn't apply. team = the golfer: name is the full name, aliases the full name and the last name ("Keith Mitchell", "Mitchell"). player = the golfer's full name. opponent null, betType "win", line null, lineAsWritten null. metric names the market: null to win the tournament, "top 5" / "top 10" / "top 20" for a top-N finish, "make cut", "round 1 leader" (2, 3) for leading after a round, "matchup" for one golfer beating another. claim "wins" when the post backs the golfer to do it ("X wins the Masters", "X is the winner", "X not going to lose", "X top 10"), "loses" when it says they won't ("X won't win", "fade X"). A golf pick made during the tournament is a prediction until the tournament ends.`;
 
 const userMessage = (batch: RawPost[]): string =>
   JSON.stringify(

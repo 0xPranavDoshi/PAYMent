@@ -6,8 +6,21 @@ import { NO_LINE_REASON, checksBothCollegeSports } from "./match/match.js";
  * 2: sign decides spread direction; league codes; league+day game search (Nov 18 2026).
  * 3: lineAsWritten + code-side sign rule; team_total; temperature 0; batches of 5 (Nov 18 2026).
  * 4: opponent is a hint (parlay legs); contracts matched by the game title's short names; Nov 18 2026.
+ * 5: golf (Nov 20 2026). Only version-4 posts that look like golf and were read as no prediction are
+ *    read again (see needsReread): the rest of a version-4 reading is still current.
  */
-export const PIPELINE_VERSION = 4;
+export const PIPELINE_VERSION = 5;
+
+/** Words and emoji of a golf post. A version-4 post with one, read as no prediction, is read again. */
+const GOLF_CUE =
+  /⛳|🏌|\b(golf|pga|lpga|liv golf|dp world|masters|ryder cup|open championship|us open|make the cut|missed the cut|top 10 finish|rsm classic)\b/i;
+
+/** True when the post is read again with Grok (and matched again), rather than only re-matched. */
+export function needsReread(row: Pick<ScoutPostRow, "sentiment" | "pipelineVersion" | "text" | "quotedText">): boolean {
+  if (row.pipelineVersion < 4) return true;
+  if (row.pipelineVersion >= PIPELINE_VERSION || row.sentiment === null) return false;
+  return !countsAsPrediction(row.sentiment) && GOLF_CUE.test(`${row.text} ${row.quotedText ?? ""}`);
+}
 
 /** A `running` lock older than this may be taken over. */
 export const STALE_LOCK_MS = 5 * 60_000;
@@ -108,7 +121,7 @@ export function hasObsoleteMatch(row: ObsoleteCheck): boolean {
 
 export function isPending(row: Pick<ScoutPostRow, "sentiment" | "matches" | "pipelineVersion" | "text" | "quotedText">): boolean {
   return (
-    row.pipelineVersion < PIPELINE_VERSION ||
+    needsReread(row) ||
     row.sentiment === null ||
     (row.matches === null && countsAsPrediction(row.sentiment)) ||
     hasObsoleteMatch(row)
