@@ -2,7 +2,7 @@ import type { Prediction, TeamRef } from "@copayme/shared";
 import { z } from "zod";
 import type { GeminiContract, GeminiEvent } from "../gemini/types.js";
 import { GrokOutputError, type Grok } from "../grok/client.js";
-import { bestMatches, type Participant } from "./candidates.js";
+import { bestMatches, settledAt, type Participant } from "./candidates.js";
 
 export interface Choice {
   subEvent: GeminiEvent;
@@ -271,8 +271,12 @@ export function validateChoice(game: GeminiEvent, choice: Choice, tweetedAt: Dat
   if (choice.subEvent !== game && !children.includes(choice.subEvent)) {
     return "sub-event does not belong to the game";
   }
-  if (!game.startTime || !(Date.parse(game.startTime) > tweetedAt.getTime())) {
-    return "game starts at or before the tweet";
-  }
+  if (!game.startTime || Number.isNaN(Date.parse(game.startTime))) return "game has no start time";
+  // Live picks count until settlement (team decision, Nov 19): reject only a game or contract that had
+  // already settled when the tweet was sent.
+  const t = tweetedAt.getTime();
+  const gameSettled = settledAt(game);
+  const contractSettled = choice.contract.resolvedAt ? Date.parse(choice.contract.resolvedAt) : NaN;
+  if ((gameSettled !== null && gameSettled <= t) || contractSettled <= t) return "game settled before the tweet";
   return null;
 }

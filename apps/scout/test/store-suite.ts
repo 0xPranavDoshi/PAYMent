@@ -155,6 +155,18 @@ export function describeStore(make: () => ScoutStore): void {
       expect(ids).toEqual(["old-done"]);
     });
 
+    it("pendingPosts also returns rows matched under a rule that has changed ('tweet during game')", async () => {
+      const noMarket = (reason: string) => [
+        { predictionIndex: 0, status: "no_market" as const, reason, geminiEventTicker: null, gameTicker: null, instrumentSymbol: null, contractLabel: null, side: null, gameStartTime: null, marketStatus: null, resolutionSide: null },
+      ];
+      await store.upsertPosts([
+        post({ tweetId: "live", sentiment: sentiment(true, 0.9), matches: noMarket("tweet during game") }),
+        post({ tweetId: "final", sentiment: sentiment(true, 0.9), matches: noMarket("no contract at the tweet's line") }),
+      ]);
+      const ids = (await store.pendingPosts("alice")).map((r) => r.tweetId);
+      expect(ids).toEqual(["live"]);
+    });
+
     it("unforwardedPosts and markForwarded", async () => {
       await store.upsertPosts([post({ tweetId: "1" }), post({ tweetId: "2" })]);
       await store.markForwarded(["1"], T0);

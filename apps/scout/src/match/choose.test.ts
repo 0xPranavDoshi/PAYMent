@@ -510,9 +510,20 @@ describe("validateChoice", () => {
     expect(validateChoice(game, { ...ok, subEvent: ev({ ticker: "Z" }) }, TWEET)).toMatch(/sub-event/);
   });
 
-  it("rejects a game that starts at or before the tweet", () => {
-    expect(validateChoice(game, ok, new Date(game.startTime as string))).toMatch(/starts/);
-    expect(validateChoice(game, ok, new Date("2026-11-20T00:00:00Z"))).toMatch(/starts/);
+  it("accepts a live game (tweet after the start, before settlement)", () => {
+    const start = Date.parse(game.startTime as string);
+    expect(validateChoice(game, ok, new Date(start))).toBeNull();
+    expect(validateChoice(game, ok, new Date(start + 2 * 3_600_000))).toBeNull();
+  });
+
+  it("rejects a game or contract that had settled before the tweet", () => {
+    const start = Date.parse(game.startTime as string);
+    const settledAtIso = new Date(start + 2.5 * 3_600_000).toISOString();
+    const settledGame = { ...game, contracts: game.contracts.map((x) => ({ ...x, resolvedAt: settledAtIso })) };
+    expect(validateChoice(settledGame, ok, new Date(start + 3 * 3_600_000))).toMatch(/settled/);
+    expect(validateChoice(settledGame, ok, new Date(start + 2 * 3_600_000))).toBeNull();
+    const settledContract: Choice = { ...ok, contract: { ...ok.contract, resolvedAt: settledAtIso } };
+    expect(validateChoice(game, settledContract, new Date(start + 3 * 3_600_000))).toMatch(/settled/);
   });
 });
 

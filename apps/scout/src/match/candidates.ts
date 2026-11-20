@@ -3,11 +3,14 @@ import type { GeminiClient } from "../gemini/client.js";
 import type { GeminiEvent } from "../gemini/types.js";
 
 export const MATCH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
-/** A tweet this soon after a game involving the team started is a live reaction, not a prediction. */
+/**
+ * Games that started up to this long before the tweet are looked at: one still live at the tweet is the
+ * pick's game; one that had already settled means the tweet came after it.
+ */
 export const IN_GAME_MS = 6 * 60 * 60 * 1000;
 
 export const NO_GAME_REASON = "no game within 7 days";
-export const IN_GAME_REASON = "tweet during game";
+export const AFTER_GAME_REASON = "tweet after the game settled";
 
 export type Participant = NonNullable<GeminiEvent["participants"]>[number];
 
@@ -75,8 +78,9 @@ function matchingEvents(events: GeminiEvent[], p: Prediction): GeminiEvent[] {
 }
 
 /**
- * Earliest sports-game that starts after the tweet (strictly) and within 7 days, matching the named teams.
- * A tweet sent while a game involving the team is in progress (within 6 h of its start) gets no game.
+ * The game a pick is about, matching the named teams: one live at the tweet (started, not yet settled), else
+ * the earliest that starts after the tweet, within 7 days. A tweet sent after the team's game settled (within
+ * 6 h of its start) gets no game.
  */
 export function pickGame(events: GeminiEvent[], p: Prediction, tweetedAt: Date): GamePick {
   const from = tweetedAt.getTime();
@@ -102,13 +106,27 @@ export function pickGame(events: GeminiEvent[], p: Prediction, tweetedAt: Date):
     matches = matchingEvents(games, { ...p, opponent: null });
   }
 
+  // A game already under way when the tweet was sent counts while it hadn't settled (team decision,
+  // Nov 19: live picks count; the cutoff is settlement, which Gemini does at the final whistle, 2.5-3.8 h
+  // after the start. expiryDate is start + 36 h, not the end). A game that had already settled means the
+  // tweet came after it ended: no game, so a post-game reaction can't land on the team's next game.
   let best: { event: GeminiEvent; start: number } | null = null;
   for (const e of matches) {
     const start = startOf(e);
-    if (start <= from) return { game: null, reason: IN_GAME_REASON };
+    if (start <= from) {
+      const settled = settledAt(e);
+      if (settled !== null && settled <= from) return { game: null, reason: AFTER_GAME_REASON };
+      return { game: e }; // live at the tweet
+    }
     if (!best || start < best.start) best = { event: e, start };
   }
   return best ? { game: best.event } : { game: null, reason: NO_GAME_REASON };
+}
+
+/** When the game settled (its first contract's resolvedAt), or null if it hasn't. */
+export function settledAt(game: GeminiEvent): number | null {
+  const times = game.contracts.map((c) => (c.resolvedAt ? Date.parse(c.resolvedAt) : NaN)).filter((t) => !Number.isNaN(t));
+  return times.length > 0 ? Math.min(...times) : null;
 }
 
 /** Gemini's ticker league codes (verified Nov 18 2026) and the `sport` filter value for each. */
@@ -185,7 +203,7 @@ export async function findGame(p: Prediction, tweetedAt: Date, gemini: GeminiCli
     for (const e of results.flat()) if (!byTicker.has(e.ticker)) byTicker.set(e.ticker, e);
     last = pickGame([...byTicker.values()], prediction, tweetedAt);
     if (last.game) return { game: await gemini.getEvent(last.game.ticker) };
-    if (last.reason === IN_GAME_REASON) return last;
+    if (last.reason === AFTER_GAME_REASON) return last;
   }
   return last;
 }

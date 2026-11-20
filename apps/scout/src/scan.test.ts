@@ -245,12 +245,17 @@ describe("runScan", () => {
   });
 
   it("stores other no_market reasons as final", async () => {
-    const live = { ...game, startTime: "2026-11-18T11:00:00.000Z" };
+    // The team's game started at 08:00 and settled at 10:30; the tweet came at 12:00, after it was over.
+    const over = {
+      ...game,
+      startTime: "2026-11-18T08:00:00.000Z",
+      contracts: game.contracts.map((x) => ({ ...x, resolvedAt: "2026-11-18T10:30:00.000Z" })),
+    };
     const t = setup({ posts: [raw("1")], sentiments: { "1": prediction() } });
-    t.searchGames.mockImplementation(async () => [live]);
+    t.searchGames.mockImplementation(async () => [over]);
     await t.run();
     expect((await t.store.listPosts("bob"))[0]?.matches).toEqual([
-      expect.objectContaining({ status: "no_market", reason: "tweet during game" }),
+      expect.objectContaining({ status: "no_market", reason: "tweet after the game settled" }),
     ]);
   });
 
@@ -278,6 +283,30 @@ describe("runScan", () => {
     expect(row?.sentiment?.isPrediction).toBe(true);
     expect(row?.matches?.[0]).toMatchObject({ status: "matched", contractLabel: "Lakers" });
     expect(await t.store.pendingPosts("bob")).toEqual([]);
+  });
+
+  it("re-matches a post rejected under the old live-game rule, without re-reading it", async () => {
+    const t = setup({ posts: [], sentiments: {} });
+    await t.store.upsertPosts([
+      {
+        tweetId: "1",
+        handle: "bob",
+        xUserId: "u1",
+        tweetedAt: new Date("2026-11-18T12:00:00.000Z"),
+        text: "Take Lakers ML",
+        isReply: false,
+        quotedText: null,
+        sentiment: prediction(),
+        matches: [
+          { predictionIndex: 0, status: "no_market", reason: "tweet during game", geminiEventTicker: null, gameTicker: null, instrumentSymbol: null, contractLabel: null, side: null, gameStartTime: null, marketStatus: null, resolutionSide: null },
+        ],
+        pipelineVersion: PIPELINE_VERSION,
+        forwardedAt: null,
+      },
+    ]);
+    await t.run();
+    expect(t.seenByGrok).toEqual([]);
+    expect((await t.store.listPosts("bob"))[0]?.matches?.[0]).toMatchObject({ status: "matched" });
   });
 
   it("retries a post whose read returned null", async () => {
