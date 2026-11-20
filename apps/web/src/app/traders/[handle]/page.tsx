@@ -4,7 +4,7 @@ import { fetchCopyMode, fetchCopyTrades, fetchTraderCalls, fetchTraderProfile, f
 import { getFollowerId } from "@/lib/session";
 import { CopyButton, WatchButton } from "@/components/TradeButtons";
 import { formatCents, formatChange, formatPct, timeAgo } from "@/lib/format";
-import ScoreRing from "@/components/ScoreRing";
+import ScoreTile from "@/components/ScoreTile";
 import PickRow from "@/components/PickRow";
 
 export const dynamic = "force-dynamic";
@@ -46,7 +46,7 @@ export default async function TraderPage({ params }: { params: Promise<{ handle:
   return (
     <Page>
       <div className="thead">
-        <ScoreRing score={isNew ? null : profile.score} size={96} />
+        <ScoreTile score={isNew ? null : profile.score} size="lg" />
         <div>
           <h1>@{profile.handle}</h1>
           <div className="meta">

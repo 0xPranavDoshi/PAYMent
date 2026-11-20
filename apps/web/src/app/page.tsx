@@ -3,7 +3,7 @@ import { fetchLeaderboard, fetchRecentCalls, fetchTraderCalls, fetchTraderProfil
 import { formatCents, formatChange, formatPct } from "@/lib/format";
 import ExtensionPromo from "@/components/ExtensionPromo";
 import Page from "@/components/Page";
-import ScoreRing from "@/components/ScoreRing";
+import ScoreTile from "@/components/ScoreTile";
 import TraderGrid from "@/components/TraderGrid";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +43,7 @@ export default async function Home() {
               <Link href={`/traders/${encodeURIComponent(profile.handle)}`} className="fcard">
                 <div className="eyebrow muted">Featured trader</div>
                 <div className="f-head">
-                  <ScoreRing score={profile.tier === "new" ? null : profile.score} size={88} />
+                  <ScoreTile score={profile.tier === "new" ? null : profile.score} size="lg" />
                   <div>
                     <div className="f-handle">@{profile.handle}</div>
                     <div className="f-meta">

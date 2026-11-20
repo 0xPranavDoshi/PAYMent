@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import type { LeaderboardEntry } from "@/lib/api";
 import { formatChange, formatPct } from "@/lib/format";
-import ScoreRing from "./ScoreRing";
+import ScoreTile from "./ScoreTile";
 
 const TABS = [
   { id: "all", label: "All", test: () => true },
@@ -35,7 +35,7 @@ export default function TraderGrid({ entries }: { entries: LeaderboardEntry[] })
             return (
               <Link key={e.handle} href={`/traders/${encodeURIComponent(e.handle)}`} className="tcard">
                 <div className="tc-top">
-                  <ScoreRing score={e.tier === "new" ? null : e.score} size={52} />
+                  <ScoreTile score={e.tier === "new" ? null : e.score} size="sm" />
                   <div className="tc-id">
                     <b>@{e.handle}</b>
                     <span>{e.nResolved} picks settled</span>

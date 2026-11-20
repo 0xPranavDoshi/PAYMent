@@ -3,7 +3,7 @@ import Link from "next/link";
 import { fetchCopyMode, fetchCopyTrades, fetchWatches } from "@/lib/api";
 import { formatSignedPct, formatUsd, shortDate, tone } from "@/lib/format";
 import { getFollowerId } from "@/lib/session";
-import ScoreRing from "@/components/ScoreRing";
+import ScoreTile from "@/components/ScoreTile";
 import { CopyButton, WatchButton } from "@/components/TradeButtons";
 import SignInPrompt from "@/components/SignInPrompt";
 
@@ -64,7 +64,7 @@ export default async function WatchlistPage() {
               const delta = w.scoreDelta;
               return (
                 <div className="wrow" key={w.traderHandle}>
-                  <ScoreRing score={w.scoreNow} size={52} />
+                  <ScoreTile score={w.scoreNow} size="sm" />
                   <div className="wmain">
                     <Link href={`/traders/${encodeURIComponent(w.traderHandle)}`} className="who">@{w.traderHandle}</Link>
                     <div className="wsub">

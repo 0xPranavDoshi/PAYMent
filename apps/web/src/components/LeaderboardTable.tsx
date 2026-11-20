@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { LeaderboardEntry } from "@/lib/api";
 import { formatChange, formatPct } from "@/lib/format";
-import ScoreRing from "./ScoreRing";
+import ScoreTile from "./ScoreTile";
 
 export default function LeaderboardTable({ entries }: { entries: LeaderboardEntry[] }) {
   if (entries.length === 0) {
@@ -26,7 +26,7 @@ export default function LeaderboardTable({ entries }: { entries: LeaderboardEntr
             className={`lrow${i < 3 ? ` p${i + 1}` : ""}`}
           >
             <span className="rank">{i + 1}</span>
-            <ScoreRing score={e.tier === "new" ? null : e.score} size={44} />
+            <ScoreTile score={e.tier === "new" ? null : e.score} size="sm" />
             <span className="who">
               @{e.handle}
               <small>{e.tier === "new" ? "New: score after 5 resolved picks" : `${e.nResolved} resolved picks`}</small>
