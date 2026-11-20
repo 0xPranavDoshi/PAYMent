@@ -145,6 +145,11 @@ p { margin: 0; }
 .stp { display: inline-flex; align-items: center; border: 2px solid var(--ink); border-radius: 8px; overflow: hidden; background: var(--surface); box-shadow: 2px 2px 0 var(--ink); }
 .stp button { appearance: none; margin: 0; padding: 0; border: 0; background: none; color: var(--ink); cursor: pointer; width: 30px; height: 30px; display: grid; place-content: center; font: 800 17px/1 var(--font); }
 .stp button:first-child { border-right: 2px solid var(--ink); }
+.stp .stp-amt { display: inline-flex; align-items: center; gap: 1px; height: 30px; padding: 0 9px; border-right: 2px solid var(--ink); }
+.stp .stp-amt i { font: 800 15px/1 var(--font); font-style: normal; }
+.stp .stp-amt input { width: 52px; min-width: 0; border: 0; outline: 0; background: none; color: var(--ink); font: 800 15px/1 var(--mono); text-align: center; padding: 0; -moz-appearance: textfield; }
+.stp .stp-amt input::-webkit-outer-spin-button, .stp .stp-amt input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
 .stp button:last-child { border-left: 2px solid var(--ink); }
 .stp button:hover:not(:disabled) { background: var(--card); }
 .stp button:disabled { color: var(--ink-3); cursor: default; }
