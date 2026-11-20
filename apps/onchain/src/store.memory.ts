@@ -6,16 +6,33 @@ import {
   type LedgerRow,
   type OnchainStore,
   type OnchainUser,
+  type PayoutRunSummary,
 } from "./store.js";
+
+/** A settled follower trade, for the in-memory store's payout tests. */
+export interface MemoryTail {
+  id: string;
+  creatorId: string;
+  followerId: string;
+  pnlUsdc: number;
+  settledAt: Date;
+}
 
 /**
  * In-memory store. Lets the service, its tests, and a credential-free demo run with
  * no Postgres. Not durable — swap for the Postgres store (STORE=postgres) for real data.
  */
-export function createMemoryStore(seed: OnchainUser[] = []): OnchainStore {
+export function createMemoryStore(
+  seed: OnchainUser[] = [],
+  opts: { tails?: MemoryTail[]; optedInAt?: Record<string, Date> } = {},
+): OnchainStore {
   const users = new Map<string, OnchainUser>();
   for (const u of seed) users.set(u.id, { ...u, handle: normHandle(u.handle) });
   const ledger: (LedgerRow & { userId: string; sourceRef: string | null })[] = [];
+  const optedInAt = new Map<string, Date | null>(Object.entries(opts.optedInAt ?? {}));
+  const tails = opts.tails ?? [];
+  const processed = new Set<string>();
+  const runs: PayoutRunSummary[] = [];
 
   const byHandle = (h: string) =>
     [...users.values()].find((u) => u.handle === normHandle(h)) ?? null;
@@ -49,7 +66,10 @@ export function createMemoryStore(seed: OnchainUser[] = []): OnchainStore {
     },
     async setOptIn(userId, optIn) {
       const u = users.get(userId);
-      if (u) u.rewardsOptIn = optIn;
+      if (!u) return;
+      if (optIn && !u.rewardsOptIn) optedInAt.set(userId, new Date());
+      if (!optIn) optedInAt.set(userId, null);
+      u.rewardsOptIn = optIn;
     },
     async ledgerExists(sourceRef) {
       return ledger.some((r) => r.sourceRef === sourceRef);
@@ -73,6 +93,46 @@ export function createMemoryStore(seed: OnchainUser[] = []): OnchainStore {
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
         .map((r): LedgerRow => ({ id: r.id, amountUsdc: r.amountUsdc, reason: r.reason, txHash: r.txHash, createdAt: r.createdAt }));
       return { ...totalsFromRows(rows), rows };
+    },
+
+    async listUnprocessedWinningTails() {
+      return tails
+        .filter((t) => t.pnlUsdc > 0 && t.followerId !== t.creatorId && !processed.has(t.id))
+        .map((t) => {
+          const creator = users.get(t.creatorId);
+          return {
+            tailId: t.id,
+            creatorId: t.creatorId,
+            creatorHandle: creator?.handle ?? "unknown",
+            pnlUsdc: t.pnlUsdc,
+            settledAt: t.settledAt,
+            creatorOptedInAt: creator?.rewardsOptIn ? (optedInAt.get(t.creatorId) ?? null) : null,
+          };
+        });
+    },
+    async hasPayoutRun(day) {
+      return runs.some((r) => r.day === day);
+    },
+    async recordPayoutRun({ day, runBy, plan }) {
+      if (runs.some((r) => r.day === day)) throw new Error(`payout already ran on ${day}`);
+      const id = randomUUID();
+      runs.push({
+        id, day, runBy, tails: plan.tails, followerProfitUsdc: plan.followerProfitUsdc,
+        feeTotalUsdc: plan.feeTotalUsdc, feeCreditedUsdc: plan.feeCreditedUsdc,
+        feeRetainedUsdc: plan.feeRetainedUsdc, createdAt: new Date(),
+      });
+      for (const i of plan.items) processed.add(i.tailId);
+      for (const line of plan.lines) {
+        if (!line.credited || !(line.feeUsdc > 0)) continue;
+        ledger.push({
+          id: randomUUID(), userId: line.creatorId, amountUsdc: line.feeUsdc, reason: "revenue_share",
+          txHash: null, sourceRef: `revshare:${id}:${line.creatorId}`, createdAt: new Date(),
+        });
+      }
+      return id;
+    },
+    async listPayoutRuns(limit) {
+      return [...runs].sort((a, b) => b.day.localeCompare(a.day)).slice(0, limit);
     },
   };
 }

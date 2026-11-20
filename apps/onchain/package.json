@@ -8,7 +8,8 @@
     "start": "tsx --env-file-if-exists=../../.env src/index.ts",
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc --noEmit",
-    "setup:treasury": "tsx --env-file-if-exists=../../.env scripts/setup-treasury.ts"
+    "setup:treasury": "tsx --env-file-if-exists=../../.env scripts/setup-treasury.ts",
+    "seed:demo-tails": "tsx --env-file-if-exists=../../.env scripts/seed-demo-tails.ts"
   },
   "dependencies": {
     "@circle-fin/developer-controlled-wallets": "^10.8.1",

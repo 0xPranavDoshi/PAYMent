@@ -13,6 +13,8 @@ import {
   type AuthUser,
 } from "@copayme/shared";
 import { rewardAmount } from "./reward.js";
+import { PAYOUT_FEE_RATE } from "./config.js";
+import { planPayout, utcDay } from "./payouts.js";
 import { normHandle, type OnchainUser, type OnchainStore } from "./store.js";
 import type { PaymentProvider } from "./payments.js";
 
@@ -205,6 +207,45 @@ export function createApp({ store, payments, serviceKey }: AppDeps) {
     };
     return c.json(res);
   });
+
+  // ── Daily revenue share (admin, via the web backend) ────────────────────────
+
+  /** Dry run: what today's payout would credit, per creator. Changes nothing. */
+  app.post("/v1/payouts/preview", requireServiceKey, async (c) => {
+    const day = utcDay();
+    const { items: _items, ...plan } = planPayout(await store.listUnprocessedWinningTails(), PAYOUT_FEE_RATE);
+    return c.json({ day, alreadyRanToday: await store.hasPayoutRun(day), ...plan });
+  });
+
+  /**
+   * Runs today's payout: charges every unprocessed winning trade once, credits opted-in creators,
+   * and leaves the rest with the treasury. At most one run per UTC day.
+   */
+  app.post("/v1/payouts/run", requireServiceKey, async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as { runBy?: unknown };
+    const runBy = typeof body.runBy === "string" && body.runBy.trim() ? body.runBy.trim() : "admin";
+    const day = utcDay();
+    if (await store.hasPayoutRun(day)) return c.json({ error: `Today's payout already ran (${day}).` }, 409);
+
+    const plan = planPayout(await store.listUnprocessedWinningTails(), PAYOUT_FEE_RATE);
+    if (plan.tails === 0) return c.json({ ran: false, day, reason: "No new winning trades to pay out." });
+    try {
+      const runId = await store.recordPayoutRun({ day, runBy, plan });
+      const { items: _items, ...summary } = plan;
+      return c.json({ ran: true, day, runId, ...summary }, 201);
+    } catch (err) {
+      // Two runs racing on the same day: the unique run_day constraint rejects the second.
+      if (await store.hasPayoutRun(day)) return c.json({ error: `Today's payout already ran (${day}).` }, 409);
+      throw err;
+    }
+  });
+
+  app.get("/v1/payouts/runs", requireServiceKey, async (c) => c.json(await store.listPayoutRuns(30)));
+
+  /** Treasury USDC balance, when the payment provider can read it (null for the mock provider). */
+  app.get("/v1/treasury", requireServiceKey, async (c) =>
+    c.json({ provider: payments.kind, balanceUsdc: payments.treasuryBalance ? await payments.treasuryBalance() : null }),
+  );
 
   return app;
 }

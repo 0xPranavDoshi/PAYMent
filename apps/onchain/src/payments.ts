@@ -12,6 +12,8 @@ export interface PaymentProvider {
   payCreator(toAddress: string, amountUsdc: number, memo?: string): Promise<{ txHash: string }>;
   /** Redeem: send a user's accrued USDC to their connected wallet. Returns the tx hash. */
   redeemTo(toAddress: string, amountUsdc: number, memo?: string): Promise<{ txHash: string }>;
+  /** The treasury's USDC balance, when the provider can read it. */
+  treasuryBalance?(): Promise<number | null>;
 }
 
 /**
@@ -80,6 +82,11 @@ export async function createWalletPaymentProvider(env: CircleWalletEnv): Promise
     kind: "wallet",
     payCreator: (to, amount, memo) => transfer(to, amount, memo ?? "copayme reward"),
     redeemTo: (to, amount, memo) => transfer(to, amount, memo ?? "copayme redeem"),
+    async treasuryBalance() {
+      const res = await client.getWalletTokenBalance({ id: env.treasuryWalletId });
+      const usdc = (res.data?.tokenBalances ?? []).find((b: { token?: { symbol?: string } }) => b.token?.symbol === "USDC");
+      return usdc ? Number(usdc.amount) : null;
+    },
   };
 }
 

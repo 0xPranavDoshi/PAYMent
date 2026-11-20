@@ -1,3 +1,5 @@
+import type { PayoutPlan, UnprocessedTail } from "./payouts.js";
+
 /** A user as the on-chain service needs them (subset of the users table). */
 export interface OnchainUser {
   id: string;
@@ -45,6 +47,30 @@ export interface OnchainStore {
   ledgerExists(sourceRef: string): Promise<boolean>;
   addLedgerEntry(entry: AddLedgerEntry): Promise<LedgerRow>;
   earningsFor(userId: string): Promise<EarningsTotals>;
+
+  // ── Daily revenue share ──
+  /** Settled, profitable follower trades that no payout run has processed yet. */
+  listUnprocessedWinningTails(): Promise<UnprocessedTail[]>;
+  /** Whether a payout run already happened on this UTC day (YYYY-MM-DD). */
+  hasPayoutRun(day: string): Promise<boolean>;
+  /**
+   * Records a run atomically: the run row, one item per trade (so it is never charged again),
+   * and one `revenue_share` ledger credit per creator for their credited fees. Returns the run id.
+   */
+  recordPayoutRun(run: { day: string; runBy: string; plan: PayoutPlan }): Promise<string>;
+  listPayoutRuns(limit: number): Promise<PayoutRunSummary[]>;
+}
+
+export interface PayoutRunSummary {
+  id: string;
+  day: string;
+  runBy: string;
+  tails: number;
+  followerProfitUsdc: number;
+  feeTotalUsdc: number;
+  feeCreditedUsdc: number;
+  feeRetainedUsdc: number;
+  createdAt: Date;
 }
 
 /** Sum signed ledger rows into display totals. Shared by every store implementation. */
