@@ -49,7 +49,7 @@ export default async function Home() {
                 <span className="ta">DS</span>
                 <b>Demo Sharp</b>
                 <span className="at">@demo_sharp</span>
-                <span className="bd"><i />82<em>▲16</em></span>
+                <span className="bd"><i style={{ "--v": "82%" } as React.CSSProperties} />82</span>
               </div>
               <p>Chiefs −2.5 tonight. Buffalo&apos;s run defense has been a sieve since Week 6.</p>
             </div>

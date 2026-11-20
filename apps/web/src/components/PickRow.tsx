@@ -1,6 +1,7 @@
 "use client";
 
-import { TweetCard } from "@copayme/tweet-card";
+import { formatTweetTime, tweetUrl } from "@copayme/shared/tweet-text";
+import { TweetText } from "@copayme/tweet-card";
 import { useState } from "react";
 
 export interface PickRowProps {
@@ -21,7 +22,7 @@ export interface PickRowProps {
   postedAt: string;
 }
 
-/** One pick. Clicking the row opens the tweet in place, drawn by the same card the extension uses. */
+/** One pick. "See tweet" opens the tweet in place as a speech bubble from the trader, with what we read it as. */
 export default function PickRow(p: PickRowProps) {
   const [open, setOpen] = useState(false);
   return (
@@ -51,9 +52,36 @@ export default function PickRow(p: PickRowProps) {
       </div>
       {open && (
         <div className="pk-tweet">
-          <TweetCard className="inpick" handle={p.handle} text={p.tweetText} postedAt={p.postedAt} tweetId={p.tweetId} />
+          <TweetBubble {...p} />
         </div>
       )}
     </div>
+  );
+}
+
+function TweetBubble({ handle, tweetText, postedAt, tweetId, pick, price }: PickRowProps) {
+  const when = formatTweetTime(postedAt);
+  return (
+    <article className="pk-bubble" aria-label={`Tweet from @${handle}`}>
+      <div className="av" aria-hidden="true">
+        {handle.charAt(0).toUpperCase()}
+      </div>
+      <div className="bub">
+        <div className="h">
+          <b>@{handle}</b> · {when.full}
+        </div>
+        <p className="tx">
+          <TweetText text={tweetText} />
+        </p>
+        <div className="f">
+          <span>
+            We read this as <b>{pick} · {price}</b>
+          </span>
+          <a href={tweetUrl(tweetId)} target="_blank" rel="noopener noreferrer">
+            Open on X ↗
+          </a>
+        </div>
+      </div>
+    </article>
   );
 }

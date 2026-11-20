@@ -47,7 +47,6 @@ export default function Podium({ top, ctx }: { top: LeaderboardEntry[]; ctx: Cop
                     signedIn={ctx.signedIn}
                     viewerId={ctx.viewerId}
                     nPicks={e.nResolved}
-                    primary
                     ticketPlacement="below"
                     open={ctx.openHandle === e.handle}
                     onOpenChange={(o) => ctx.setOpenHandle(o ? e.handle : null)}
