@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LeaderboardEntry } from "./api";
-import { FILTERS, podiumOrder, rankOf } from "./leaderboard";
+import { FILTERS, podiumOrder, rankOf, ticketSlot } from "./leaderboard";
 
 const e = (o: Partial<LeaderboardEntry>): LeaderboardEntry => ({
   handle: "x", score: 50, change14d: null, nResolved: 10, hitRate: 0.5, tier: "scored", skill: 0, ...o,
@@ -39,5 +39,14 @@ describe("rankOf", () => {
   it("finds a handle's rank", () => {
     expect(rankOf(board, "b")).toEqual({ rank: 2, total: 3 });
     expect(rankOf(board, "zzz")).toBeNull();
+  });
+});
+
+describe("ticketSlot", () => {
+  it("attaches the ticket to its row, else to the podium, else nothing", () => {
+    expect(ticketSlot(["a", "b"], "b")).toBe("row");
+    expect(ticketSlot(["b"], "a")).toBe("podium");
+    expect(ticketSlot([], "a")).toBe("podium");
+    expect(ticketSlot(["a"], null)).toBeNull();
   });
 });

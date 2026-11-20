@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { LeaderboardEntry } from "@/lib/api";
-import { FILTERS, type FilterId } from "@/lib/leaderboard";
+import { FILTERS, ticketSlot, type FilterId } from "@/lib/leaderboard";
 import { formatCents, formatChange, formatPct, tone } from "@/lib/format";
 import CopyTicket, { CopyTradeToggle, type CopyState } from "./CopyTicket";
 import Podium from "./Podium";
@@ -41,6 +41,9 @@ export default function LeaderboardTable({
   const active = FILTERS.find((f) => f.id === filter)!;
   const rows = entries.map((e, i) => ({ e, rank: i + 1 })).filter(({ e }) => active.test(e));
 
+  const slot = ticketSlot(rows.map((r) => r.e.handle), openHandle);
+  const openEntry = openHandle ? entries.find((e) => e.handle === openHandle) : undefined;
+
   return (
     <>
       <div className="lb-filters" role="group" aria-label="Filter traders">
@@ -60,6 +63,18 @@ export default function LeaderboardTable({
       </div>
 
       <Podium top={entries.slice(0, 3)} history={history} ctx={ctx} />
+
+      {slot === "podium" && openEntry && (
+        <CopyTicket
+          handle={openEntry.handle}
+          copy={copies[openEntry.handle.toLowerCase()] ?? null}
+          signedIn={signedIn}
+          viewerId={viewerId}
+          nPicks={openEntry.nResolved}
+          variant="card"
+          onClose={() => setOpenHandle(null)}
+        />
+      )}
 
       <div className="lb-tbl">
         <div className="lb-tr h" aria-hidden="true">

@@ -20,3 +20,9 @@ export function rankOf(board: LeaderboardEntry[], handle: string): { rank: numbe
   const i = board.findIndex((e) => e.handle.toLowerCase() === handle.toLowerCase());
   return i < 0 ? null : { rank: i + 1, total: board.length };
 }
+
+/** Where an open ticket renders: under its table row, or under the podium when the filter hides that row. */
+export function ticketSlot(rowHandles: string[], openHandle: string | null): "row" | "podium" | null {
+  if (openHandle === null) return null;
+  return rowHandles.includes(openHandle) ? "row" : "podium";
+}
