@@ -92,7 +92,15 @@ export function createScanService(opts: {
       if (last !== undefined && now() - last < RESCAN_AFTER_MS) return Promise.resolve({ status: "skipped" });
       lastAsked.set(handle, now());
       stoppedByUser.delete(handle);
-      const job = run(handle, newestTweetId).finally(() => inFlight.delete(handle));
+      const job = run(handle, newestTweetId)
+        .then((outcome) => {
+          // A scan that timed out or failed may still finish on the scout, or can be retried: Try again
+          // must reach the scout instead of being skipped for 10 minutes. (The scout then keeps one scan
+          // per handle: a still-running one is waited on, a finished one answers at once.)
+          if (outcome.status === "timeout" || outcome.status === "failed") lastAsked.delete(handle);
+          return outcome;
+        })
+        .finally(() => inFlight.delete(handle));
       inFlight.set(handle, job);
       return job;
     },

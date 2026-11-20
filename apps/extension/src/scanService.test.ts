@@ -64,6 +64,23 @@ describe("createScanService", () => {
     expect(refreshBadge).not.toHaveBeenCalled();
   });
 
+  it("allows asking again right after a timeout or a failure, instead of skipping for 10 minutes", async () => {
+    const { service } = setup(scout(["running"]));
+    expect((await service.scan("alice")).status).toBe("timeout");
+    // the scan may well have finished on the scout meanwhile: the next try must ask, not be skipped
+    expect((await service.scan("alice")).status).toBe("timeout");
+
+    const failing = setup(scout(["idle"], 500));
+    expect((await failing.service.scan("alice")).status).toBe("failed");
+    expect((await failing.service.scan("alice")).status).toBe("failed");
+  });
+
+  it("still skips a handle that was scanned successfully in the last 10 minutes", async () => {
+    const { service } = setup(scout(["idle"]));
+    expect((await service.scan("alice")).status).toBe("done");
+    expect((await service.scan("alice")).status).toBe("skipped");
+  });
+
   it("reports a failed scan and HTTP errors as failed", async () => {
     expect((await setup(scout(["running", "failed"])).service.scan("alice")).status).toBe("failed");
     expect((await setup(scout(["idle"], 429)).service.scan("alice")).status).toBe("failed");
